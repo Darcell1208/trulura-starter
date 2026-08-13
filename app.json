@@ -1,0 +1,10 @@
+{
+  "expo": {
+    "name": "trulura-starter",
+    "slug": "trulura-starter",
+    "version": "1.0.0",
+    "scheme": "trulura",
+    "web": { "bundler": "metro" },
+    "plugins": []
+  }
+}

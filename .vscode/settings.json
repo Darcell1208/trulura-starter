@@ -1,0 +1,34 @@
+{
+  // Auto-fix & organize code on save (combined!)
+  "editor.codeActionsOnSave": {
+    "source.fixAll": "explicit",
+    "source.organizeImports": "explicit",
+    "source.sortMembers": "explicit",
+    "source.fixAll.eslint": "explicit"
+  },
+
+  // Prettier auto-format
+  "editor.formatOnSave": true,
+  "editor.defaultFormatter": "esbenp.prettier-vscode",
+
+  // Tabs and indentation
+  "editor.tabSize": 2,
+  "editor.insertSpaces": true,
+
+  // Improve JS/React suggestions
+  "javascript.suggest.autoImports": true,
+  "typescript.suggest.autoImports": true,
+
+  // ESLint
+  "eslint.enable": true,
+  "eslint.run": "onType",
+
+  // Error highlighting
+  "errorLens.enabled": true,
+
+  // Optional cleanup
+  "files.exclude": {
+    "**/.expo": true,
+    "**/.expo-shared": true
+  }
+}
