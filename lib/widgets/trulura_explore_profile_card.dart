@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import 'package:trulura/models/user/user.dart';
+import 'package:trulura/models/user.dart';
 import 'package:trulura/services/trust_signal_service.dart';
 import 'package:trulura/theme.dart';
 import 'package:trulura/widgets/trulura_glass_card.dart';

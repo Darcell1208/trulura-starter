@@ -60,3 +60,8 @@ ios/Pods/
 
 # Logs
 *.log
+
+# Flutter CLI debug dumps (flutter pub deps / flutter doctor output)
+deps.txt
+deps.txt4
+doctor.txt
