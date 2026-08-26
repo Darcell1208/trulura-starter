@@ -140,7 +140,7 @@ class MiniProfileCard extends StatelessWidget {
   Widget build(BuildContext context) {
     final p = kTruLuraPalettes[mode]!;
 
-    final auraGlow = context.watch<AuraController>().auraColor;
+    final auraGlow = context.watch<AuraStateController>().auraColor;
     final blendedGlow = Color.lerp(p.glowB, auraGlow, 0.45) ?? auraGlow;
     return GestureDetector(
       onTap: onTap,

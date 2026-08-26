@@ -445,7 +445,7 @@ class _HomeHubScreenState extends State<HomeHubScreen>
         _tabController.animateTo(targetTabIndex);
       });
     }
-    final aura = context.watch<AuraController>();
+    final aura = context.watch<AuraStateController>();
     final user = app.currentUser;
     final profileSummary = _profileCompletion.summarize(user);
     final profileNextStep = _profileCompletion.nextStepCopy(user);
@@ -826,7 +826,7 @@ class _HomeHubScreenState extends State<HomeHubScreen>
                             tone: moodTone,
                             onTap: () {
                               debugPrint('Tapped mood: $mood');
-                              context.read<AuraController>().updateMood(mood);
+                              context.read<AuraStateController>().updateMood(mood);
                             },
                             padding: EdgeInsets.symmetric(
                               horizontal: 14,

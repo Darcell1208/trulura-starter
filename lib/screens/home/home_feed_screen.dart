@@ -810,7 +810,7 @@ class _HomeFeedScreenState extends State<HomeFeedScreen>
       }
     }
 
-    final aura = context.watch<AuraController>();
+    final aura = context.watch<AuraStateController>();
     final auraAccent =
         Color.lerp(accent, aura.auraColor, 0.58) ?? aura.auraColor;
     return AnimatedBuilder(

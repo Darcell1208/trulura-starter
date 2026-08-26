@@ -28,8 +28,8 @@ class AuraState {
       mood: mood,
       energyLevel: EnergyLevel.medium,
       intent: Intent.social,
-      auraColor: AuraController.colorForMood(mood),
-      vibeTags: AuraController.defaultTagsForMood(mood),
+      auraColor: AuraStateController.colorForMood(mood),
+      vibeTags: AuraStateController.defaultTagsForMood(mood),
     );
   }
 
@@ -50,7 +50,7 @@ class AuraState {
   }
 }
 
-class AuraController extends ChangeNotifier {
+class AuraStateController extends ChangeNotifier {
   AuraState _state = AuraState.initial();
 
   AuraState get state => _state;

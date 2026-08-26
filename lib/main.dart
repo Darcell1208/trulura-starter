@@ -30,7 +30,7 @@ class MyApp extends StatelessWidget {
       providers: [
         ChangeNotifierProvider.value(value: appProvider),
         ChangeNotifierProvider(create: (_) => AppState()),
-        ChangeNotifierProvider(create: (_) => AuraController()),
+        ChangeNotifierProvider(create: (_) => AuraStateController()),
         ChangeNotifierProvider(create: (_) => TruLuraModeController(TruLuraMode.aura)),
         ChangeNotifierProvider(create: (_) => ExperienceModeController(appProvider: appProvider)..initialize()),
       ],

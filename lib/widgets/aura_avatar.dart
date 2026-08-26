@@ -68,7 +68,7 @@ class _AuraAvatarState extends State<AuraAvatar> with SingleTickerProviderStateM
   Widget build(BuildContext context) {
     final size = widget.size;
 
-    final aura = context.watch<AuraController>();
+    final aura = context.watch<AuraStateController>();
     return SizedBox(
       width: size,
       height: size,

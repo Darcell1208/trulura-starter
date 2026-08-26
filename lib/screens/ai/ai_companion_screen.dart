@@ -87,7 +87,7 @@ class _TruCompanionScreenState extends State<TruCompanionScreen> {
         truParseUiState(GoRouterState.of(context).uri.queryParameters['ui']);
     final cs = Theme.of(context).colorScheme;
     final app = context.watch<AppProvider>();
-    final aura = context.watch<aura_state.AuraController>().state;
+    final aura = context.watch<aura_state.AuraStateController>().state;
     final presence = app.emotionalPresenceState;
     final user = app.currentUser;
 

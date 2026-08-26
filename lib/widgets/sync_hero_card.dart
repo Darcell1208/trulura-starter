@@ -105,7 +105,7 @@ class SyncHeroCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final auraGlow = context.watch<AuraController>().auraColor;
+    final auraGlow = context.watch<AuraStateController>().auraColor;
 
     if (mode != null) {
           final p = kTruLuraPalettes[mode!]!;
