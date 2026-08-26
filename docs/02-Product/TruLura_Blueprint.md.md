@@ -20278,6 +20278,8 @@ Revenue splits operate on two layers:
 -   Explicit protection against exploiting ("milking") lower earners
 -   A stated preference for not publicly disclosing certain formula details, for anti-gaming and possible legal reasons
 
+*Carve-out: the exact percentages within each transaction-type baseline (see 7.8) remain unconfirmed and are not settled by this approval — only the two-layer architecture and governing principles are confirmed. Tracked as PD-07.*
+
 **27.2 TruScore & Unified Trust Architecture Relationship (extends 1.3 Trust & Behavior Scoring System, 9.22 Behavioral Reputation System & Long-Term Trust Scoring, and 13.10 Creator Reputation & Trust Layer)**
 
 Creator-facing trust scoring (referred to elsewhere as TruScore) is **a creator-specific lens on the single unified Trust Architecture defined in Sections 1 and 9 — not a separate or parallel scoring system.** There is one trust model; the creator view reads deeper into it for monetization purposes.
@@ -20300,6 +20302,8 @@ Enforcement is **restorative by default**. Corrective intervention precedes puni
 
 Bullying is never acceptable on the platform, and the system carries an explicit requirement to distinguish bullying from debate, disagreement, and criticism. (Gifting-related exception carried under this enforcement philosophy: see 27.3, Section 14.9.)
 
+*Carve-out: a proposed four-level enforcement framework (beyond the restorative-default philosophy and immediate-removal categories above) was NOT applied by this approval and remains Design Proposal only. PD-21 is not resolved by this change.*
+
 **27.5 Group Size Policy (extends 16.5 Safety & Eligibility System (CRITICAL), as new subsection 16.5.2, elaborating the existing "Controlled group sizes" safety feature)**
 
 There is **no permanent cap on group size.** Large groups are permitted, conditional on proper planning — staffing, logistics, transportation, safety, and accommodations must all be satisfied before a large group experience is approved.
@@ -20315,6 +20319,8 @@ TruLuxe access is governed by a combination of:
 -   verification, trust standing, and contribution history
 
 No single factor grants access on its own; the model is deliberately multi-factor.
+
+*Carve-out: a stated gender-differentiated access preference was NOT applied by this approval — it is Implementation Open, carrying substantial legal risk under state public-accommodation law. Who may issue invitations also remains open.*
 
 **27.7 AI Training & Data-Sensitivity Tiers (extends 22.4 Privacy Controls & User Data Ownership, as new subsection 22.4.1)**
 
