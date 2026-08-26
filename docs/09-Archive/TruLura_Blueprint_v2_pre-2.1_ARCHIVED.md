@@ -1,6 +1,6 @@
-# TruLura Blueprint — v2.1 (Modernized, Consolidated + Addendum)
+# TruLura Blueprint — v2 (Modernized, Consolidated)
 
-**Status:** Single authoritative file. Product Knowledge System is now the source of truth per project directive. This document supersedes the original `Trulura_File_rebuild.docx` as the working blueprint. Prior version archived at `docs/09-Archive/TruLura_Blueprint_v2_pre-2.1_ARCHIVED.md`.
+**Status:** Single authoritative file. Product Knowledge System is now the source of truth per project directive. This document supersedes the original `Trulura_File_rebuild.docx` as the working blueprint.
 
 ## What changed in this consolidation (mechanical only — no philosophy, terminology, or product logic altered)
 
@@ -14,12 +14,6 @@
 - All 26 sections' substantive content, philosophy, and terminology.
 - The still-open items: the Section 2/3 (Experience Modes) and Section 7/8 (Monetization) merges are tracked and pointer-noted in the registers but **not yet executed inline here**, since both involve renumbering large amounts of content and neither is a mechanical, low-risk edit like the ones above — recommend these be done as a dedicated pass once Product confirms the still-open naming questions (PD-01, PD-14) that touch both.
 - Every open Product Decision and Engineering Gap remains exactly as logged in the Product Decisions Register and Engineering Gap Register — this consolidation is structural only, not a resolution of any open question.
-
-## What changed in v2.1 (2026-08-25)
-
-- **Added:** Section 27 (new, terminal), containing 8 Product Owner-confirmed decisions approved for promotion to canonical status. Full list and rationale for each: `docs/TruLura_PO_Decision_Aura_Architecture.md` and the Integration Queue review record.
-- **Zero lines of Sections 1–26 were added, removed, or altered.** Each Section 27 item is explicitly written as an extension of a specific existing numbered section rather than being interleaved inline, because `docs/03-Architecture/TruLura_Blueprint_Cross_Reference.md`, `docs/02-Product/TruLura_Engineering-Gap-Register.md.md`, and `docs/03-Architecture/TruLura_Domain_Model.md` all cite this file by exact line number. Interleaving would have shifted every citation past the earliest insertion point. Appending preserves every existing citation.
-- **Deferred, tracked explicitly:** folding these 8 items inline into their proper sections (e.g., merging the Section 27 revenue-split item into 7.8, or the AI-training-tiers item into 22.4 as 22.4.1) is intentionally not done here. It should happen as its own dedicated pass, together with a coordinated re-verification of the Cross-Reference index, Gap Register, and Domain Model — the same treatment already given to the still-open Section 2/3 and Section 7/8 merges above.
 
 ---
 
@@ -20258,81 +20252,3 @@ This prevents:\
 Top of Form
 
 Bottom of Form
-
----
-
-**SECTION 27: BLUEPRINT ADDENDUM v2.1 --- PRODUCT OWNER-CONFIRMED DECISIONS (2026-08-25)**
-
-This section is purely additive. Every item below extends a specific, named section of Sections 1–26 without altering, renumbering, or deleting any existing text there. Placement here rather than inline is deliberate — see "What changed in v2.1" above for why. Each item states which section it extends and should be read as governing content for that section going forward.
-
-**27.1 Confirmed Two-Layer Revenue-Split Model (extends 7.8 Revenue Distribution & Creator Tier Framework)**
-
-Revenue splits operate on two layers:
-
--   **Layer 1 — Transaction type sets the baseline.** Gifts, subscriptions, events, and brand deals each carry their own baseline split (see the existing per-transaction-type ranges in 7.8).
--   **Layer 2 — Creator tier / creator trust standing adjusts within that baseline.** Tier does not override the transaction-type baseline; it moves the creator's position inside it.
-
-**Governing principles:**
-
--   Fairness toward long-tenured high earners
--   Explicit protection against exploiting ("milking") lower earners
--   A stated preference for not publicly disclosing certain formula details, for anti-gaming and possible legal reasons
-
-**27.2 TruScore & Unified Trust Architecture Relationship (extends 1.3 Trust & Behavior Scoring System, 9.22 Behavioral Reputation System & Long-Term Trust Scoring, and 13.10 Creator Reputation & Trust Layer)**
-
-Creator-facing trust scoring (referred to elsewhere as TruScore) is **a creator-specific lens on the single unified Trust Architecture defined in Sections 1 and 9 — not a separate or parallel scoring system.** There is one trust model; the creator view reads deeper into it for monetization purposes.
-
-**27.3 Vent Space Gifting Restriction (extends 14.9 Monetization Restrictions (Strict Rule))**
-
-Gifting inside Vent Space is permitted **only as genuine support for a person in need** — never as a creator-monetization channel. Vent Space is not to become a creator-monetization ecosystem. (Related enforcement framing: 27.4 below.)
-
-**27.4 Enforcement Philosophy & Immediate-Removal Categories (extends 9.5.4 Enforcement Actions / 9.5.4.1 Graduated Behavioral Correction Framework, as new subsection 9.5.4.2)**
-
-Enforcement is **restorative by default**. Corrective intervention precedes punitive enforcement wherever the violation permits it.
-
-**Immediate, non-restorative enforcement applies specifically to:**
-
--   Child exploitation
--   Trafficking
--   Sexual harassment
--   Anything requiring legal or law-enforcement intervention
--   Credible terroristic threats
-
-Bullying is never acceptable on the platform, and the system carries an explicit requirement to distinguish bullying from debate, disagreement, and criticism. (Gifting-related exception carried under this enforcement philosophy: see 27.3, Section 14.9.)
-
-**27.5 Group Size Policy (extends 16.5 Safety & Eligibility System (CRITICAL), as new subsection 16.5.2, elaborating the existing "Controlled group sizes" safety feature)**
-
-There is **no permanent cap on group size.** Large groups are permitted, conditional on proper planning — staffing, logistics, transportation, safety, and accommodations must all be satisfied before a large group experience is approved.
-
-**27.6 Confirmed TruLuxe Qualification Model (extends 17.3 Access & Qualification System, as new subsection 17.3.1)**
-
-TruLuxe access is governed by a combination of:
-
--   invitation
--   paid buy-in / premium pricing
--   referrals
--   application review
--   verification, trust standing, and contribution history
-
-No single factor grants access on its own; the model is deliberately multi-factor.
-
-**27.7 AI Training & Data-Sensitivity Tiers (extends 22.4 Privacy Controls & User Data Ownership, as new subsection 22.4.1)**
-
-TruLura applies a three-tier standard governing how user data may be used, including for AI training.
-
-**Tier 1 — Baseline (all data, all jurisdictions):** legal compliance is the floor everywhere, explicitly in order to avoid legal risk, sanctions, or platform shutdown.
-
-**Tier 2 — Minors:** minors receive the platform's highest protections. The stated architectural direction is a fully separate platform to eliminate adult/teen crossover risk, potentially routing account creation directly based on stated age at signup.
-
-**Tier 3 — Stricter than law (high-sensitivity content):** the following are held to a standard stricter than legal minimums:
-
--   Journal entries
--   Vent Space content
--   Crisis conversations
--   Emotional wellness records
--   Highly sensitive emotional metadata
--   Any future protected therapeutic features
-
-**27.8 Section 27 Boundaries**
-
-This section does not resolve AB-010 (bottom navigation item count, reopened per `docs/TruLura_PO_Decision_Aura_Architecture.md`), PD-07 (revenue architecture percentages), or PD-18 (TruLuxe approval/legal review) — those remain open exactly as tracked elsewhere. Approving the 8 items above did not implicitly resolve anything not listed here.
