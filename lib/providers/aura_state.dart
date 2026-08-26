@@ -1,4 +1,6 @@
 import 'package:flutter/material.dart';
+import 'package:trulura/models/identity/identity_core.dart';
+import 'package:trulura/services/identity_core_repository.dart';
 
 enum Mood { reflective, flirty, calm, social, healing }
 
@@ -51,7 +53,12 @@ class AuraState {
 }
 
 class AuraStateController extends ChangeNotifier {
+  AuraStateController({IdentityCoreRepository? identityCoreRepository})
+      : _identityCoreRepository = identityCoreRepository ?? IdentityCoreRepository();
+
   AuraState _state = AuraState.initial();
+  final IdentityCoreRepository _identityCoreRepository;
+  IdentityCore? _identityCore;
 
   AuraState get state => _state;
   Mood get mood => _state.mood;
@@ -59,6 +66,17 @@ class AuraStateController extends ChangeNotifier {
   Intent get intent => _state.intent;
   Color get auraColor => _state.auraColor;
   List<String> get vibeTags => _state.vibeTags;
+
+  /// The persistent identity baseline (Layer 1). Mood, energy, and intent
+  /// above continue to layer on top of this rather than being derived from
+  /// it. Null until [initialize] completes, or if the user has no saved
+  /// identity core yet.
+  IdentityCore? get identityCore => _identityCore;
+
+  Future<void> initialize() async {
+    _identityCore = await _identityCoreRepository.getForCurrentUser();
+    notifyListeners();
+  }
 
   static Color colorForMood(Mood mood) {
     return switch (mood) {
