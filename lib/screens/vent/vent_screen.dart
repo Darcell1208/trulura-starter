@@ -9,7 +9,6 @@ import 'package:trulura/models/post.dart';
 import 'package:trulura/models/feed_item.dart';
 import 'package:trulura/providers/app_provider.dart';
 import 'package:trulura/providers/trulura_mode_controller.dart';
-import 'package:trulura/services/feed_demo_content_service.dart';
 import 'package:trulura/services/post_service.dart';
 import 'package:trulura/theme.dart';
 import 'package:trulura/widgets/trulura_halo_avatar.dart';
@@ -29,8 +28,6 @@ class VentScreen extends StatefulWidget {
 
 class _VentScreenState extends State<VentScreen> {
   final PostService _postService = PostService();
-  final FeedDemoContentService _feedDemoContent =
-      const FeedDemoContentService();
   List<Post> _ventPosts = [];
   bool _isLoading = true;
   bool _hasError = false;
@@ -296,9 +293,23 @@ class _VentScreenState extends State<VentScreen> {
                                       ],
                                     )
                                   : _ventPosts.isEmpty
-                                      ? _buildVentFeedList(
-                                          _feedDemoContent
-                                              .ventItems(const <Post>[]),
+                                      ? TruStatePanel(
+                                          glyph: TruLuraGlyph.shield,
+                                          title: 'Vent Space is quiet',
+                                          message:
+                                              'Start a protected reflection when you are ready.',
+                                          actions: [
+                                            TruStateAction(
+                                              label: 'Write a vent',
+                                              glyph: TruLuraGlyph.edit,
+                                              onTap: () => TruNavigation
+                                                  .pushWithReturnTo(
+                                                context,
+                                                AppRoutes.createPost,
+                                              ),
+                                              primary: true,
+                                            ),
+                                          ],
                                         )
                                       : _filtered.isEmpty
                                           ? TruStatePanel(
@@ -319,8 +330,15 @@ class _VentScreenState extends State<VentScreen> {
                                           : RefreshIndicator(
                                               onRefresh: _loadVentPosts,
                                               child: _buildVentFeedList(
-                                                _feedDemoContent
-                                                    .ventItems(_filtered),
+                                                _filtered
+                                                    .map(
+                                                      (post) => TruPostFeedItem(
+                                                        post: post.copyWith(
+                                                          isAnonymous: true,
+                                                        ),
+                                                      ),
+                                                    )
+                                                    .toList(growable: false),
                                               ),
                                             ),
             ),

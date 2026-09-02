@@ -7,6 +7,7 @@ import 'package:trulura/core/navigation/app_router.dart';
 import 'package:trulura/core/navigation/tru_navigation.dart';
 import 'package:trulura/core/navigation/tru_route_observer.dart';
 import 'package:trulura/models/identity/identity_profile.dart';
+import 'package:trulura/models/feed_item.dart';
 import 'package:trulura/models/user.dart';
 import 'package:trulura/services/identity_service.dart';
 import 'package:trulura/services/identity_profile_service.dart';
@@ -30,7 +31,6 @@ import 'package:trulura/widgets/trulura_profile_tab_bar.dart';
 import 'package:trulura/widgets/tru_toggle.dart';
 import 'package:trulura/services/post_service.dart';
 import 'package:trulura/models/post.dart';
-import 'package:trulura/services/feed_demo_content_service.dart';
 import 'package:trulura/widgets/trulura_feed_components.dart';
 import 'package:trulura/widgets/trulura_feed_item_renderer.dart';
 
@@ -55,8 +55,6 @@ class _ProfileScreenState extends State<ProfileScreen>
   final IdentityProfileService _identityProfiles = IdentityProfileService();
   final CompatibilityService _compat = CompatibilityService();
   final DeepQuizArchiveService _deepArchive = DeepQuizArchiveService();
-  final FeedDemoContentService _feedDemoContent =
-      const FeedDemoContentService();
   final ProfileCompletionService _profileCompletion =
       const ProfileCompletionService();
   static const Map<String, int> _temporaryQuizFallback = <String, int>{
@@ -693,11 +691,9 @@ class _ProfileScreenState extends State<ProfileScreen>
   }
 
   Widget _buildUnifiedFeedTab() {
-    final items = _feedDemoContent.profileItems(
-      user: _currentUser,
-      posts: _myPosts,
-      quizResults: _quizResults,
-    );
+    final items = _myPosts
+        .map((post) => TruPostFeedItem(post: post))
+        .toList(growable: false);
     return ListView.separated(
       primary: false,
       padding: const EdgeInsets.only(bottom: 24),

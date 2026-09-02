@@ -22,7 +22,6 @@ import 'package:trulura/services/safety_center_service.dart';
 import 'package:trulura/services/compatibility_service.dart';
 import 'package:trulura/services/profile_completion_service.dart';
 import 'package:trulura/services/quiz_engine.dart';
-import 'package:trulura/supabase/supabase_config.dart';
 import 'package:trulura/theme.dart';
 import 'package:trulura/theme/mood_colors.dart';
 import 'package:trulura/widgets/trulura_event_carousel_row.dart';
@@ -337,14 +336,7 @@ class _HomeFeedScreenState extends State<HomeFeedScreen>
         _isLoadingPosts = true;
         _postsError = null;
       });
-      final rows = await SupabaseConfig.client
-          .from('posts')
-          .select()
-          .eq('post_privacy', 'public')
-          .order('created_at', ascending: false);
-      final posts = List<Map<String, dynamic>>.from(rows as List)
-          .map(_postService.fromAuraRow)
-          .toList(growable: false);
+      final posts = await _postService.getAllPosts();
       debugPrint('HomeFeedScreen._loadInitialPosts posts=${posts.length}');
       if (posts.isNotEmpty) {
         debugPrint(
@@ -450,14 +442,7 @@ class _HomeFeedScreenState extends State<HomeFeedScreen>
             table: 'posts',
             callback: (payload) async {
               try {
-                final rows = await SupabaseConfig.client
-                    .from('posts')
-                    .select()
-                    .eq('post_privacy', 'public')
-                    .order('created_at', ascending: false);
-                final posts = List<Map<String, dynamic>>.from(rows as List)
-                    .map(_postService.fromAuraRow)
-                    .toList(growable: false);
+                final posts = await _postService.getAllPosts();
                 debugPrint(
                     'HomeFeedScreen.realtimeRefetch posts=${posts.length}');
                 if (posts.isNotEmpty) {
@@ -1966,7 +1951,6 @@ class _FeedTabViewState extends State<_FeedTabView>
         : const <Post>[];
     final boostedSet = boostedCandidates.map((e) => e.id).toSet();
 
-    final demoItems = _demoCards();
     final items = <_FeedItem>[];
     for (int i = 0; i < posts.length; i++) {
       final post = posts[i];
@@ -1989,9 +1973,6 @@ class _FeedTabViewState extends State<_FeedTabView>
           baseWhy: baseWhy);
       items
           .add(_FeedPostItem(post: post, boostedSlot: isBoostedSlot, why: why));
-      if (i == 0 && demoItems.isNotEmpty) {
-        items.add(demoItems.first);
-      }
       if (i == 1 && eventRow.isNotEmpty) {
         items.addAll(eventRow);
       }
@@ -2020,7 +2001,6 @@ class _FeedTabViewState extends State<_FeedTabView>
       }
     }
     if (items.length < 4) {
-      items.addAll(demoItems.skip(1).take(1));
       items.addAll(recommendationItems.take(1));
     }
     return items;

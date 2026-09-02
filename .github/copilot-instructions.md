@@ -55,6 +55,23 @@ This file captures the immediately useful knowledge for an AI coding agent to be
 - `glow_posts`, `glow_sessions`, `sparks`, `vents` and `moods` are **device-scoped, not user-scoped**. They have a `device_id` column and no `user_id`. Their policies check `exists (select 1 from device_users du where du.device_id = <table>.device_id and du.id = auth.uid())`.
 - Because of that, **any insert into those tables must set `device_id`** to the current user's `device_users` row. Omitting it makes the check fail and the insert is denied.
 - `posts`, `vent_posts` and `profiles` are user-scoped and keyed on `user_id` (or `id` for `profiles`).
+
+### Always drop policies by their verified live name
+
+Before writing `drop policy`, query the real names:
+
+```sql
+select policyname, cmd, roles::text, qual
+from pg_policies where schemaname = 'public' and tablename = '<table>';
+```
+
+`drop policy if exists` on a name that does not exist is a silent no-op. Two separate migrations in this repo were written against invented, prose-style policy names (`"Users can read their own posts"`) when the live policies were named `posts_read_visible`, `posts_select_public`, and so on. Because the drops matched nothing, the over-permissive policy survived and the new policies were merely OR-ed on top of it. **Both migrations would have appeared to succeed and changed nothing.**
+
+This is the failure mode to watch for: since permissive policies only ever widen access, a migration that means to *restrict* access is doing nothing unless it drops the exact policy that grants too much. Verify by role afterwards rather than trusting the policy list:
+
+```sql
+begin; set local role anon; select count(*) from public.<table>; rollback;
+```
 - `profiles` is readable by any signed-in user (`profiles_select_authenticated`) but **not** by anonymous callers. Do not add a policy granting `select` to the `public` or `anon` role — the anon key ships inside the app, so that exposes every profile row, including `email`, to anyone who extracts it.
 
 ## Security / commit guidance for agents

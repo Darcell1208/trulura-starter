@@ -44,6 +44,22 @@ class PostService {
     }
   }
 
+  /// Feed bucket a post belongs to. This is a different axis from
+  /// [_normalizePostType], which describes the post's *format*.
+  ///
+  /// Persisted in `posts.category`. Without it the Vent bucket cannot round
+  /// trip: writes would drop it and reads would have nothing to filter on.
+  String _normalizeCategory(String? value) {
+    switch ((value ?? '').trim().toLowerCase()) {
+      case 'vent':
+        return 'Vent';
+      case 'mood':
+        return 'Mood';
+      default:
+        return 'ForYou';
+    }
+  }
+
   /// Maps the app `Post` model to your current live `posts` table schema.
   ///
   /// Intentionally does **not** send `created_at` / `updated_at` because many
@@ -58,6 +74,7 @@ class PostService {
         'mood_tag': post.moodTag,
         'post_privacy': _normalizePrivacy(post.privacy),
         'is_anonymous': post.isAnonymous,
+        'category': _normalizeCategory(post.category),
         // Optional: if your posts table includes this column, we will persist it.
         // If it doesn't exist yet, we auto-retry inserts without it.
         if (post.experienceMode != null) 'experience_mode': post.experienceMode!.name,
@@ -331,49 +348,13 @@ class PostService {
   Future<List<Map<String, dynamic>>> fetchAuraFeed() async {
     if (!_supabaseReady) return [];
 
-    Future<List<Map<String, dynamic>>> runSelect({required bool includeExperienceMode}) async {
-      final select = includeExperienceMode
-          ? '''
-id,
-content_text,
-post_type,
-post_privacy,
-is_anonymous,
-image_url,
-created_at,
-user_id,
-mood_tag,
-experience_mode
-'''
-          : '''
-id,
-content_text,
-post_type,
-post_privacy,
-is_anonymous,
-image_url,
-created_at,
-user_id,
-mood_tag
-''';
-
-      final rows = await DatabaseService.instance.client.from('posts').select(select).order('created_at', ascending: false);
-      return List<Map<String, dynamic>>.from(rows as List);
-    }
-
-    try {
-      return await runSelect(includeExperienceMode: true);
-    } catch (e) {
-      // Backwards compatibility: some environments don't have `experience_mode`
-      // yet. PostgREST reports it as code 42703 (undefined_column).
-      final msg = e.toString();
-      final isMissingColumn = msg.contains('experience_mode') && (msg.contains('does not exist') || msg.contains('42703'));
-      if (isMissingColumn) {
-        debugPrint('PostService: posts.experience_mode missing; falling back to legacy select.');
-        return await runSelect(includeExperienceMode: false);
-      }
-      rethrow;
-    }
+    // Select every column rather than naming them. An explicit column list
+    // fails outright against a schema missing any one of them, which forced a
+    // per-column fallback; `select()` simply omits absent columns from the
+    // returned rows, and _fromAuraRow already tolerates nulls. This also means
+    // newly added columns (like `category`) need no change here.
+    final rows = await DatabaseService.instance.client.from('posts').select().order('created_at', ascending: false);
+    return List<Map<String, dynamic>>.from(rows as List);
   }
 
   /// Maps a Supabase `posts` row (with optional `profiles:profile_id (...)` join)
@@ -401,7 +382,7 @@ mood_tag
       textStyle: type == 'text' ? 'serif' : null,
       moodTag: (mood?.isEmpty ?? true) ? null : mood,
       privacy: _normalizePrivacy(row['post_privacy'] as String?),
-      category: 'ForYou',
+      category: _normalizeCategory(row['category'] as String?),
       isAnonymous: (row['is_anonymous'] as bool?) ?? false,
       experienceMode: TruExperienceModeX.tryParse(row['experience_mode']?.toString()),
       likeCount: 0,
@@ -461,11 +442,15 @@ mood_tag
       try {
         await attemptInsert(row);
       } catch (e) {
-        // Backwards compatibility: if the schema doesn't have experience_mode
-        // yet, retry without it.
+        // PGRST204 means the schema is missing a column we sent. `category`
+        // and `experience_mode` are both optional; drop whichever one the
+        // error names and retry once.
         final msg = e.toString();
-        if (msg.contains('PGRST204') && row.containsKey('experience_mode')) {
-          final fallback = Map<String, dynamic>.from(row)..remove('experience_mode');
+        const optionalColumns = ['category', 'experience_mode'];
+        final missing = optionalColumns.where((c) => msg.contains(c) && row.containsKey(c)).toList(growable: false);
+        if (msg.contains('PGRST204') && missing.isNotEmpty) {
+          debugPrint('PostService: posts is missing $missing; retrying insert without them.');
+          final fallback = Map<String, dynamic>.from(row)..removeWhere((key, _) => missing.contains(key));
           await attemptInsert(fallback);
         } else {
           rethrow;
