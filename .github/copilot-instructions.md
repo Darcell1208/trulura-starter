@@ -12,20 +12,21 @@ This file captures the immediately useful knowledge for an AI coding agent to be
 
 - Single React Native app with React Navigation and Supabase backend.
 - Auth flow: `src/context/AuthContext.js` manages Supabase auth session and loads the `profiles` row. `AppNavigator` (in `src/navigation/AppNavigator.js`) chooses auth vs main app screens and forces `ProfileSetup` if the profile lacks `display_name`.
-- Live data: `src/context/TruluraDataProvider.js` fetches `glows`, `sparks`, and `vents` and subscribes to Postgres realtime changes via Supabase channels. Tables used: `glows`, `sparks`, `vents`, `profiles`.
+- Live data: each screen queries Supabase directly — `ExploreScreen` and `CreatorScreen` read `glow_sessions`/`sparks`/`vents`/`moods`, `GlowScreen` reads `glow_posts`, `VentScreen` reads `vent_posts`. `src/hooks/useRealtimeCounts.js` holds the realtime subscriptions. Tables used: `glow_posts`, `glow_sessions`, `sparks`, `vents`, `vent_posts`, `moods`, `profiles`.
+- There is no `glows` table. "Glows" is a UI label: `glow_sessions` backs the counts and Explore/Creator feeds, `glow_posts` backs the Glow feed.
 
 ## Supabase setup / important nuance
 
 - There are two Supabase client files with different purposes:
   - `src/lib/supabaseClient.js` — used by `AuthContext`. It configures Supabase with `AsyncStorage` and (in this repo) contains a hard-coded URL/anon key. This client supports `auth` persistence for the mobile app.
-  - `src/lib/supabase.js` — used by `TruluraDataProvider`. It expects `process.env.EXPO_PUBLIC_SUPABASE_URL` and `EXPO_PUBLIC_SUPABASE_ANON_KEY` (the `.env` workflow). It prints a console error if the env vars are missing.
+  - `src/lib/supabase.js` — used by the data screens (`ExploreScreen`, `CreatorScreen`, `GlowScreen`, `VentScreen`) and `useRealtimeCounts`. It expects `process.env.EXPO_PUBLIC_SUPABASE_URL` and `EXPO_PUBLIC_SUPABASE_ANON_KEY` (the `.env` workflow). It prints a console error if the env vars are missing.
 - When making changes to auth or realtime flows, be careful which client the code imports.
 
 ## Key patterns and conventions
 
-- Data normalization: `TruluraDataProvider.normalizeRow` maps `created_at` → `createdAt` for UI code. Follow this pattern when reading/writing rows.
-- Realtime updates: `TruluraDataProvider` creates a single channel `trulura-live` and subscribes to `postgres_changes` for each table; it calls `supabase.removeChannel(channelRef)` on cleanup. Match this subscribe/unsubscribe pattern when adding channels.
-- State updates: add/insert handlers (e.g., `addSpark`, `addVent`) update local state immediately and rely on realtime to reconcile changes.
+- Data normalization: screens read snake_case columns (`created_at`) straight from Supabase. `VentScreen` is the exception and maps to `createdAt` locally; follow the local-mapping pattern rather than adding a global normalizer.
+- Realtime updates: `src/hooks/useRealtimeCounts.js` subscribes to `postgres_changes` and calls `supabase.removeChannel(...)` on cleanup. Match that subscribe/unsubscribe pattern when adding channels.
+- Ordering columns differ per table: `glow_sessions` has `started_at`/`completed_at` and **no** `created_at`, so order it by `started_at`. `glow_posts`, `sparks`, `vents`, `vent_posts` and `moods` all have `created_at`.
 - UI structure: screens live in `src/screens/*`, components in `src/components/*`, theme in `src/theme/*` and `constants/theme.ts`.
 
 ## Developer workflows and gotchas
@@ -39,14 +40,22 @@ This file captures the immediately useful knowledge for an AI coding agent to be
 ## Where to look for common tasks (examples)
 
 - Add authentication-related changes: `src/context/AuthContext.js`, `src/lib/supabaseClient.js`.
-- Add new realtime table handling: `src/context/TruluraDataProvider.js` (see `applyChange` and subscription setup).
+- Add new realtime table handling: `src/hooks/useRealtimeCounts.js` (see the subscription setup).
 - Add screens or navigation: `src/navigation/*`, `src/screens/*`, `App.js`.
 - Update Supabase env keys: prefer `src/lib/supabase.js` and `.env` variables (`EXPO_PUBLIC_SUPABASE_*`) for non-committed secrets; avoid changing the hard-coded key in `supabaseClient.js` without consent.
 
 ## How the UI expects data
 
-- Many screens expect `createdAt` instead of `created_at`. Use `normalizeRow` or return rows with `createdAt` for compatibility.
-- Data arrays are ordered by `created_at` descending in provider queries — UI lists assume newest-first.
+- Screens read `created_at` directly; only `VentScreen` maps it to `createdAt`, and it does so locally.
+- Lists are ordered newest-first — `created_at` descending on most tables, `started_at` descending on `glow_sessions`.
+
+## Row Level Security (affects every write)
+
+- RLS is enabled on all public tables, and policies are permissive, meaning they are **OR-ed** together. Adding a `using (true)` policy therefore widens access for everyone; it never narrows it.
+- `glow_posts`, `glow_sessions`, `sparks`, `vents` and `moods` are **device-scoped, not user-scoped**. They have a `device_id` column and no `user_id`. Their policies check `exists (select 1 from device_users du where du.device_id = <table>.device_id and du.id = auth.uid())`.
+- Because of that, **any insert into those tables must set `device_id`** to the current user's `device_users` row. Omitting it makes the check fail and the insert is denied.
+- `posts`, `vent_posts` and `profiles` are user-scoped and keyed on `user_id` (or `id` for `profiles`).
+- `profiles` is readable by any signed-in user (`profiles_select_authenticated`) but **not** by anonymous callers. Do not add a policy granting `select` to the `public` or `anon` role — the anon key ships inside the app, so that exposes every profile row, including `email`, to anyone who extracts it.
 
 ## Security / commit guidance for agents
 
@@ -54,7 +63,7 @@ This file captures the immediately useful knowledge for an AI coding agent to be
 
 ## Useful search tokens for an agent
 
-- `TruluraDataProvider`, `useTruluraData`, `AuthContext`, `supabaseClient`, `EXPO_PUBLIC_SUPABASE`, `trulura-live`, `createdAt`.
+- `AuthContext`, `supabaseClient`, `useRealtimeCounts`, `EXPO_PUBLIC_SUPABASE`, `device_users`, `device_id`, `created_at`.
 
 ---
 
