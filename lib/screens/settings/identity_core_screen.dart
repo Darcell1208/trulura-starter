@@ -3,9 +3,12 @@ import 'package:go_router/go_router.dart';
 import 'package:trulura/compat/provider_compat.dart';
 import 'package:trulura/core/navigation/app_router.dart';
 import 'package:trulura/core/navigation/tru_navigation.dart';
+import 'package:trulura/models/identity/identity_core.dart';
 import 'package:trulura/models/identity/identity_profile.dart';
 import 'package:trulura/models/user.dart';
 import 'package:trulura/providers/app_provider.dart';
+import 'package:trulura/providers/aura_state.dart';
+import 'package:trulura/services/identity_core_repository.dart';
 import 'package:trulura/services/identity_profile_service.dart';
 import 'package:trulura/services/identity_service.dart';
 import 'package:trulura/services/user_service.dart';
@@ -28,10 +31,16 @@ class _IdentityCoreScreenState extends State<IdentityCoreScreen> {
   final _users = UserService();
   final _identity = IdentityService();
   final _profiles = IdentityProfileService();
+  final _identityCoreRepository = IdentityCoreRepository();
+  final _communicationStyle = TextEditingController();
+  final _coreValues = TextEditingController();
+  final _relationshipPreferences = TextEditingController();
 
   User? _me;
+  IdentityCore? _identityCore;
   List<TruIdentityProfile> _all = const [];
   bool _loading = true;
+  bool _savingCore = false;
   TruIdentityMode? _activeMode;
 
   @override
@@ -44,10 +53,22 @@ class _IdentityCoreScreenState extends State<IdentityCoreScreen> {
     setState(() => _loading = true);
     try {
       final me = await _users.getCurrentUser();
-      final all = me == null ? const <TruIdentityProfile>[] : await _profiles.getAll(userId: me.id);
+      final results = await Future.wait<Object?>([
+        if (me == null)
+          Future<List<TruIdentityProfile>>.value(const <TruIdentityProfile>[])
+        else
+          _profiles.getAll(userId: me.id),
+        _identityCoreRepository.getForCurrentUser(),
+      ]);
+      final all = results[0] as List<TruIdentityProfile>;
+      final identityCore = results[1] as IdentityCore?;
       if (!mounted) return;
+      final editableCore =
+          identityCore ?? (me == null ? null : IdentityCore.empty(me.id));
+      _hydrateIdentityCoreFields(editableCore);
       setState(() {
         _me = me;
+        _identityCore = editableCore;
         _all = all;
         _activeMode = me?.activeIdentityMode;
         _loading = false;
@@ -59,12 +80,77 @@ class _IdentityCoreScreenState extends State<IdentityCoreScreen> {
     }
   }
 
+  void _hydrateIdentityCoreFields(IdentityCore? identityCore) {
+    _communicationStyle.text = identityCore?.communicationStyle ?? '';
+    _coreValues.text = identityCore?.coreValues.join(', ') ?? '';
+    _relationshipPreferences.text = identityCore?.relationshipPreferences ?? '';
+  }
+
+  List<String> _parseCoreValues(String raw) => raw
+      .split(RegExp(r'[\n,]'))
+      .map((e) => e.trim())
+      .where((e) => e.isNotEmpty)
+      .toSet()
+      .toList(growable: false);
+
+  String? _blankToNull(String raw) {
+    final trimmed = raw.trim();
+    return trimmed.isEmpty ? null : trimmed;
+  }
+
+  Future<void> _saveIdentityCore() async {
+    final me = _me;
+    final core = _identityCore;
+    if (me == null && core == null) {
+      _showSnack('Sign in to save your identity core.');
+      return;
+    }
+
+    setState(() => _savingCore = true);
+    try {
+      final next = IdentityCore(
+        userId: core?.userId ?? me!.id,
+        communicationStyle: _blankToNull(_communicationStyle.text),
+        coreValues: _parseCoreValues(_coreValues.text),
+        relationshipPreferences: _blankToNull(_relationshipPreferences.text),
+      );
+      final saved = await _identityCoreRepository.save(next);
+      if (!mounted) return;
+      if (saved == null) {
+        _showSnack('Could not save identity core. Try again when signed in.');
+        return;
+      }
+      setState(() => _identityCore = saved);
+      await context.read<AuraStateController>().initialize();
+      if (!mounted) return;
+      _showSnack('Identity core saved.');
+    } finally {
+      if (mounted) setState(() => _savingCore = false);
+    }
+  }
+
+  void _showSnack(String message) {
+    if (!mounted) return;
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(content: Text(message)),
+    );
+  }
+
+  @override
+  void dispose() {
+    _communicationStyle.dispose();
+    _coreValues.dispose();
+    _relationshipPreferences.dispose();
+    super.dispose();
+  }
+
   @override
   Widget build(BuildContext context) {
     final cs = Theme.of(context).colorScheme;
     final app = context.watch<AppProvider>();
     final me = _me;
-    final mode = _activeMode ?? me?.activeIdentityMode ?? TruIdentityMode.social;
+    final mode =
+        _activeMode ?? me?.activeIdentityMode ?? TruIdentityMode.social;
     final anon = me?.anonymousOverlayEnabled ?? false;
 
     return Scaffold(
@@ -86,7 +172,9 @@ class _IdentityCoreScreenState extends State<IdentityCoreScreen> {
         child: ListView(
           padding: AppSpacing.paddingMd,
           children: [
-            Text('Switch personas without switching accounts.', style: Theme.of(context).textTheme.bodyMedium?.copyWith(color: cs.onSurface.withValues(alpha: 0.72), height: 1.4)),
+            Text('Switch personas without switching accounts.',
+                style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                    color: cs.onSurface.withValues(alpha: 0.72), height: 1.4)),
             const SizedBox(height: 14),
             TruLuraGlassCard(
               radius: 24,
@@ -94,13 +182,78 @@ class _IdentityCoreScreenState extends State<IdentityCoreScreen> {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Text('Active layer', style: Theme.of(context).textTheme.titleSmall?.copyWith(fontWeight: FontWeight.w900)),
+                  Text('Core signal',
+                      style: Theme.of(context)
+                          .textTheme
+                          .titleSmall
+                          ?.copyWith(fontWeight: FontWeight.w900)),
+                  const SizedBox(height: 10),
+                  TextField(
+                    controller: _communicationStyle,
+                    enabled: !_savingCore,
+                    decoration: const InputDecoration(
+                      labelText: 'Communication style',
+                      hintText: 'Direct, playful, reflective...',
+                    ),
+                  ),
+                  const SizedBox(height: 10),
+                  TextField(
+                    controller: _coreValues,
+                    enabled: !_savingCore,
+                    decoration: const InputDecoration(
+                      labelText: 'Core values',
+                      hintText: 'Kindness, honesty, curiosity',
+                    ),
+                  ),
+                  const SizedBox(height: 10),
+                  TextField(
+                    controller: _relationshipPreferences,
+                    enabled: !_savingCore,
+                    maxLines: 3,
+                    decoration: const InputDecoration(
+                      labelText: 'Relationship preferences',
+                      hintText: 'What helps connection feel safe and real?',
+                    ),
+                  ),
+                  const SizedBox(height: 14),
+                  Align(
+                    alignment: Alignment.centerRight,
+                    child: FilledButton(
+                      onPressed: _savingCore ? null : _saveIdentityCore,
+                      child: Text(_savingCore ? 'Saving...' : 'Save core'),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            const SizedBox(height: 14),
+            TruLuraGlassCard(
+              radius: 24,
+              padding: const EdgeInsets.all(14),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text('Active layer',
+                      style: Theme.of(context)
+                          .textTheme
+                          .titleSmall
+                          ?.copyWith(fontWeight: FontWeight.w900)),
                   const SizedBox(height: 10),
                   TruluraSegmentedPill(
                     options: const ['Social', 'Dating', 'Creator', 'Luxe'],
-                    selectedIndex: [mode == TruIdentityMode.social, mode == TruIdentityMode.dating, mode == TruIdentityMode.creator, mode == TruIdentityMode.luxe].indexOf(true),
+                    selectedIndex: [
+                      mode == TruIdentityMode.social,
+                      mode == TruIdentityMode.dating,
+                      mode == TruIdentityMode.creator,
+                      mode == TruIdentityMode.luxe
+                    ].indexOf(true),
                     onChanged: (i) async {
-                      final next = switch (i) { 0 => TruIdentityMode.social, 1 => TruIdentityMode.dating, 2 => TruIdentityMode.creator, _ => TruIdentityMode.luxe };
+                      final next = switch (i) {
+                        0 => TruIdentityMode.social,
+                        1 => TruIdentityMode.dating,
+                        2 => TruIdentityMode.creator,
+                        _ => TruIdentityMode.luxe
+                      };
                       final lock = _lockFor(app, me, next);
                       if (lock != null) {
                         await _showGateSheet(context, next.label, lock);
@@ -110,7 +263,8 @@ class _IdentityCoreScreenState extends State<IdentityCoreScreen> {
                       await _identity.setActiveMode(next);
                       await _load();
                     },
-                    activeGradient: TruLuraTokens.identityGradient(mode, opacity: 0.95),
+                    activeGradient:
+                        TruLuraTokens.identityGradient(mode, opacity: 0.95),
                   ),
                   const SizedBox(height: 12),
                   Row(
@@ -119,9 +273,20 @@ class _IdentityCoreScreenState extends State<IdentityCoreScreen> {
                         child: Column(
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
-                            Text('Anonymous overlay', style: Theme.of(context).textTheme.titleSmall?.copyWith(fontWeight: FontWeight.w900)),
+                            Text('Anonymous overlay',
+                                style: Theme.of(context)
+                                    .textTheme
+                                    .titleSmall
+                                    ?.copyWith(fontWeight: FontWeight.w900)),
                             const SizedBox(height: 4),
-                            Text('Mask your name, handle, and profile details.', style: Theme.of(context).textTheme.bodySmall?.copyWith(color: cs.onSurface.withValues(alpha: 0.70), height: 1.3)),
+                            Text('Mask your name, handle, and profile details.',
+                                style: Theme.of(context)
+                                    .textTheme
+                                    .bodySmall
+                                    ?.copyWith(
+                                        color: cs.onSurface
+                                            .withValues(alpha: 0.70),
+                                        height: 1.3)),
                           ],
                         ),
                       ),
@@ -137,15 +302,16 @@ class _IdentityCoreScreenState extends State<IdentityCoreScreen> {
                 ],
               ),
             ),
-            if (anon)
-              const SizedBox(height: 14),
+            if (anon) const SizedBox(height: 14),
             if (anon)
               TruLuraGlassCard(
                 radius: 24,
                 padding: const EdgeInsets.all(14),
                 child: Text(
                   'Anonymous overlay is active. TruLura masks your visible name, softens profile identity details, and uses a persona label so you stay in control of what is revealed.',
-                  style: Theme.of(context).textTheme.bodySmall?.copyWith(color: cs.onSurface.withValues(alpha: 0.72), height: 1.35),
+                  style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                      color: cs.onSurface.withValues(alpha: 0.72),
+                      height: 1.35),
                 ),
               ),
             const SizedBox(height: 14),
@@ -155,9 +321,14 @@ class _IdentityCoreScreenState extends State<IdentityCoreScreen> {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Text('Personas', style: Theme.of(context).textTheme.titleSmall?.copyWith(fontWeight: FontWeight.w900)),
+                  Text('Personas',
+                      style: Theme.of(context)
+                          .textTheme
+                          .titleSmall
+                          ?.copyWith(fontWeight: FontWeight.w900)),
                   const SizedBox(height: 10),
-                  for (final p in _all.where((p) => p.mode != TruIdentityMode.vent)) ...[
+                  for (final p
+                      in _all.where((p) => p.mode != TruIdentityMode.vent)) ...[
                     (() {
                       final lock = _lockFor(app, me, p.mode);
                       return _PersonaRow(
@@ -171,14 +342,17 @@ class _IdentityCoreScreenState extends State<IdentityCoreScreen> {
                         onToggle: me == null || lock != null
                             ? null
                             : (v) async {
-                                await _profiles.setModeActive(userId: me.id, mode: p.mode, active: v);
+                                await _profiles.setModeActive(
+                                    userId: me.id, mode: p.mode, active: v);
                                 if (v) {
                                   setState(() => _activeMode = p.mode);
                                   await _identity.setActiveMode(p.mode);
                                 }
                                 await _load();
                               },
-                        onEdit: me == null ? null : () => _editPersona(context, me.id, p),
+                        onEdit: me == null
+                            ? null
+                            : () => _editPersona(context, me.id, p),
                       );
                     })(),
                     const SizedBox(height: 10),
@@ -226,7 +400,8 @@ class _IdentityCoreScreenState extends State<IdentityCoreScreen> {
         }
         if (!app.creatorApproved) {
           return const _PersonaLock(
-            reason: 'Creator approval is still required for advanced creator spaces.',
+            reason:
+                'Creator approval is still required for advanced creator spaces.',
             actionLabel: 'Verify',
           );
         }
@@ -280,16 +455,16 @@ class _IdentityCoreScreenState extends State<IdentityCoreScreen> {
                 Text(
                   '$label is gated',
                   style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                    fontWeight: FontWeight.w900,
-                  ),
+                        fontWeight: FontWeight.w900,
+                      ),
                 ),
                 const SizedBox(height: 8),
                 Text(
                   lock.reason,
                   style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                    color: cs.onSurface.withValues(alpha: 0.72),
-                    height: 1.35,
-                  ),
+                        color: cs.onSurface.withValues(alpha: 0.72),
+                        height: 1.35,
+                      ),
                 ),
                 const SizedBox(height: 12),
                 if (lock.actionLabel != null)
@@ -302,7 +477,8 @@ class _IdentityCoreScreenState extends State<IdentityCoreScreen> {
                           Uri(
                             path: AppRoutes.safetyVerification,
                             queryParameters: {
-                              'returnTo': GoRouterState.of(context).uri.toString(),
+                              'returnTo':
+                                  GoRouterState.of(context).uri.toString(),
                             },
                           ).toString(),
                         );
@@ -318,7 +494,8 @@ class _IdentityCoreScreenState extends State<IdentityCoreScreen> {
     );
   }
 
-  Future<void> _editPersona(BuildContext context, String userId, TruIdentityProfile profile) async {
+  Future<void> _editPersona(
+      BuildContext context, String userId, TruIdentityProfile profile) async {
     final display = TextEditingController(text: profile.displayName ?? '');
     final handle = TextEditingController(text: profile.username ?? '');
     final bio = TextEditingController(text: profile.bio ?? '');
@@ -330,7 +507,8 @@ class _IdentityCoreScreenState extends State<IdentityCoreScreen> {
       builder: (context) {
         final cs = Theme.of(context).colorScheme;
         return Padding(
-          padding: EdgeInsets.only(bottom: MediaQuery.of(context).viewInsets.bottom),
+          padding:
+              EdgeInsets.only(bottom: MediaQuery.of(context).viewInsets.bottom),
           child: TruLuraGlassCard(
             radius: 26,
             padding: const EdgeInsets.all(16),
@@ -338,22 +516,29 @@ class _IdentityCoreScreenState extends State<IdentityCoreScreen> {
               mainAxisSize: MainAxisSize.min,
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text('Edit ${profile.mode.label} persona', style: Theme.of(context).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w900)),
+                Text('Edit ${profile.mode.label} persona',
+                    style: Theme.of(context)
+                        .textTheme
+                        .titleMedium
+                        ?.copyWith(fontWeight: FontWeight.w900)),
                 const SizedBox(height: 12),
                 TextField(
                   controller: display,
-                  decoration: const InputDecoration(labelText: 'Display name (optional)'),
+                  decoration: const InputDecoration(
+                      labelText: 'Display name (optional)'),
                 ),
                 const SizedBox(height: 10),
                 TextField(
                   controller: handle,
-                  decoration: const InputDecoration(labelText: 'Username (optional)'),
+                  decoration:
+                      const InputDecoration(labelText: 'Username (optional)'),
                 ),
                 const SizedBox(height: 10),
                 TextField(
                   controller: bio,
                   maxLines: 3,
-                  decoration: const InputDecoration(labelText: 'Bio (optional)'),
+                  decoration:
+                      const InputDecoration(labelText: 'Bio (optional)'),
                 ),
                 const SizedBox(height: 14),
                 Row(
@@ -361,7 +546,8 @@ class _IdentityCoreScreenState extends State<IdentityCoreScreen> {
                     Expanded(
                       child: OutlinedButton(
                         onPressed: () => context.pop(false),
-                        style: OutlinedButton.styleFrom(foregroundColor: cs.onSurface),
+                        style: OutlinedButton.styleFrom(
+                            foregroundColor: cs.onSurface),
                         child: const Text('Cancel'),
                       ),
                     ),
@@ -387,8 +573,10 @@ class _IdentityCoreScreenState extends State<IdentityCoreScreen> {
         .map(
           (p) => p.mode == profile.mode
               ? p.copyWith(
-                  displayName: display.text.trim().isEmpty ? null : display.text.trim(),
-                  username: handle.text.trim().isEmpty ? null : handle.text.trim(),
+                  displayName:
+                      display.text.trim().isEmpty ? null : display.text.trim(),
+                  username:
+                      handle.text.trim().isEmpty ? null : handle.text.trim(),
                   bio: bio.text.trim().isEmpty ? null : bio.text.trim(),
                 )
               : p,
@@ -442,27 +630,46 @@ class _PersonaRow extends StatelessWidget {
               children: [
                 Row(
                   children: [
-                    Expanded(child: Text(profile.mode.label, style: Theme.of(context).textTheme.bodyMedium?.copyWith(fontWeight: FontWeight.w900))),
+                    Expanded(
+                        child: Text(profile.mode.label,
+                            style: Theme.of(context)
+                                .textTheme
+                                .bodyMedium
+                                ?.copyWith(fontWeight: FontWeight.w900))),
                     if (selected) ...[
                       const SizedBox(width: 8),
                       Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
-                        decoration: BoxDecoration(borderRadius: BorderRadius.circular(999), gradient: TruLuraTokens.identityGradient(profile.mode, opacity: 0.9)),
-                        child: Text('Active', style: Theme.of(context).textTheme.labelSmall?.copyWith(color: Colors.white, fontWeight: FontWeight.w900)),
+                        padding: const EdgeInsets.symmetric(
+                            horizontal: 10, vertical: 5),
+                        decoration: BoxDecoration(
+                            borderRadius: BorderRadius.circular(999),
+                            gradient: TruLuraTokens.identityGradient(
+                                profile.mode,
+                                opacity: 0.9)),
+                        child: Text('Active',
+                            style: Theme.of(context)
+                                .textTheme
+                                .labelSmall
+                                ?.copyWith(
+                                    color: Colors.white,
+                                    fontWeight: FontWeight.w900)),
                       ),
                     ] else if (isLocked) ...[
                       const SizedBox(width: 8),
                       Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+                        padding: const EdgeInsets.symmetric(
+                            horizontal: 10, vertical: 5),
                         decoration: BoxDecoration(
                           borderRadius: BorderRadius.circular(999),
-                          color: cs.surfaceContainerHighest.withValues(alpha: 0.28),
+                          color: cs.surfaceContainerHighest
+                              .withValues(alpha: 0.28),
                         ),
                         child: Text(
                           lockedActionLabel ?? 'Locked',
-                          style: Theme.of(context).textTheme.labelSmall?.copyWith(
-                            fontWeight: FontWeight.w900,
-                          ),
+                          style:
+                              Theme.of(context).textTheme.labelSmall?.copyWith(
+                                    fontWeight: FontWeight.w900,
+                                  ),
                         ),
                       ),
                     ],
@@ -472,12 +679,14 @@ class _PersonaRow extends StatelessWidget {
                 Text(
                   isLocked
                       ? lockedReason!
-                      : (profile.displayName?.trim().isNotEmpty ?? false) || (profile.username?.trim().isNotEmpty ?? false)
-                      ? '${(profile.displayName ?? '').trim()} ${(profile.username ?? '').trim()}'
-                      : 'Uses your base profile unless you override it.',
+                      : (profile.displayName?.trim().isNotEmpty ?? false) ||
+                              (profile.username?.trim().isNotEmpty ?? false)
+                          ? '${(profile.displayName ?? '').trim()} ${(profile.username ?? '').trim()}'
+                          : 'Uses your base profile unless you override it.',
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
-                  style: Theme.of(context).textTheme.bodySmall?.copyWith(color: cs.onSurface.withValues(alpha: 0.70), height: 1.2),
+                  style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                      color: cs.onSurface.withValues(alpha: 0.70), height: 1.2),
                 ),
               ],
             ),
@@ -485,7 +694,8 @@ class _PersonaRow extends StatelessWidget {
           const SizedBox(width: 10),
           IconButton(
             onPressed: onEdit,
-            icon: Icon(Icons.edit_rounded, color: cs.onSurface.withValues(alpha: 0.8)),
+            icon: Icon(Icons.edit_rounded,
+                color: cs.onSurface.withValues(alpha: 0.8)),
             splashColor: Colors.transparent,
             highlightColor: Colors.transparent,
           ),
