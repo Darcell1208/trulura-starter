@@ -7,12 +7,15 @@ import 'package:trulura/models/experience/experience_mode.dart';
 
 class PostService {
   static const String _postsKey = 'posts_cache';
+  static const String _feedView = 'posts_feed';
   static const String _reactionsTable = 'post_reactions';
   static const String _defaultReactionType = 'glow';
 
   bool get _supabaseReady => DatabaseService.instance.isInitialized;
 
-  bool _looksLikeUuid(String value) => RegExp(r'^[0-9a-fA-F]{8}-([0-9a-fA-F]{4}-){3}[0-9a-fA-F]{12}$').hasMatch(value);
+  bool _looksLikeUuid(String value) =>
+      RegExp(r'^[0-9a-fA-F]{8}-([0-9a-fA-F]{4}-){3}[0-9a-fA-F]{12}$')
+          .hasMatch(value);
 
   String _normalizePrivacy(String? value) {
     switch ((value ?? '').trim().toLowerCase()) {
@@ -77,7 +80,8 @@ class PostService {
         'category': _normalizeCategory(post.category),
         // Optional: if your posts table includes this column, we will persist it.
         // If it doesn't exist yet, we auto-retry inserts without it.
-        if (post.experienceMode != null) 'experience_mode': post.experienceMode!.name,
+        if (post.experienceMode != null)
+          'experience_mode': post.experienceMode!.name,
       };
 
   String? _currentUserIdOrNull() {
@@ -92,7 +96,9 @@ class PostService {
   /// Returns the glow count per post id.
   ///
   /// Uses a simple select and aggregates on the client to avoid DB-side RPC.
-  Future<Map<String, int>> getReactionCounts({required List<String> postIds, String reactionType = _defaultReactionType}) async {
+  Future<Map<String, int>> getReactionCounts(
+      {required List<String> postIds,
+      String reactionType = _defaultReactionType}) async {
     if (!_supabaseReady) return <String, int>{};
     final validPostIds = postIds.where(_looksLikeUuid).toList(growable: false);
     if (validPostIds.isEmpty) return <String, int>{};
@@ -118,7 +124,9 @@ class PostService {
   }
 
   /// Returns the set of post ids the current user has reacted to (e.g. glowed).
-  Future<Set<String>> getMyReactedPostIds({required List<String> postIds, String reactionType = _defaultReactionType}) async {
+  Future<Set<String>> getMyReactedPostIds(
+      {required List<String> postIds,
+      String reactionType = _defaultReactionType}) async {
     if (!_supabaseReady) return <String>{};
     final validPostIds = postIds.where(_looksLikeUuid).toList(growable: false);
     if (validPostIds.isEmpty) return <String>{};
@@ -149,7 +157,9 @@ class PostService {
   /// Legacy toggle helper kept for older callers.
   ///
   /// Returns `true` if the reaction is present after the operation.
-  Future<bool> toggleReactionLegacy({required String postId, String reactionType = _defaultReactionType}) async {
+  Future<bool> toggleReactionLegacy(
+      {required String postId,
+      String reactionType = _defaultReactionType}) async {
     if (!_supabaseReady) throw Exception('Database not initialized');
     final userId = _currentUserIdOrNull();
     if (userId == null) throw Exception('User not logged in');
@@ -191,7 +201,8 @@ class PostService {
   /// Note: We keep the older `toggleReaction(...) -> bool` API above for existing
   /// callers, but this method matches the newer "void + required reactionType"
   /// signature used by the FeedCard reaction sheet.
-  Future<void> toggleReaction({required String postId, required String reactionType}) async {
+  Future<void> toggleReaction(
+      {required String postId, required String reactionType}) async {
     final client = DatabaseService.instance.client;
     final currentUser = client.auth.currentUser;
 
@@ -209,7 +220,10 @@ class PostService {
           .maybeSingle();
 
       if (existing != null && existing['id'] != null) {
-        await client.from(_reactionsTable).delete().eq('id', existing['id'].toString());
+        await client
+            .from(_reactionsTable)
+            .delete()
+            .eq('id', existing['id'].toString());
       } else {
         await client.from(_reactionsTable).insert({
           'post_id': postId,
@@ -224,7 +238,8 @@ class PostService {
   }
 
   /// Count reactions of a given type for a single post.
-  Future<int> getReactionCount({required String postId, required String reactionType}) async {
+  Future<int> getReactionCount(
+      {required String postId, required String reactionType}) async {
     if (!_supabaseReady) return 0;
     if (postId.isEmpty) return 0;
 
@@ -242,7 +257,8 @@ class PostService {
   }
 
   /// Whether the current user has reacted with a specific type.
-  Future<bool> hasReactedWith({required String postId, required String reactionType}) async {
+  Future<bool> hasReactedWith(
+      {required String postId, required String reactionType}) async {
     if (!_supabaseReady) return false;
     if (postId.isEmpty) return false;
 
@@ -286,7 +302,10 @@ class PostService {
           .maybeSingle();
 
       if (existing != null && existing['id'] != null) {
-        await client.from(_reactionsTable).delete().eq('id', existing['id'].toString());
+        await client
+            .from(_reactionsTable)
+            .delete()
+            .eq('id', existing['id'].toString());
       } else {
         await client.from(_reactionsTable).insert({
           'post_id': postId,
@@ -342,9 +361,10 @@ class PostService {
     }
   }
 
-  /// Fetches the Aura feed from `posts` only (auth-only setup).
+  /// Fetches the Aura feed from the anonymizing posts view.
   ///
-  /// No `public.profiles` join and no assumption that a mirror table exists.
+  /// Anonymous rows deliberately return `user_id = null` from `posts_feed`.
+  /// Writes still target `posts`; reads should not bypass this view.
   Future<List<Map<String, dynamic>>> fetchAuraFeed() async {
     if (!_supabaseReady) return [];
 
@@ -353,7 +373,10 @@ class PostService {
     // per-column fallback; `select()` simply omits absent columns from the
     // returned rows, and _fromAuraRow already tolerates nulls. This also means
     // newly added columns (like `category`) need no change here.
-    final rows = await DatabaseService.instance.client.from('posts').select().order('created_at', ascending: false);
+    final rows = await DatabaseService.instance.client
+        .from(_feedView)
+        .select()
+        .order('created_at', ascending: false);
     return List<Map<String, dynamic>>.from(rows as List);
   }
 
@@ -368,12 +391,13 @@ class PostService {
   Post _fromAuraRow(Map<String, dynamic> row) {
     final mood = (row['mood_tag'] as String?)?.trim();
 
-    final createdAt = DateTime.tryParse((row['created_at'] ?? '').toString()) ?? DateTime.now();
+    final createdAt = DateTime.tryParse((row['created_at'] ?? '').toString()) ??
+        DateTime.now();
     final type = _normalizePostType(row['post_type'] as String?);
     final content = (row['content_text'] as String?) ?? '';
     return Post(
       id: row['id'].toString(),
-      userId: row['user_id'].toString(),
+      userId: row['user_id']?.toString() ?? '',
       user: null,
       content: content,
       caption: type == 'image' || type == 'video' ? content : null,
@@ -384,7 +408,8 @@ class PostService {
       privacy: _normalizePrivacy(row['post_privacy'] as String?),
       category: _normalizeCategory(row['category'] as String?),
       isAnonymous: (row['is_anonymous'] as bool?) ?? false,
-      experienceMode: TruExperienceModeX.tryParse(row['experience_mode']?.toString()),
+      experienceMode:
+          TruExperienceModeX.tryParse(row['experience_mode']?.toString()),
       likeCount: 0,
       commentCount: 0,
       shareCount: 0,
@@ -434,7 +459,9 @@ class PostService {
       }
 
       Future<void> attemptInsert(Map<String, dynamic> row) async {
-        if (kDebugMode) debugPrint('PostService: inserting into posts: ${jsonEncode(row)}');
+        if (kDebugMode) {
+          debugPrint('PostService: inserting into posts: ${jsonEncode(row)}');
+        }
         await DatabaseService.instance.client.from('posts').insert(row);
       }
 
@@ -447,10 +474,14 @@ class PostService {
         // error names and retry once.
         final msg = e.toString();
         const optionalColumns = ['category', 'experience_mode'];
-        final missing = optionalColumns.where((c) => msg.contains(c) && row.containsKey(c)).toList(growable: false);
+        final missing = optionalColumns
+            .where((c) => msg.contains(c) && row.containsKey(c))
+            .toList(growable: false);
         if (msg.contains('PGRST204') && missing.isNotEmpty) {
-          debugPrint('PostService: posts is missing $missing; retrying insert without them.');
-          final fallback = Map<String, dynamic>.from(row)..removeWhere((key, _) => missing.contains(key));
+          debugPrint(
+              'PostService: posts is missing $missing; retrying insert without them.');
+          final fallback = Map<String, dynamic>.from(row)
+            ..removeWhere((key, _) => missing.contains(key));
           await attemptInsert(fallback);
         } else {
           rethrow;
@@ -478,7 +509,8 @@ class PostService {
   Future<void> _cachePosts(List<Post> posts) async {
     try {
       final prefs = await SharedPreferences.getInstance();
-      await prefs.setString(_postsKey, jsonEncode(posts.map((p) => p.toJson()).toList()));
+      await prefs.setString(
+          _postsKey, jsonEncode(posts.map((p) => p.toJson()).toList()));
     } catch (e) {
       debugPrint('Failed to cache posts: $e');
     }
