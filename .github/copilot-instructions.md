@@ -56,6 +56,30 @@ This file captures the immediately useful knowledge for an AI coding agent to be
 - Because of that, **any insert into those tables must set `device_id`** to the current user's `device_users` row. Omitting it makes the check fail and the insert is denied.
 - `posts`, `vent_posts` and `profiles` are user-scoped and keyed on `user_id` (or `id` for `profiles`).
 
+### Verify the column *definition* after `if not exists`, not just existence
+
+`add column if not exists` skips the whole clause when the column is already
+there — including `not null` and `default`. It reports success either way.
+
+This happened here: two sessions added `posts.category` about an hour apart.
+The first created it nullable with no default; the second ran
+`add column if not exists category text not null default 'ForYou'`, which
+silently no-op'd the definition while its separate `add constraint` still
+applied. The result was a column that looked migrated but was nullable, held a
+NULL row, and had a CHECK constraint that could not catch it — `CHECK` passes
+on NULL rather than rejecting it.
+
+After any `if not exists` DDL, read back what you actually got:
+
+```sql
+select column_name, data_type, is_nullable, column_default
+from information_schema.columns
+where table_schema = 'public' and table_name = '<table>';
+```
+
+To change an existing column, `alter column ... set default` / `set not null`
+are the statements that work; `add column if not exists` is not one of them.
+
 ### Always drop policies by their verified live name
 
 Before writing `drop policy`, query the real names:

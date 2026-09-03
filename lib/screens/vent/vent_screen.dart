@@ -298,18 +298,8 @@ class _VentScreenState extends State<VentScreen> {
                                           title: 'Vent Space is quiet',
                                           message:
                                               'Start a protected reflection when you are ready.',
-                                          actions: [
-                                            TruStateAction(
-                                              label: 'Write a vent',
-                                              glyph: TruLuraGlyph.edit,
-                                              onTap: () => TruNavigation
-                                                  .pushWithReturnTo(
-                                                context,
-                                                AppRoutes.createPost,
-                                              ),
-                                              primary: true,
-                                            ),
-                                          ],
+                                          padding: const EdgeInsets.fromLTRB(
+                                              14, 14, 14, 14),
                                         )
                                       : _filtered.isEmpty
                                           ? TruStatePanel(
