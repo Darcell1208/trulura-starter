@@ -1,12 +1,15 @@
+import 'dart:async';
 import 'dart:ui';
 
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:trulura/compat/provider_compat.dart';
 import 'package:trulura/models/chat.dart';
 import 'package:trulura/core/navigation/app_router.dart';
 import 'package:trulura/providers/app_provider.dart';
 import 'package:trulura/services/chat_service.dart';
+import 'package:trulura/services/database_service/database_service.dart';
 import 'package:trulura/services/user_service.dart';
 import 'package:trulura/theme.dart';
 import 'package:trulura/widgets/trulura_halo_avatar.dart';
@@ -29,6 +32,9 @@ class _ChatListScreenState extends State<ChatListScreen> {
   List<Chat> _chats = [];
   bool _isLoading = true;
   bool _hasError = false;
+  RealtimeChannel? _conversationsChannel;
+  RealtimeChannel? _membersChannel;
+  RealtimeChannel? _messagesChannel;
 
   final Set<String> _pinned = <String>{};
   final Set<String> _archived = <String>{};
@@ -37,22 +43,84 @@ class _ChatListScreenState extends State<ChatListScreen> {
   void initState() {
     super.initState();
     _loadChats();
+    _initRealtime();
   }
 
   @override
   void dispose() {
+    try {
+      _conversationsChannel?.unsubscribe();
+      _membersChannel?.unsubscribe();
+      _messagesChannel?.unsubscribe();
+    } catch (_) {}
     _search.dispose();
     super.dispose();
   }
 
-  Future<void> _loadChats() async {
-    setState(() => _isLoading = true);
+  void _initRealtime() {
+    if (!DatabaseService.instance.isInitialized) return;
+    final client = DatabaseService.instance.client;
+    // silent: a new message in any thread must not flash the whole inbox back
+    // to its skeleton. These subscriptions are deliberately unfiltered --
+    // unlike the thread screen's, the list needs events for every conversation
+    // the viewer belongs to, and RLS already bounds delivery to exactly those.
+    void refresh(PostgresChangePayload _) {
+      if (!mounted) return;
+      unawaited(_loadChats(silent: true));
+    }
+
+    _conversationsChannel?.unsubscribe();
+    _conversationsChannel = client
+        .channel('public:conversations:chat-list')
+        .onPostgresChanges(
+          event: PostgresChangeEvent.all,
+          schema: 'public',
+          table: 'conversations',
+          callback: refresh,
+        )
+        .subscribe();
+
+    _membersChannel?.unsubscribe();
+    _membersChannel = client
+        .channel('public:conversation_members:chat-list')
+        .onPostgresChanges(
+          event: PostgresChangeEvent.all,
+          schema: 'public',
+          table: 'conversation_members',
+          callback: refresh,
+        )
+        .subscribe();
+
+    _messagesChannel?.unsubscribe();
+    _messagesChannel = client
+        .channel('public:messages:chat-list')
+        .onPostgresChanges(
+          event: PostgresChangeEvent.all,
+          schema: 'public',
+          table: 'messages',
+          callback: refresh,
+        )
+        .subscribe();
+  }
+
+  /// Loads the inbox.
+  ///
+  /// [silent] skips the loading-skeleton transition, for refreshes triggered by
+  /// realtime rather than by the user opening the screen or tapping retry.
+  Future<void> _loadChats({bool silent = false}) async {
+    if (!silent) setState(() => _isLoading = true);
     try {
       final user = await UserService().getCurrentUser();
       if (user != null) {
         final chats = await _chatService.getAllChats(user.id);
         setState(() {
           _chats = chats;
+          _hasError = false;
+          _isLoading = false;
+        });
+      } else {
+        setState(() {
+          _chats = const <Chat>[];
           _hasError = false;
           _isLoading = false;
         });
@@ -394,7 +462,7 @@ class _ChatListScreenState extends State<ChatListScreen> {
                                                             pinned: isPinned,
                                                             onTap: () =>
                                                                 context.push(
-                                                                    '/chat/${chat.id}'),
+                                                                    '/messages/thread/${chat.id}'),
                                                           ),
                                                         ),
                                                       );

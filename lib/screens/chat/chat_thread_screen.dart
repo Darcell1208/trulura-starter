@@ -1,5 +1,8 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:trulura/models/message.dart';
 import 'package:trulura/models/sync_candidate/sync_candidate.dart';
 import 'package:trulura/services/chat_service.dart';
@@ -10,6 +13,7 @@ import 'package:trulura/services/chat_thread_prefs_service.dart';
 import 'package:trulura/services/safety_meter_service.dart';
 import 'package:trulura/services/safety_center_service.dart';
 import 'package:trulura/services/safety_monitoring_service.dart';
+import 'package:trulura/services/database_service/database_service.dart';
 import 'package:trulura/services/sync_service/sync_service.dart';
 import 'package:trulura/services/user_service.dart';
 import 'package:trulura/theme.dart';
@@ -51,11 +55,15 @@ class _ChatThreadScreenState extends State<ChatThreadScreen> {
   bool _isSending = false;
   String? _chatStatus;
   String? _otherUserId;
+  RealtimeChannel? _messagesChannel;
+  RealtimeChannel? _membersChannel;
 
   TruActiveMatch? _syncMatch;
   TruMatchroom? _matchroom;
-  SafetyAssessment _safetyAssessment = const SafetyAssessment(level: SafetyRiskLevel.none, reasons: []);
-  AuraShieldAssessment _auraAssessment = const AuraShieldAssessment(level: AuraShieldLevel.low, score: 0, tags: []);
+  SafetyAssessment _safetyAssessment =
+      const SafetyAssessment(level: SafetyRiskLevel.none, reasons: []);
+  AuraShieldAssessment _auraAssessment = const AuraShieldAssessment(
+      level: AuraShieldLevel.low, score: 0, tags: []);
   TruChatThreadPrefs _prefs = const TruChatThreadPrefs();
 
   String _activeReaction = 'glow';
@@ -66,34 +74,105 @@ class _ChatThreadScreenState extends State<ChatThreadScreen> {
   void initState() {
     super.initState();
     _loadMessages();
+    _initRealtime();
   }
 
   @override
   void dispose() {
+    try {
+      _messagesChannel?.unsubscribe();
+      _membersChannel?.unsubscribe();
+    } catch (_) {}
     _messageController.dispose();
     super.dispose();
   }
 
-  Future<void> _loadMessages() async {
-    setState(() => _isLoading = true);
+  void _initRealtime() {
+    if (!DatabaseService.instance.isInitialized) return;
+    final client = DatabaseService.instance.client;
+    // silent: an incoming message must not flip the screen back to the
+    // loading skeleton. _loadMessages sets _isLoading = true up front, which
+    // is right for the initial open and for retry, but on a realtime refresh
+    // it blanks the thread and flashes the skeleton on every message that
+    // arrives.
+    void refresh(PostgresChangePayload _) {
+      if (!mounted) return;
+      unawaited(_loadMessages(silent: true));
+    }
+
+    // The channel *name* carrying the chat id does not scope anything -- it is
+    // just a client-side topic. Without an explicit filter this subscription
+    // receives every message row the viewer is allowed to see, so sitting in
+    // one thread while a member of N conversations refetches this thread on
+    // traffic in all N. The filter pushes that selection server-side.
+    _messagesChannel?.unsubscribe();
+    _messagesChannel = client
+        .channel('public:messages:${widget.chatId}')
+        .onPostgresChanges(
+          event: PostgresChangeEvent.all,
+          schema: 'public',
+          table: 'messages',
+          filter: PostgresChangeFilter(
+            type: PostgresChangeFilterType.eq,
+            column: 'conversation_id',
+            value: widget.chatId,
+          ),
+          callback: refresh,
+        )
+        .subscribe();
+
+    _membersChannel?.unsubscribe();
+    _membersChannel = client
+        .channel('public:conversation_members:${widget.chatId}')
+        .onPostgresChanges(
+          event: PostgresChangeEvent.all,
+          schema: 'public',
+          table: 'conversation_members',
+          filter: PostgresChangeFilter(
+            type: PostgresChangeFilterType.eq,
+            column: 'conversation_id',
+            value: widget.chatId,
+          ),
+          callback: refresh,
+        )
+        .subscribe();
+  }
+
+  /// Loads the thread.
+  ///
+  /// [silent] skips the loading-skeleton transition, for refreshes triggered by
+  /// realtime rather than by the user opening or retrying the screen.
+  Future<void> _loadMessages({bool silent = false}) async {
+    if (!silent) setState(() => _isLoading = true);
     try {
       final user = await UserService().getCurrentUser();
       final uid = user?.id;
       final messages = await _chatService.getMessagesByChatId(widget.chatId);
-      final chat = uid == null ? null : await _chatService.getChatById(widget.chatId, currentUserId: uid);
-      final otherId = (uid == null || chat == null)
+      final chat = uid == null
           ? null
-          : chat.participantIds.where((id) => id != uid).toList().cast<String?>().first;
+          : await _chatService.getChatById(widget.chatId, currentUserId: uid);
+      final otherIds = (uid == null || chat == null)
+          ? const <String>[]
+          : chat.participantIds.where((id) => id != uid).toList();
+      final otherId = otherIds.isEmpty ? null : otherIds.first;
 
       TruActiveMatch? match;
       TruMatchroom? matchroom;
       if (uid != null) {
-        match = await _syncService.findMatchByChatId(userId: uid, chatId: widget.chatId);
+        match = await _syncService.findMatchByChatId(
+            userId: uid, chatId: widget.chatId);
         if (match != null) {
-          matchroom = await _syncService.ensureMatchroomUnlocked(userId: uid, match: match, messageCount: messages.length);
+          matchroom = await _syncService.ensureMatchroomUnlocked(
+              userId: uid, match: match, messageCount: messages.length);
           if (matchroom != null && match.matchroomId != matchroom.id) {
-            await _syncService.setMatchStage(userId: uid, matchId: match.id, stage: TruConnectionStage.matchroom, matchroomId: matchroom.id);
-            match = (await _syncService.findMatchByChatId(userId: uid, chatId: widget.chatId)) ?? match;
+            await _syncService.setMatchStage(
+                userId: uid,
+                matchId: match.id,
+                stage: TruConnectionStage.matchroom,
+                matchroomId: matchroom.id);
+            match = (await _syncService.findMatchByChatId(
+                    userId: uid, chatId: widget.chatId)) ??
+                match;
           }
         }
       }
@@ -103,7 +182,8 @@ class _ChatThreadScreenState extends State<ChatThreadScreen> {
       final safetyPrefs = await _safetyCenter.getPrefs();
       final aura = (safetyPrefs.auraShieldEnabled && uid != null)
           ? _auraShield.assessThread(viewerUserId: uid, messages: messages)
-          : const AuraShieldAssessment(level: AuraShieldLevel.low, score: 0, tags: []);
+          : const AuraShieldAssessment(
+              level: AuraShieldLevel.low, score: 0, tags: []);
 
       setState(() {
         _currentUserId = uid;
@@ -133,35 +213,46 @@ class _ChatThreadScreenState extends State<ChatThreadScreen> {
 
     // If chat is paused (manual or moderation), block sending.
     if (((_chatStatus ?? '').toLowerCase() == 'paused')) {
-      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('This chat is paused.')));
+      ScaffoldMessenger.of(context)
+          .showSnackBar(const SnackBar(content: Text('This chat is paused.')));
       return;
     }
 
     // Lightweight communication protections.
     final prefs = await _safetyCenter.getPrefs();
     if (prefs.messageFilteringEnabled) {
-      final check = _commsSafety.checkOutgoing(chatId: widget.chatId, text: text);
+      final check =
+          _commsSafety.checkOutgoing(chatId: widget.chatId, text: text);
 
       // AuraShield (local): store soft signals for filtering + eligibility.
       if (_otherUserId != null) {
-        await _auraShield.recordMessageCheck(targetUserId: _otherUserId!, check: check);
+        await _auraShield.recordMessageCheck(
+            targetUserId: _otherUserId!, check: check);
       }
 
       // Crisis support: show optional resources without blocking the message.
-      if (prefs.crisisSupportEnabled && check.flags.contains(TruMessageFlag.crisis)) {
+      if (prefs.crisisSupportEnabled &&
+          check.flags.contains(TruMessageFlag.crisis)) {
         await _maybeShowCrisisSupport();
       }
 
       // Anti-doxxing: if disabled, ignore the doxxing flag.
       final effectiveFlags = prefs.antiDoxxingEnabled
           ? check.flags
-          : check.flags.where((f) => f != TruMessageFlag.possibleDoxxing).toList(growable: false);
+          : check.flags
+              .where((f) => f != TruMessageFlag.possibleDoxxing)
+              .toList(growable: false);
       final effective = !check.allowed
           ? check
-          : (effectiveFlags.isEmpty ? const CommunicationCheckResult.ok() : CommunicationCheckResult.needsConfirm(effectiveFlags));
+          : (effectiveFlags.isEmpty
+              ? const CommunicationCheckResult.ok()
+              : CommunicationCheckResult.needsConfirm(effectiveFlags));
 
       if (!effective.allowed) {
-        if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(effective.blockReason ?? 'Message blocked.')));
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+              content: Text(effective.blockReason ?? 'Message blocked.')));
+        }
         return;
       }
       if (effective.needsUserConfirm) {
@@ -185,9 +276,14 @@ class _ChatThreadScreenState extends State<ChatThreadScreen> {
       final match = _syncMatch;
       final otherId = match == null
           ? _otherUserId
-          : (match.viewerUserId == _currentUserId ? match.targetUserId : match.viewerUserId);
+          : (match.viewerUserId == _currentUserId
+              ? match.targetUserId
+              : match.viewerUserId);
       if (otherId != null && await _reporting.isBlocked(otherId)) {
-        if (mounted) ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('You blocked this user. Unblock to message.')));
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
+              content: Text('You blocked this user. Unblock to message.')));
+        }
         setState(() => _pending.removeWhere((p) => p.tempId == tempId));
         return;
       }
@@ -198,7 +294,9 @@ class _ChatThreadScreenState extends State<ChatThreadScreen> {
         senderId: _currentUserId!,
         content: text,
         timestamp: DateTime.now(),
-        expiresAt: _prefs.ephemeralTtl.duration == null ? null : DateTime.now().add(_prefs.ephemeralTtl.duration!),
+        expiresAt: _prefs.ephemeralTtl.duration == null
+            ? null
+            : DateTime.now().add(_prefs.ephemeralTtl.duration!),
         createdAt: DateTime.now(),
         updatedAt: DateTime.now(),
       );
@@ -211,7 +309,9 @@ class _ChatThreadScreenState extends State<ChatThreadScreen> {
       if (!mounted) return;
       setState(() {
         final i = _pending.indexWhere((p) => p.tempId == tempId);
-        if (i >= 0) _pending[i] = _pending[i].copyWith(state: _PendingState.failed);
+        if (i >= 0) {
+          _pending[i] = _pending[i].copyWith(state: _PendingState.failed);
+        }
       });
     } finally {
       if (mounted) setState(() => _isSending = false);
@@ -232,24 +332,38 @@ class _ChatThreadScreenState extends State<ChatThreadScreen> {
             decoration: BoxDecoration(
               color: cs.surfaceContainerHighest.withValues(alpha: 0.82),
               borderRadius: BorderRadius.circular(22),
-              border: Border.all(color: cs.outline.withValues(alpha: 0.16), width: TruLuraSurfaces.hairline),
+              border: Border.all(
+                  color: cs.outline.withValues(alpha: 0.16),
+                  width: TruLuraSurfaces.hairline),
             ),
             child: Column(
               mainAxisSize: MainAxisSize.min,
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text('Safety check', style: Theme.of(context).textTheme.titleSmall?.copyWith(fontWeight: FontWeight.w900)),
+                Text('Safety check',
+                    style: Theme.of(context)
+                        .textTheme
+                        .titleSmall
+                        ?.copyWith(fontWeight: FontWeight.w900)),
                 const SizedBox(height: 8),
-                Text(prompt, style: Theme.of(context).textTheme.bodyMedium?.copyWith(height: 1.35)),
+                Text(prompt,
+                    style: Theme.of(context)
+                        .textTheme
+                        .bodyMedium
+                        ?.copyWith(height: 1.35)),
                 const SizedBox(height: 12),
                 Row(
                   children: [
                     Expanded(
-                      child: OutlinedButton(onPressed: () => context.pop(false), child: const Text('Cancel')),
+                      child: OutlinedButton(
+                          onPressed: () => context.pop(false),
+                          child: const Text('Cancel')),
                     ),
                     const SizedBox(width: 10),
                     Expanded(
-                      child: FilledButton(onPressed: () => context.pop(true), child: const Text('Send')),
+                      child: FilledButton(
+                          onPressed: () => context.pop(true),
+                          child: const Text('Send')),
                     ),
                   ],
                 ),
@@ -276,7 +390,9 @@ class _ChatThreadScreenState extends State<ChatThreadScreen> {
         senderId: _currentUserId!,
         content: p.content,
         timestamp: DateTime.now(),
-        expiresAt: _prefs.ephemeralTtl.duration == null ? null : DateTime.now().add(_prefs.ephemeralTtl.duration!),
+        expiresAt: _prefs.ephemeralTtl.duration == null
+            ? null
+            : DateTime.now().add(_prefs.ephemeralTtl.duration!),
         createdAt: DateTime.now(),
         updatedAt: DateTime.now(),
       );
@@ -289,7 +405,9 @@ class _ChatThreadScreenState extends State<ChatThreadScreen> {
       if (!mounted) return;
       setState(() {
         final i = _pending.indexWhere((x) => x.tempId == tempId);
-        if (i >= 0) _pending[i] = _pending[i].copyWith(state: _PendingState.failed);
+        if (i >= 0) {
+          _pending[i] = _pending[i].copyWith(state: _PendingState.failed);
+        }
       });
     } finally {
       if (mounted) setState(() => _isSending = false);
@@ -313,11 +431,19 @@ class _ChatThreadScreenState extends State<ChatThreadScreen> {
         titleWidget: Row(
           children: [
             GestureDetector(
-              onTap: () => context.push('/p?title=${Uri.encodeComponent('Profile')}&subtitle=${Uri.encodeComponent('Open profile from chat (stub)')}'),
-              child: const TruLuraHaloAvatar(radius: 16, image: null, fallback: TruLuraIcon(glyph: TruLuraGlyph.person, size: 16)),
+              onTap: () => context.push(
+                  '/p?title=${Uri.encodeComponent('Profile')}&subtitle=${Uri.encodeComponent('Open profile from chat (stub)')}'),
+              child: const TruLuraHaloAvatar(
+                  radius: 16,
+                  image: null,
+                  fallback: TruLuraIcon(glyph: TruLuraGlyph.person, size: 16)),
             ),
             const SizedBox(width: 12),
-            Text('Glow Messages', style: Theme.of(context).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w900)),
+            Text('Glow Messages',
+                style: Theme.of(context)
+                    .textTheme
+                    .titleMedium
+                    ?.copyWith(fontWeight: FontWeight.w900)),
           ],
         ),
         actions: [
@@ -348,7 +474,13 @@ class _ChatThreadScreenState extends State<ChatThreadScreen> {
                           glyph: TruLuraGlyph.info,
                           title: 'This thread couldn’t load',
                           message: 'Try again in a moment.',
-                          actions: [TruStateAction(label: 'Retry', glyph: TruLuraGlyph.spark, onTap: _loadMessages, primary: true)],
+                          actions: [
+                            TruStateAction(
+                                label: 'Retry',
+                                glyph: TruLuraGlyph.spark,
+                                onTap: _loadMessages,
+                                primary: true)
+                          ],
                         )
                       : (_messages.isEmpty && _pending.isEmpty)
                           ? _EmptyThread(onPrompt: (t) {
@@ -356,27 +488,39 @@ class _ChatThreadScreenState extends State<ChatThreadScreen> {
                               setState(() {});
                             })
                           : ListView(
-                              padding: const EdgeInsets.fromLTRB(14, 10, 14, 18),
+                              padding:
+                                  const EdgeInsets.fromLTRB(14, 10, 14, 18),
                               children: [
                                 if (aura.level != AuraShieldLevel.low) ...[
                                   Row(
                                     children: [
-                                      TruLuraSafetyMeterPill(meter: meter, onTap: () => _openAuraShieldDetails(aura)),
+                                      TruLuraSafetyMeterPill(
+                                          meter: meter,
+                                          onTap: () =>
+                                              _openAuraShieldDetails(aura)),
                                       const SizedBox(width: 10),
                                       Expanded(
                                         child: Text(
                                           'AuraShield is noticing a pattern — slow the pace and keep boundaries clear.',
-                                          style: Theme.of(context).textTheme.bodySmall?.copyWith(color: cs.onSurface.withValues(alpha: 0.72), height: 1.35),
+                                          style: Theme.of(context)
+                                              .textTheme
+                                              .bodySmall
+                                              ?.copyWith(
+                                                  color: cs.onSurface
+                                                      .withValues(alpha: 0.72),
+                                                  height: 1.35),
                                         ),
                                       ),
                                     ],
                                   ),
                                   const SizedBox(height: 12),
                                 ],
-                                if (assessment.level != SafetyRiskLevel.none) ...[
+                                if (assessment.level !=
+                                    SafetyRiskLevel.none) ...[
                                   TruInlineBanner(
                                     glyph: TruLuraGlyph.shield,
-                                    text: assessment.level == SafetyRiskLevel.elevated
+                                    text: assessment.level ==
+                                            SafetyRiskLevel.elevated
                                         ? 'Safety check: elevated risk signals detected.'
                                         : 'Safety check: some caution signals detected.',
                                   ),
@@ -387,16 +531,44 @@ class _ChatThreadScreenState extends State<ChatThreadScreen> {
                                       radius: 18,
                                       padding: const EdgeInsets.all(12),
                                       child: Column(
-                                        crossAxisAlignment: CrossAxisAlignment.start,
+                                        crossAxisAlignment:
+                                            CrossAxisAlignment.start,
                                         children: [
-                                          Text('Why this appeared', style: Theme.of(context).textTheme.labelLarge?.copyWith(fontWeight: FontWeight.w900)),
+                                          Text('Why this appeared',
+                                              style: Theme.of(context)
+                                                  .textTheme
+                                                  .labelLarge
+                                                  ?.copyWith(
+                                                      fontWeight:
+                                                          FontWeight.w900)),
                                           const SizedBox(height: 8),
-                                          ...assessment.reasons.map((r) => Padding(
-                                                padding: const EdgeInsets.only(bottom: 6),
-                                                child: Text('• $r', style: Theme.of(context).textTheme.bodySmall?.copyWith(color: cs.onSurface.withValues(alpha: 0.78))),
-                                              )),
+                                          ...assessment.reasons
+                                              .map((r) => Padding(
+                                                    padding:
+                                                        const EdgeInsets.only(
+                                                            bottom: 6),
+                                                    child: Text('• $r',
+                                                        style: Theme.of(context)
+                                                            .textTheme
+                                                            .bodySmall
+                                                            ?.copyWith(
+                                                                color: cs
+                                                                    .onSurface
+                                                                    .withValues(
+                                                                        alpha:
+                                                                            0.78))),
+                                                  )),
                                           const SizedBox(height: 6),
-                                          Text('Tip: keep meetups public, don’t send money, and use report/block if needed.', style: Theme.of(context).textTheme.bodySmall?.copyWith(color: cs.onSurface.withValues(alpha: 0.72), height: 1.35)),
+                                          Text(
+                                              'Tip: keep meetups public, don’t send money, and use report/block if needed.',
+                                              style: Theme.of(context)
+                                                  .textTheme
+                                                  .bodySmall
+                                                  ?.copyWith(
+                                                      color: cs.onSurface
+                                                          .withValues(
+                                                              alpha: 0.72),
+                                                      height: 1.35)),
                                         ],
                                       ),
                                     ),
@@ -404,36 +576,55 @@ class _ChatThreadScreenState extends State<ChatThreadScreen> {
                                   const SizedBox(height: 12),
                                 ],
                                 if (paused) ...[
-                                  const TruInlineBanner(glyph: TruLuraGlyph.moon, text: 'This conversation is paused.'),
+                                  const TruInlineBanner(
+                                      glyph: TruLuraGlyph.moon,
+                                      text: 'This conversation is paused.'),
                                   const SizedBox(height: 12),
                                 ],
                                 if (match != null && room == null) ...[
                                   TruInlineBanner(
                                     glyph: TruLuraGlyph.lock,
-                                    text: 'Matchroom unlocks after a few messages (guided prompts + shared tools).',
+                                    text:
+                                        'Matchroom unlocks after a few messages (guided prompts + shared tools).',
                                   ),
                                   const SizedBox(height: 12),
                                 ],
                                 if (match != null && room != null) ...[
                                   TruInlineBanner(
                                     glyph: TruLuraGlyph.groups,
-                                    text: 'Matchroom unlocked. Use it for prompts + calmer pacing.',
+                                    text:
+                                        'Matchroom unlocked. Use it for prompts + calmer pacing.',
                                   ),
                                   const SizedBox(height: 12),
                                 ],
                                 ..._messages.map((m) {
                                   final isMe = m.senderId == _currentUserId;
-                                  final meta = (m.expiresAt == null) ? null : 'Ephemeral • deletes ${_relativeTime(m.expiresAt!)}';
-                                  return TruluraMessageBubble(content: m.content, isMe: isMe, failed: false, onRetry: null, onLongPress: () => _openBubbleReactions(m.content), meta: meta);
+                                  final meta = (m.expiresAt == null)
+                                      ? null
+                                      : 'Ephemeral • deletes ${_relativeTime(m.expiresAt!)}';
+                                  return TruluraMessageBubble(
+                                      content: m.content,
+                                      isMe: isMe,
+                                      failed: false,
+                                      onRetry: null,
+                                      onLongPress: () =>
+                                          _openBubbleReactions(m.content),
+                                      meta: meta);
                                 }),
                                 ..._pending.map((p) {
                                   return TruluraMessageBubble(
                                     content: p.content,
                                     isMe: true,
                                     failed: p.state == _PendingState.failed,
-                                    onRetry: p.state == _PendingState.failed ? () => _retryPending(p.tempId) : null,
-                                    onLongPress: () => _openBubbleReactions(p.content),
-                                    meta: _prefs.ephemeralTtl == TruEphemeralTtl.off ? null : 'Ephemeral • ${_prefs.ephemeralTtl.label}',
+                                    onRetry: p.state == _PendingState.failed
+                                        ? () => _retryPending(p.tempId)
+                                        : null,
+                                    onLongPress: () =>
+                                        _openBubbleReactions(p.content),
+                                    meta: _prefs.ephemeralTtl ==
+                                            TruEphemeralTtl.off
+                                        ? null
+                                        : 'Ephemeral • ${_prefs.ephemeralTtl.label}',
                                   );
                                 }),
                               ],
@@ -450,7 +641,11 @@ class _ChatThreadScreenState extends State<ChatThreadScreen> {
                   child: Row(
                     children: [
                       IconButton(
-                        icon: TruLuraIcon(glyph: TruLuraGlyph.postPlus, size: 22, active: true, color: cs.onSurface.withValues(alpha: 0.92)),
+                        icon: TruLuraIcon(
+                            glyph: TruLuraGlyph.postPlus,
+                            size: 22,
+                            active: true,
+                            color: cs.onSurface.withValues(alpha: 0.92)),
                         onPressed: paused ? null : _openAttachments,
                         tooltip: 'Attach',
                       ),
@@ -461,15 +656,25 @@ class _ChatThreadScreenState extends State<ChatThreadScreen> {
                           maxLines: 4,
                           decoration: InputDecoration(
                             hintText: 'Type a message…',
-                            hintStyle: Theme.of(context).textTheme.bodyMedium?.copyWith(color: cs.onSurface.withValues(alpha: 0.60)),
+                            hintStyle: Theme.of(context)
+                                .textTheme
+                                .bodyMedium
+                                ?.copyWith(
+                                    color:
+                                        cs.onSurface.withValues(alpha: 0.60)),
                             filled: false,
                             border: InputBorder.none,
-                            contentPadding: const EdgeInsets.symmetric(horizontal: 10, vertical: 10),
+                            contentPadding: const EdgeInsets.symmetric(
+                                horizontal: 10, vertical: 10),
                           ),
                         ),
                       ),
                       IconButton(
-                        icon: TruLuraIcon(glyph: TruLuraGlyph.send, size: 22, active: true, color: cs.onSurface.withValues(alpha: 0.92)),
+                        icon: TruLuraIcon(
+                            glyph: TruLuraGlyph.send,
+                            size: 22,
+                            active: true,
+                            color: cs.onSurface.withValues(alpha: 0.92)),
                         onPressed: (_isSending || paused) ? null : _sendMessage,
                       ),
                     ],
@@ -487,7 +692,13 @@ class _ChatThreadScreenState extends State<ChatThreadScreen> {
     final cs = Theme.of(context).colorScheme;
     final uid = _currentUserId;
     final match = _syncMatch;
-    final otherId = match == null ? _otherUserId : (uid == null ? null : (match.viewerUserId == uid ? match.targetUserId : match.viewerUserId));
+    final otherId = match == null
+        ? _otherUserId
+        : (uid == null
+            ? null
+            : (match.viewerUserId == uid
+                ? match.targetUserId
+                : match.viewerUserId));
     await showModalBottomSheet<void>(
       context: context,
       backgroundColor: Colors.transparent,
@@ -508,10 +719,14 @@ class _ChatThreadScreenState extends State<ChatThreadScreen> {
                 if (match != null) ...[
                   _SheetAction(
                     icon: Icons.groups_rounded,
-                    label: (_matchroom != null) ? 'Open matchroom' : 'Matchroom (locked)',
+                    label: (_matchroom != null)
+                        ? 'Open matchroom'
+                        : 'Matchroom (locked)',
                     onTap: () {
                       if (_matchroom == null) {
-                        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Matchroom is locked until you’ve exchanged a few messages.')));
+                        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
+                            content: Text(
+                                'Matchroom is locked until you’ve exchanged a few messages.')));
                         context.pop();
                         return;
                       }
@@ -521,12 +736,24 @@ class _ChatThreadScreenState extends State<ChatThreadScreen> {
                   ),
                   const SizedBox(height: 10),
                   _SheetAction(
-                    icon: match.status == TruActiveMatchStatus.paused ? Icons.play_circle_outline_rounded : Icons.pause_circle_outline_rounded,
-                    label: match.status == TruActiveMatchStatus.paused ? 'Resume connection' : 'Pause connection',
+                    icon: match.status == TruActiveMatchStatus.paused
+                        ? Icons.play_circle_outline_rounded
+                        : Icons.pause_circle_outline_rounded,
+                    label: match.status == TruActiveMatchStatus.paused
+                        ? 'Resume connection'
+                        : 'Pause connection',
                     onTap: () async {
                       if (uid == null) return;
-                      final next = match.status == TruActiveMatchStatus.paused ? TruActiveMatchStatus.active : TruActiveMatchStatus.paused;
-                      await _syncService.setMatchStatus(userId: uid, matchId: match.id, status: next, pauseNote: next == TruActiveMatchStatus.paused ? 'Paused from chat thread' : null);
+                      final next = match.status == TruActiveMatchStatus.paused
+                          ? TruActiveMatchStatus.active
+                          : TruActiveMatchStatus.paused;
+                      await _syncService.setMatchStatus(
+                          userId: uid,
+                          matchId: match.id,
+                          status: next,
+                          pauseNote: next == TruActiveMatchStatus.paused
+                              ? 'Paused from chat thread'
+                              : null);
                       if (!mounted) return;
                       context.pop();
                       await _loadMessages();
@@ -539,13 +766,21 @@ class _ChatThreadScreenState extends State<ChatThreadScreen> {
                     danger: true,
                     onTap: () async {
                       if (uid == null) return;
-                      await _syncService.setMatchStatus(userId: uid, matchId: match.id, status: TruActiveMatchStatus.closed, pauseNote: 'Closed from chat thread');
-                      await _syncService.setMatchStage(userId: uid, matchId: match.id, stage: TruConnectionStage.closed);
+                      await _syncService.setMatchStatus(
+                          userId: uid,
+                          matchId: match.id,
+                          status: TruActiveMatchStatus.closed,
+                          pauseNote: 'Closed from chat thread');
+                      await _syncService.setMatchStage(
+                          userId: uid,
+                          matchId: match.id,
+                          stage: TruConnectionStage.closed);
                       if (!mounted) return;
                       context.pop();
                       await _loadMessages();
                       if (!mounted) return;
-                      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Connection closed.')));
+                      ScaffoldMessenger.of(context).showSnackBar(
+                          const SnackBar(content: Text('Connection closed.')));
                     },
                   ),
                   const SizedBox(height: 10),
@@ -554,7 +789,8 @@ class _ChatThreadScreenState extends State<ChatThreadScreen> {
                   icon: Icons.pause_circle_outline_rounded,
                   label: 'Pause conversation',
                   onTap: () {
-                    ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Paused (stub)')));
+                    ScaffoldMessenger.of(context).showSnackBar(
+                        const SnackBar(content: Text('Paused (stub)')));
                     context.pop();
                   },
                 ),
@@ -576,14 +812,19 @@ class _ChatThreadScreenState extends State<ChatThreadScreen> {
                     final messenger = ScaffoldMessenger.of(context);
                     final navigator = Navigator.of(context);
                     if (otherId == null) {
-                      messenger.showSnackBar(const SnackBar(content: Text('Could not resolve user to block.')));
+                      messenger.showSnackBar(const SnackBar(
+                          content: Text('Could not resolve user to block.')));
                       navigator.pop();
                       return;
                     }
                     await _reporting.blockUser(otherId);
-                    await _auraShield.recordUserSignal(TruAuraShieldUserSignal(targetUserId: otherId, type: TruAuraShieldSignalType.blocked, createdAt: DateTime.now()));
+                    await _auraShield.recordUserSignal(TruAuraShieldUserSignal(
+                        targetUserId: otherId,
+                        type: TruAuraShieldSignalType.blocked,
+                        createdAt: DateTime.now()));
                     if (!mounted) return;
-                    messenger.showSnackBar(const SnackBar(content: Text('User blocked.')));
+                    messenger.showSnackBar(
+                        const SnackBar(content: Text('User blocked.')));
                     navigator.pop();
                   },
                 ),
@@ -594,7 +835,8 @@ class _ChatThreadScreenState extends State<ChatThreadScreen> {
                   danger: true,
                   onTap: () {
                     context.pop();
-                    context.push('${AppRoutes.report}?type=chat&id=${Uri.encodeComponent(widget.chatId)}');
+                    context.push(
+                        '${AppRoutes.report}?type=chat&id=${Uri.encodeComponent(widget.chatId)}');
                   },
                 ),
               ],
@@ -625,15 +867,28 @@ class _ChatThreadScreenState extends State<ChatThreadScreen> {
               mainAxisSize: MainAxisSize.min,
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text('Attach', style: Theme.of(context).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w900)),
+                Text('Attach',
+                    style: Theme.of(context)
+                        .textTheme
+                        .titleMedium
+                        ?.copyWith(fontWeight: FontWeight.w900)),
                 const SizedBox(height: 12),
                 Wrap(
                   spacing: 10,
                   runSpacing: 10,
                   children: [
-                    _PillAction(icon: Icons.photo_outlined, label: 'Photo', onTap: () => _stub('Photo picker')),
-                    _PillAction(icon: Icons.photo_camera_outlined, label: 'Camera', onTap: () => _stub('Camera')),
-                    _PillAction(icon: Icons.mic_none_rounded, label: 'Voice', onTap: () => _stub('Voice note')),
+                    _PillAction(
+                        icon: Icons.photo_outlined,
+                        label: 'Photo',
+                        onTap: () => _stub('Photo picker')),
+                    _PillAction(
+                        icon: Icons.photo_camera_outlined,
+                        label: 'Camera',
+                        onTap: () => _stub('Camera')),
+                    _PillAction(
+                        icon: Icons.mic_none_rounded,
+                        label: 'Voice',
+                        onTap: () => _stub('Voice note')),
                   ],
                 ),
               ],
@@ -665,15 +920,28 @@ class _ChatThreadScreenState extends State<ChatThreadScreen> {
               mainAxisSize: MainAxisSize.min,
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text('React', style: Theme.of(context).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w900)),
+                Text('React',
+                    style: Theme.of(context)
+                        .textTheme
+                        .titleMedium
+                        ?.copyWith(fontWeight: FontWeight.w900)),
                 const SizedBox(height: 10),
                 Wrap(
                   spacing: 10,
                   runSpacing: 10,
                   children: [
-                    _ReactionPill(label: 'Glow', selected: _activeReaction == 'glow', onTap: () => context.pop('glow')),
-                    _ReactionPill(label: 'Heart', selected: _activeReaction == 'heart', onTap: () => context.pop('heart')),
-                    _ReactionPill(label: 'Laugh', selected: _activeReaction == 'laugh', onTap: () => context.pop('laugh')),
+                    _ReactionPill(
+                        label: 'Glow',
+                        selected: _activeReaction == 'glow',
+                        onTap: () => context.pop('glow')),
+                    _ReactionPill(
+                        label: 'Heart',
+                        selected: _activeReaction == 'heart',
+                        onTap: () => context.pop('heart')),
+                    _ReactionPill(
+                        label: 'Laugh',
+                        selected: _activeReaction == 'laugh',
+                        onTap: () => context.pop('laugh')),
                   ],
                 ),
               ],
@@ -684,7 +952,8 @@ class _ChatThreadScreenState extends State<ChatThreadScreen> {
     );
     if (!mounted || result == null) return;
     setState(() => _activeReaction = result);
-    messenger.showSnackBar(SnackBar(content: Text('Reacted with ${result.toUpperCase()} (stub)')));
+    messenger.showSnackBar(
+        SnackBar(content: Text('Reacted with ${result.toUpperCase()} (stub)')));
   }
 
   String _relativeTime(DateTime at) {
@@ -700,7 +969,8 @@ class _ChatThreadScreenState extends State<ChatThreadScreen> {
     final prefs = await _safetyCenter.getPrefs();
     if (!mounted) return;
     if (!prefs.ephemeralMessagingEnabled) {
-      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Enable Ephemeral Messaging in Safety Center first.')));
+      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
+          content: Text('Enable Ephemeral Messaging in Safety Center first.')));
       return;
     }
 
@@ -723,9 +993,17 @@ class _ChatThreadScreenState extends State<ChatThreadScreen> {
               mainAxisSize: MainAxisSize.min,
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text('Ephemeral messages', style: Theme.of(context).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w900)),
+                Text('Ephemeral messages',
+                    style: Theme.of(context)
+                        .textTheme
+                        .titleMedium
+                        ?.copyWith(fontWeight: FontWeight.w900)),
                 const SizedBox(height: 8),
-                Text('New messages will self-delete after the chosen time. This does not prevent screenshots.', style: Theme.of(context).textTheme.bodySmall?.copyWith(color: cs.onSurface.withValues(alpha: 0.72), height: 1.35)),
+                Text(
+                    'New messages will self-delete after the chosen time. This does not prevent screenshots.',
+                    style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                        color: cs.onSurface.withValues(alpha: 0.72),
+                        height: 1.35)),
                 const SizedBox(height: 12),
                 ...TruEphemeralTtl.values.map((ttl) {
                   final selected = ttl == _prefs.ephemeralTtl;
@@ -734,17 +1012,32 @@ class _ChatThreadScreenState extends State<ChatThreadScreen> {
                     child: GestureDetector(
                       onTap: () => context.pop(ttl),
                       child: Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
+                        padding: const EdgeInsets.symmetric(
+                            horizontal: 12, vertical: 12),
                         decoration: BoxDecoration(
-                          color: cs.surfaceContainerHighest.withValues(alpha: selected ? 0.62 : 0.48),
+                          color: cs.surfaceContainerHighest
+                              .withValues(alpha: selected ? 0.62 : 0.48),
                           borderRadius: BorderRadius.circular(18),
-                          border: Border.all(color: cs.outline.withValues(alpha: selected ? 0.22 : 0.14), width: TruLuraSurfaces.hairline),
+                          border: Border.all(
+                              color: cs.outline
+                                  .withValues(alpha: selected ? 0.22 : 0.14),
+                              width: TruLuraSurfaces.hairline),
                         ),
                         child: Row(
                           children: [
-                            Icon(selected ? Icons.check_circle_rounded : Icons.radio_button_unchecked_rounded, color: cs.onSurface.withValues(alpha: 0.88)),
+                            Icon(
+                                selected
+                                    ? Icons.check_circle_rounded
+                                    : Icons.radio_button_unchecked_rounded,
+                                color: cs.onSurface.withValues(alpha: 0.88)),
                             const SizedBox(width: 10),
-                            Expanded(child: Text(ttl.label, style: Theme.of(context).textTheme.labelLarge?.copyWith(fontWeight: FontWeight.w900))),
+                            Expanded(
+                                child: Text(ttl.label,
+                                    style: Theme.of(context)
+                                        .textTheme
+                                        .labelLarge
+                                        ?.copyWith(
+                                            fontWeight: FontWeight.w900))),
                           ],
                         ),
                       ),
@@ -804,22 +1097,40 @@ class _ChatThreadScreenState extends State<ChatThreadScreen> {
                   children: [
                     TruLuraSafetyMeterPill(meter: _meter.meterForThread(aura)),
                     const SizedBox(width: 10),
-                    Expanded(child: Text('AuraShield context', style: Theme.of(context).textTheme.titleSmall?.copyWith(fontWeight: FontWeight.w900))),
+                    Expanded(
+                        child: Text('AuraShield context',
+                            style: Theme.of(context)
+                                .textTheme
+                                .titleSmall
+                                ?.copyWith(fontWeight: FontWeight.w900))),
                   ],
                 ),
                 const SizedBox(height: 10),
-                Text('This is on-device pattern detection designed to protect without stigmatizing. It’s not a label or a verdict.', style: Theme.of(context).textTheme.bodySmall?.copyWith(color: cs.onSurface.withValues(alpha: 0.72), height: 1.35)),
+                Text(
+                    'This is on-device pattern detection designed to protect without stigmatizing. It’s not a label or a verdict.',
+                    style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                        color: cs.onSurface.withValues(alpha: 0.72),
+                        height: 1.35)),
                 if (aura.tags.isNotEmpty) ...[
                   const SizedBox(height: 12),
                   ...aura.tags.map((t) => Padding(
                         padding: const EdgeInsets.only(bottom: 6),
-                        child: Text('• ${tagText(t)}', style: Theme.of(context).textTheme.bodySmall?.copyWith(color: cs.onSurface.withValues(alpha: 0.78))),
+                        child: Text('• ${tagText(t)}',
+                            style: Theme.of(context)
+                                .textTheme
+                                .bodySmall
+                                ?.copyWith(
+                                    color:
+                                        cs.onSurface.withValues(alpha: 0.78))),
                       )),
                 ],
                 const SizedBox(height: 12),
                 Row(
                   children: [
-                    Expanded(child: OutlinedButton(onPressed: () => context.pop(), child: const Text('Close'))),
+                    Expanded(
+                        child: OutlinedButton(
+                            onPressed: () => context.pop(),
+                            child: const Text('Close'))),
                     const SizedBox(width: 10),
                     Expanded(
                       child: FilledButton(
@@ -861,22 +1172,33 @@ class _ChatThreadScreenState extends State<ChatThreadScreen> {
               mainAxisSize: MainAxisSize.min,
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text('Support check-in', style: Theme.of(context).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w900)),
+                Text('Support check-in',
+                    style: Theme.of(context)
+                        .textTheme
+                        .titleMedium
+                        ?.copyWith(fontWeight: FontWeight.w900)),
                 const SizedBox(height: 8),
                 Text(
                   'If you’re in immediate danger or thinking about self-harm, consider contacting local emergency services or a trusted person right now.\n\nTrulura can also help you slow the conversation pace and add boundaries.',
-                  style: Theme.of(context).textTheme.bodySmall?.copyWith(color: cs.onSurface.withValues(alpha: 0.74), height: 1.35),
+                  style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                      color: cs.onSurface.withValues(alpha: 0.74),
+                      height: 1.35),
                 ),
                 const SizedBox(height: 12),
                 Row(
                   children: [
-                    Expanded(child: OutlinedButton(onPressed: () => context.pop(), child: const Text('Dismiss'))),
+                    Expanded(
+                        child: OutlinedButton(
+                            onPressed: () => context.pop(),
+                            child: const Text('Dismiss'))),
                     const SizedBox(width: 10),
                     Expanded(
                       child: FilledButton(
                         onPressed: () {
                           context.pop();
-                          ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Resources (stub)')));
+                          ScaffoldMessenger.of(context).showSnackBar(
+                              const SnackBar(
+                                  content: Text('Resources (stub)')));
                         },
                         child: const Text('Resources'),
                       ),
@@ -892,7 +1214,8 @@ class _ChatThreadScreenState extends State<ChatThreadScreen> {
   }
 
   void _stub(String what) {
-    ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('$what (stub)')));
+    ScaffoldMessenger.of(context)
+        .showSnackBar(SnackBar(content: Text('$what (stub)')));
     context.pop();
   }
 }
@@ -928,8 +1251,10 @@ class _BubbleSkeleton extends StatelessWidget {
       child: Padding(
         padding: const EdgeInsets.only(bottom: 10),
         child: ConstrainedBox(
-          constraints: BoxConstraints(maxWidth: MediaQuery.of(context).size.width * 0.74),
-          child: const TruSkeletonBox(width: double.infinity, height: 46, radius: 18),
+          constraints: BoxConstraints(
+              maxWidth: MediaQuery.of(context).size.width * 0.74),
+          child: const TruSkeletonBox(
+              width: double.infinity, height: 46, radius: 18),
         ),
       ),
     );
@@ -945,11 +1270,23 @@ class _EmptyThread extends StatelessWidget {
     return TruStatePanel(
       glyph: TruLuraGlyph.messages,
       title: 'Start the conversation',
-      message: 'Break the silence with something light — your vibe matters more than the perfect line.',
+      message:
+          'Break the silence with something light — your vibe matters more than the perfect line.',
       actions: [
-        TruStateAction(label: 'What caught your eye?', glyph: TruLuraGlyph.spark, onTap: () => onPrompt('What caught your eye?'), primary: true),
-        TruStateAction(label: 'Ask about their vibe', glyph: TruLuraGlyph.insights, onTap: () => onPrompt('What’s your vibe been like lately?')),
-        TruStateAction(label: 'Comment on profile', glyph: TruLuraGlyph.person, onTap: () => onPrompt('I loved your profile — what are you into right now?')),
+        TruStateAction(
+            label: 'What caught your eye?',
+            glyph: TruLuraGlyph.spark,
+            onTap: () => onPrompt('What caught your eye?'),
+            primary: true),
+        TruStateAction(
+            label: 'Ask about their vibe',
+            glyph: TruLuraGlyph.insights,
+            onTap: () => onPrompt('What’s your vibe been like lately?')),
+        TruStateAction(
+            label: 'Comment on profile',
+            glyph: TruLuraGlyph.person,
+            onTap: () => onPrompt(
+                'I loved your profile — what are you into right now?')),
       ],
     );
   }
@@ -961,10 +1298,17 @@ class _PendingMessage {
   final String tempId;
   final String content;
   final _PendingState state;
-  const _PendingMessage({required this.tempId, required this.content, this.state = _PendingState.sending});
+  const _PendingMessage(
+      {required this.tempId,
+      required this.content,
+      this.state = _PendingState.sending});
 
-  _PendingMessage copyWith({String? tempId, String? content, _PendingState? state}) =>
-      _PendingMessage(tempId: tempId ?? this.tempId, content: content ?? this.content, state: state ?? this.state);
+  _PendingMessage copyWith(
+          {String? tempId, String? content, _PendingState? state}) =>
+      _PendingMessage(
+          tempId: tempId ?? this.tempId,
+          content: content ?? this.content,
+          state: state ?? this.state);
 }
 
 class _SheetAction extends StatelessWidget {
@@ -973,7 +1317,11 @@ class _SheetAction extends StatelessWidget {
   final bool danger;
   final VoidCallback onTap;
 
-  const _SheetAction({required this.icon, required this.label, required this.onTap, this.danger = false});
+  const _SheetAction(
+      {required this.icon,
+      required this.label,
+      required this.onTap,
+      this.danger = false});
 
   @override
   Widget build(BuildContext context) {
@@ -986,14 +1334,22 @@ class _SheetAction extends StatelessWidget {
         decoration: BoxDecoration(
           color: cs.surfaceContainerHighest.withValues(alpha: 0.55),
           borderRadius: BorderRadius.circular(18),
-          border: Border.all(color: cs.outline.withValues(alpha: 0.16), width: TruLuraSurfaces.hairline),
+          border: Border.all(
+              color: cs.outline.withValues(alpha: 0.16),
+              width: TruLuraSurfaces.hairline),
         ),
         child: Row(
           children: [
             Icon(icon, color: fg),
             const SizedBox(width: 10),
-            Expanded(child: Text(label, style: Theme.of(context).textTheme.labelLarge?.copyWith(fontWeight: FontWeight.w900, color: fg))),
-            Icon(Icons.chevron_right_rounded, color: cs.onSurface.withValues(alpha: 0.6)),
+            Expanded(
+                child: Text(label,
+                    style: Theme.of(context)
+                        .textTheme
+                        .labelLarge
+                        ?.copyWith(fontWeight: FontWeight.w900, color: fg))),
+            Icon(Icons.chevron_right_rounded,
+                color: cs.onSurface.withValues(alpha: 0.6)),
           ],
         ),
       ),
@@ -1006,7 +1362,8 @@ class _PillAction extends StatelessWidget {
   final String label;
   final VoidCallback onTap;
 
-  const _PillAction({required this.icon, required this.label, required this.onTap});
+  const _PillAction(
+      {required this.icon, required this.label, required this.onTap});
 
   @override
   Widget build(BuildContext context) {
@@ -1018,14 +1375,20 @@ class _PillAction extends StatelessWidget {
         decoration: BoxDecoration(
           color: cs.surfaceContainerHighest.withValues(alpha: 0.55),
           borderRadius: BorderRadius.circular(999),
-          border: Border.all(color: cs.outline.withValues(alpha: 0.16), width: TruLuraSurfaces.hairline),
+          border: Border.all(
+              color: cs.outline.withValues(alpha: 0.16),
+              width: TruLuraSurfaces.hairline),
         ),
         child: Row(
           mainAxisSize: MainAxisSize.min,
           children: [
             Icon(icon, size: 18, color: cs.onSurface),
             const SizedBox(width: 8),
-            Text(label, style: Theme.of(context).textTheme.labelLarge?.copyWith(fontWeight: FontWeight.w900)),
+            Text(label,
+                style: Theme.of(context)
+                    .textTheme
+                    .labelLarge
+                    ?.copyWith(fontWeight: FontWeight.w900)),
           ],
         ),
       ),
@@ -1038,7 +1401,8 @@ class _ReactionPill extends StatelessWidget {
   final bool selected;
   final VoidCallback onTap;
 
-  const _ReactionPill({required this.label, required this.selected, required this.onTap});
+  const _ReactionPill(
+      {required this.label, required this.selected, required this.onTap});
 
   @override
   Widget build(BuildContext context) {
@@ -1050,11 +1414,19 @@ class _ReactionPill extends StatelessWidget {
         curve: Curves.easeOutCubic,
         padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
         decoration: BoxDecoration(
-          color: cs.surfaceContainerHighest.withValues(alpha: selected ? 0.75 : 0.55),
+          color: cs.surfaceContainerHighest
+              .withValues(alpha: selected ? 0.75 : 0.55),
           borderRadius: BorderRadius.circular(999),
-          border: Border.all(color: (selected ? cs.primary : cs.outline).withValues(alpha: 0.22), width: TruLuraSurfaces.hairline),
+          border: Border.all(
+              color:
+                  (selected ? cs.primary : cs.outline).withValues(alpha: 0.22),
+              width: TruLuraSurfaces.hairline),
         ),
-        child: Text(label, style: Theme.of(context).textTheme.labelLarge?.copyWith(fontWeight: FontWeight.w900)),
+        child: Text(label,
+            style: Theme.of(context)
+                .textTheme
+                .labelLarge
+                ?.copyWith(fontWeight: FontWeight.w900)),
       ),
     );
   }

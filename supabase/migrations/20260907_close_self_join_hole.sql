@@ -1,0 +1,46 @@
+-- APPLIED 2026-09-07 as migration `close_conversation_self_join_hole`.
+--
+-- Closes a privilege escalation proved by role on 2026-09-07:
+--
+--   C(NONmember) messages=0 conversations=0 member_rows=0 list_rows=0
+--   C insert message:        blocked (42501)
+--   C forge message as A:    blocked (42501)
+--   C self-join conversation: SUCCEEDED (BAD)   <-- this
+--
+-- conversation_members_insert_own is `with check (user_id = auth.uid())`.
+-- That reads as "you may only add yourself", which sounds restrictive, but
+-- says nothing about *which conversation* you may add yourself to. Any
+-- authenticated user who learns a conversation's UUID can insert their own
+-- membership row into it and then read the entire history, because every
+-- read policy keys off membership.
+--
+-- This is not a regression introduced by 20260904_messaging_core -- the
+-- pre-existing policy had identical text. The earlier verification round
+-- tested "A adds C" (correctly blocked) and never tested "C adds C", so the
+-- hole survived a check that looked thorough.
+--
+-- The fix is to remove client INSERT on both tables entirely and let
+-- start_direct_conversation be the only way membership is created. That
+-- function is SECURITY DEFINER, so it runs as the table owner and is not
+-- subject to RLS; dropping these policies does not affect it. It derives the
+-- caller from auth.uid() and never accepts it as a parameter, so a caller can
+-- still only ever create a conversation containing themselves.
+--
+-- Verified before writing this: no client code inserts into either table.
+-- lib/services/chat_service.dart touches conversations and
+-- conversation_members only through .select(), and creates conversations via
+-- .rpc('start_direct_conversation'). Messages are unaffected -- they are
+-- inserted directly and keep messages_insert_sender_member.
+
+drop policy if exists conversation_members_insert_own on public.conversation_members;
+
+-- Dropped for the same reason. With no INSERT policy, a client cannot create
+-- bare conversation rows either. It was only ever there to let the RPC's
+-- insert through, which was a misreading: SECURITY DEFINER never needed it.
+drop policy if exists conversations_insert_authenticated on public.conversations;
+
+-- Leaves, on all three tables: SELECT for members, plus INSERT on messages
+-- for a member sending as themselves. No UPDATE or DELETE policy anywhere, so
+-- both remain denied. Conversation and membership creation is reachable only
+-- through public.start_direct_conversation(uuid), which is granted to
+-- authenticated and revoked from public and anon.
