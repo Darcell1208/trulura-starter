@@ -1,12 +1,37 @@
 import 'dart:convert';
 import 'package:flutter/foundation.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:supabase_flutter/supabase_flutter.dart' show PostgrestException;
 import 'package:trulura/models/chat.dart';
 import 'package:trulura/models/message.dart';
 import 'package:trulura/models/user.dart';
 import 'package:trulura/services/database_service/database_service.dart';
 import 'package:trulura/services/reporting_service.dart';
 import 'package:trulura/services/user_service.dart';
+
+/// A failure the person starting a conversation should actually be told about.
+///
+/// Deliberately distinct from the pattern in [ChatService.ensureChatWithUser],
+/// which catches everything and returns null. That is survivable for the Sync
+/// flow, where a chat is a side effect of accepting a connection, but not for
+/// the New Message screen: there, a null means the user tapped a name, saw
+/// nothing happen, and has no idea whether they are signed out, offline, or
+/// looking at an account that has been deleted.
+class StartConversationException implements Exception {
+  /// Shown to the user verbatim, so it is phrased for a person, not a log.
+  final String message;
+
+  /// SQLSTATE from PostgREST when the failure came from the database, so a
+  /// caller can branch on it and a bug report can name it. Null for failures
+  /// detected client-side.
+  final String? code;
+
+  const StartConversationException(this.message, {this.code});
+
+  @override
+  String toString() =>
+      'StartConversationException(${code ?? 'client'}): $message';
+}
 
 class ChatService {
   static const String _chatsKey = 'chats';
@@ -465,6 +490,126 @@ class ChatService {
     } catch (e) {
       debugPrint('Failed to save message: $e');
     }
+  }
+
+  /// People the signed-in user could start a conversation with.
+  ///
+  /// Verified by role on 2026-09-07 that `authenticated` can read other users'
+  /// profile rows, so this needs no migration: RLS on profiles is enabled and
+  /// denies anon entirely, but a signed-in user sees every profile. If that
+  /// policy is ever tightened to self-only, this returns an empty list and the
+  /// picker shows its empty state rather than failing.
+  ///
+  /// Throws [StartConversationException] instead of returning an empty list
+  /// when the user is not signed in, so the screen can say which of the two it
+  /// is -- "nobody to message yet" and "you are signed out" look identical
+  /// otherwise.
+  Future<List<User>> getConnectableProfiles() async {
+    if (!_supabaseReady) {
+      throw const StartConversationException(
+        'Messaging is unavailable right now. Check your connection and try again.',
+      );
+    }
+    final client = DatabaseService.instance.client;
+    final me = client.auth.currentUser?.id;
+    if (me == null) {
+      throw const StartConversationException(
+        'You need to be signed in to start a conversation.',
+        code: 'not_authenticated',
+      );
+    }
+
+    try {
+      final rows = await client
+          .from('profiles')
+          .select(
+              'id, username, display_name, bio, about_me, profile_photo_url, avatar_url, created_at, updated_at')
+          .neq('id', me)
+          // supabase-dart's `order` defaults to descending; be explicit.
+          .order('display_name', ascending: true)
+          .limit(200);
+      return (rows as List)
+          .whereType<Map<String, dynamic>>()
+          .map(_profileFromRow)
+          .toList(growable: false);
+    } on PostgrestException catch (e) {
+      throw StartConversationException(
+        e.message.isEmpty ? 'Could not load people to message.' : e.message,
+        code: e.code,
+      );
+    }
+  }
+
+  /// Starts (or reuses) the direct conversation with [otherUserId] and returns
+  /// its id.
+  ///
+  /// Goes through the `start_direct_conversation` RPC, which is the only path
+  /// that can create a conversation: 20260907_close_self_join_hole dropped the
+  /// INSERT policies on conversations and conversation_members, so a direct
+  /// insert from the client is refused. The RPC is idempotent -- picking
+  /// somebody you already have a thread with returns that thread's id rather
+  /// than opening a second one.
+  ///
+  /// Throws [StartConversationException] on every failure. It never returns a
+  /// sentinel, because the caller navigates on the result and a silent null
+  /// would strand the user on the picker with no explanation.
+  Future<String> startDirectConversation(String otherUserId) async {
+    if (!_supabaseReady) {
+      throw const StartConversationException(
+        'Messaging is unavailable right now. Check your connection and try again.',
+      );
+    }
+    final client = DatabaseService.instance.client;
+    final me = client.auth.currentUser?.id;
+    if (me == null) {
+      throw const StartConversationException(
+        'You need to be signed in to start a conversation.',
+        code: 'not_authenticated',
+      );
+    }
+    final target = otherUserId.trim();
+    if (target.isEmpty) {
+      throw const StartConversationException('That account is missing an id.');
+    }
+    if (target == me) {
+      throw const StartConversationException(
+        'You cannot start a conversation with yourself.',
+      );
+    }
+
+    try {
+      final result = await client.rpc(
+        'start_direct_conversation',
+        params: {'p_other_user_id': target},
+      );
+      final id = result?.toString() ?? '';
+      if (id.isEmpty) {
+        throw const StartConversationException(
+          'The server did not return a conversation. Try again.',
+        );
+      }
+      return id;
+    } on PostgrestException catch (e) {
+      throw StartConversationException(_startFailureMessage(e), code: e.code);
+    }
+  }
+
+  /// Turns the RPC's own SQLSTATEs into something a person can act on.
+  ///
+  /// The codes are raised deliberately inside start_direct_conversation, so
+  /// they are a contract rather than incidental Postgres noise.
+  String _startFailureMessage(PostgrestException e) {
+    switch (e.code) {
+      case '42501':
+        return 'Your session has expired. Sign in again to start a conversation.';
+      case '22023':
+        return 'Pick someone other than yourself to start a conversation.';
+      case '23503':
+        return 'That account no longer exists.';
+    }
+    return e.message.isEmpty
+        ? 'Could not start the conversation. Try again.'
+        : e.message;
   }
 
   /// Creates (or returns an existing) chat between the current user and a

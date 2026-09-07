@@ -15,6 +15,7 @@ import 'package:trulura/screens/accessibility/accessibility_screen.dart';
 import 'package:trulura/screens/ai/ai_companion_screen.dart';
 import 'package:trulura/screens/chat/chat_list_screen.dart';
 import 'package:trulura/screens/chat/chat_thread_screen.dart';
+import 'package:trulura/screens/chat/new_message_screen.dart';
 import 'package:trulura/screens/home/home_hub_screen.dart';
 import 'package:trulura/screens/live/live_hub_screen.dart';
 import 'package:trulura/screens/main_shell.dart';
@@ -249,6 +250,19 @@ class AppRouter {
                     name: 'messages',
                   ),
                   routes: [
+                    // Declared before 'thread/:id' for readability only; go_router
+                    // matches on the literal segment, so 'new' cannot be captured
+                    // as a thread id.
+                    GoRoute(
+                      path: 'new',
+                      name: 'new-message',
+                      pageBuilder: (context, state) => _page(
+                        context,
+                        state,
+                        const NewMessageScreen(),
+                        name: 'new-message',
+                      ),
+                    ),
                     GoRoute(
                       path: 'thread/:id',
                       name: 'chat-thread',
@@ -620,6 +634,7 @@ class AppRoutes {
   static const String sync = '/home/sync';
   static const String explore = '/home/explore';
   static const String messages = '/messages';
+  static const String newMessage = '/messages/new';
   static const String notifications = '/notifications';
   static const String profile = '/profile';
   static const String chat = '/chat';

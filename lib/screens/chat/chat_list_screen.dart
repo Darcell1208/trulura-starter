@@ -475,8 +475,9 @@ class _ChatListScreenState extends State<ChatListScreen> {
                 right: 18,
                 bottom: kTruluraBottomNavClearance - 24,
                 child: FloatingActionButton.extended(
-                  onPressed: () => context.push(
-                      '/p?title=${Uri.encodeComponent('New Message')}&subtitle=${Uri.encodeComponent('Start conversation (stub)')}'),
+                  // Was a push to the generic /p placeholder route, which
+                  // rendered a "stub" panel and could not create anything.
+                  onPressed: () => context.push(AppRoutes.newMessage),
                   elevation: 0,
                   backgroundColor: cs.primary,
                   icon: Icon(Icons.edit_rounded, color: cs.onPrimary),
