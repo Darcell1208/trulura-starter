@@ -2,22 +2,75 @@ import 'dart:convert';
 
 import 'package:flutter/foundation.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:trulura/services/database_service/database_service.dart';
 
 /// Section 9: Safety, Trust, Privacy & Compliance (local-first)
 ///
-/// This service stores *user-controlled* safety preferences. It is intentionally
-/// local-first, but designed so you can later sync these settings to:
+/// This service stores *user-controlled* safety preferences, scoped to the
+/// signed-in account. It is intentionally local-first, but designed so you can
+/// later sync these settings to:
 /// - Supabase (profiles/safety_prefs tables)
 /// - Firebase (users/{uid}/safety_prefs)
 ///
 /// Without changing the UI layer.
+///
+/// ## Why the key is per-account
+///
+/// These settings used to live under one device-global key. SharedPreferences
+/// is per-installation, not per-account, so a second person signing in on the
+/// same device silently ran the first person's safety posture -- who may DM
+/// them, whether AuraShield is on, whether anti-doxxing and crisis prompts
+/// fire. None of that is a device property; all of it is a decision a
+/// particular person made about their own exposure.
+///
+/// ## Why the old value is orphaned rather than migrated
+///
+/// The old record carries no attribution -- nothing on disk says which account
+/// chose those settings. Claiming it for whoever signs in first would hand one
+/// person's exposure decisions to another, which is the bug rather than the
+/// fix. So the value is moved to [_supersededKey], which nothing reads, and
+/// every account starts from `const TruSafetyCenterPrefs()`.
+///
+/// The defaults are the protective end of every field except one:
+/// message filtering, AuraShield, anti-doxxing and crisis support all default
+/// on, `dmPermission` defaults to followers-only, and ephemeral messaging
+/// defaults off. The exception is [TruSafetyCenterPrefs.allowNonMutualSparks],
+/// which defaults true -- so the one concrete regression from starting fresh is
+/// that somebody who had turned non-mutual sparks off gets them back on. That
+/// is visible in the Safety Center screen and reversible in one tap, which is
+/// why it does not outweigh the attribution problem.
 class SafetyCenterService {
-  static const String _prefsKey = 'safety_center_prefs_v1';
+  /// The device-global key this service used to read and write. Dead: it is
+  /// moved aside on first access and never read again.
+  static const String _legacyGlobalKey = 'safety_center_prefs_v1';
 
+  /// Where the orphaned global value is parked. Nothing reads this.
+  static const String _supersededKey = 'safety_center_prefs_v1_superseded';
+
+  static String _keyFor(String uid) => 'safety_center_prefs_v1_$uid';
+
+  String? get _uid {
+    try {
+      if (!DatabaseService.instance.isInitialized) return null;
+      return DatabaseService.instance.client.auth.currentUser?.id;
+    } catch (_) {
+      return null;
+    }
+  }
+
+  /// Safety preferences for the signed-in account.
+  ///
+  /// Returns defaults when signed out. Every protection defaults on, so
+  /// failing this way fails safe.
   Future<TruSafetyCenterPrefs> getPrefs() async {
     try {
       final prefs = await SharedPreferences.getInstance();
-      final raw = prefs.getString(_prefsKey);
+      await _orphanLegacyGlobalKey(prefs);
+
+      final uid = _uid;
+      if (uid == null) return const TruSafetyCenterPrefs();
+
+      final raw = prefs.getString(_keyFor(uid));
       if (raw == null) return const TruSafetyCenterPrefs();
       final json = jsonDecode(raw) as Map<String, dynamic>;
       return TruSafetyCenterPrefs.fromJson(json);
@@ -27,58 +80,85 @@ class SafetyCenterService {
     }
   }
 
-  Future<void> setPrefs(TruSafetyCenterPrefs next) async {
+  /// Returns false if the change did not persist, including when nobody is
+  /// signed in. Callers still discard this -- see the swallowed-write-failure
+  /// pass -- but a setting that silently failed to save is worth knowing about
+  /// on a safety screen especially.
+  Future<bool> setPrefs(TruSafetyCenterPrefs next) async {
+    final uid = _uid;
+    if (uid == null) {
+      debugPrint('SafetyCenterService.setPrefs skipped: no signed-in account');
+      return false;
+    }
     try {
       final prefs = await SharedPreferences.getInstance();
-      await prefs.setString(_prefsKey, jsonEncode(next.toJson()));
+      await _orphanLegacyGlobalKey(prefs);
+      await prefs.setString(_keyFor(uid), jsonEncode(next.toJson()));
+      return true;
     } catch (e) {
       debugPrint('SafetyCenterService.setPrefs failed: $e');
+      return false;
     }
   }
 
-  Future<void> setMessageFilteringEnabled(bool enabled) async {
-    final prefs = await getPrefs();
-    await setPrefs(prefs.copyWith(messageFilteringEnabled: enabled));
+  /// Moves the dead device-global record out of the way, once. Idempotent.
+  Future<void> _orphanLegacyGlobalKey(SharedPreferences prefs) async {
+    try {
+      final legacy = prefs.getString(_legacyGlobalKey);
+      if (legacy == null) return;
+      if (prefs.getString(_supersededKey) == null) {
+        await prefs.setString(_supersededKey, legacy);
+      }
+      await prefs.remove(_legacyGlobalKey);
+      debugPrint('SafetyCenterService: orphaned device-global safety prefs');
+    } catch (e) {
+      debugPrint('SafetyCenterService._orphanLegacyGlobalKey failed: $e');
+    }
   }
 
-  Future<void> setScamPromptsEnabled(bool enabled) async {
+  Future<bool> setMessageFilteringEnabled(bool enabled) async {
     final prefs = await getPrefs();
-    await setPrefs(prefs.copyWith(scamPromptsEnabled: enabled));
+    return setPrefs(prefs.copyWith(messageFilteringEnabled: enabled));
   }
 
-  Future<void> setDmPermission(TruDmPermission permission) async {
+  Future<bool> setScamPromptsEnabled(bool enabled) async {
     final prefs = await getPrefs();
-    await setPrefs(prefs.copyWith(dmPermission: permission));
+    return setPrefs(prefs.copyWith(scamPromptsEnabled: enabled));
   }
 
-  Future<void> setAllowNonMutualSparks(bool allow) async {
+  Future<bool> setDmPermission(TruDmPermission permission) async {
     final prefs = await getPrefs();
-    await setPrefs(prefs.copyWith(allowNonMutualSparks: allow));
+    return setPrefs(prefs.copyWith(dmPermission: permission));
   }
 
-  Future<void> setAuraShieldEnabled(bool enabled) async {
+  Future<bool> setAllowNonMutualSparks(bool allow) async {
     final prefs = await getPrefs();
-    await setPrefs(prefs.copyWith(auraShieldEnabled: enabled));
+    return setPrefs(prefs.copyWith(allowNonMutualSparks: allow));
   }
 
-  Future<void> setAntiDoxxingEnabled(bool enabled) async {
+  Future<bool> setAuraShieldEnabled(bool enabled) async {
     final prefs = await getPrefs();
-    await setPrefs(prefs.copyWith(antiDoxxingEnabled: enabled));
+    return setPrefs(prefs.copyWith(auraShieldEnabled: enabled));
   }
 
-  Future<void> setCrisisSupportEnabled(bool enabled) async {
+  Future<bool> setAntiDoxxingEnabled(bool enabled) async {
     final prefs = await getPrefs();
-    await setPrefs(prefs.copyWith(crisisSupportEnabled: enabled));
+    return setPrefs(prefs.copyWith(antiDoxxingEnabled: enabled));
   }
 
-  Future<void> setEphemeralMessagingEnabled(bool enabled) async {
+  Future<bool> setCrisisSupportEnabled(bool enabled) async {
     final prefs = await getPrefs();
-    await setPrefs(prefs.copyWith(ephemeralMessagingEnabled: enabled));
+    return setPrefs(prefs.copyWith(crisisSupportEnabled: enabled));
   }
 
-  Future<void> setShowSafetyMeterDetails(bool show) async {
+  Future<bool> setEphemeralMessagingEnabled(bool enabled) async {
     final prefs = await getPrefs();
-    await setPrefs(prefs.copyWith(showSafetyMeterDetails: show));
+    return setPrefs(prefs.copyWith(ephemeralMessagingEnabled: enabled));
+  }
+
+  Future<bool> setShowSafetyMeterDetails(bool show) async {
+    final prefs = await getPrefs();
+    return setPrefs(prefs.copyWith(showSafetyMeterDetails: show));
   }
 }
 
