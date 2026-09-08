@@ -3,6 +3,7 @@ import 'dart:math' as math;
 import 'package:flutter/material.dart';
 import 'package:trulura/compat/provider_compat.dart';
 import 'package:go_router/go_router.dart';
+import 'package:trulura/core/navigation/app_router.dart';
 import 'package:trulura/models/post.dart';
 import 'package:trulura/models/user.dart';
 import 'package:trulura/models/experience/experience_mode.dart';
@@ -455,6 +456,9 @@ class _FeedCardState extends State<FeedCard>
                           context.pop();
                           final userId =
                               context.read<AppProvider>().currentUser?.id;
+                          // Personalisation side of a report: stop showing this
+                          // post and feed the signal to ranking. This is kept,
+                          // but it is NOT the report.
                           FeedBehaviorService.instance
                               .reportPost(postId: post.id, userId: userId);
                           FeedBehaviorService.instance.logSignal(
@@ -464,9 +468,15 @@ class _FeedCardState extends State<FeedCard>
                               moodTag: post.moodTag,
                               category: post.category,
                               userId: userId);
-                          ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
-                              content: Text(
-                                  'Reported. Thanks for protecting the space.')));
+                          // The report itself. This button used to write only
+                          // the feed preference above and then say "Reported.
+                          // Thanks for protecting the space." -- nothing was
+                          // filed and nobody could ever read it. Route to the
+                          // real reporting flow so a reason is chosen and a row
+                          // reaches public.reports, and so the confirmation is
+                          // shown by the screen that actually persisted it.
+                          context.push(
+                              '${AppRoutes.report}?type=post&id=${Uri.encodeComponent(post.id)}');
                         }),
                   ],
                 ),

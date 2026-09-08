@@ -57,10 +57,17 @@ class _ExploreScreenState extends State<ExploreScreen> {
   Future<void> _loadUsers() async {
     setState(() => _isLoading = true);
     try {
+      final me = await _userService.getCurrentUser();
       final users = await _userService.getAllUsers();
+      // Exclude the viewer. getAllUsers used to return only the signed-in
+      // user, so Explore rendered you back to yourself; now that it returns
+      // real profiles, you are simply not a person you can discover.
+      final others = me == null
+          ? users
+          : users.where((u) => u.id != me.id).toList(growable: false);
       if (!mounted) return;
       setState(() {
-        _users = users;
+        _users = others;
         _hasError = false;
         _isLoading = false;
       });

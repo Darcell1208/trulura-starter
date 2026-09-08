@@ -245,28 +245,121 @@ class UserService {
     );
   }
 
+  /// Upper bound on a discovery read. Explore and Sync page through what they
+  /// get rather than needing the whole table.
+  static const int _discoveryLimit = 200;
+
+  /// Maps a `public.profiles` row into the app's [User].
+  ///
+  /// Deliberately tolerant: the row comes from `select()` rather than a named
+  /// column list, so a column missing from the schema is simply absent rather
+  /// than failing the whole query, and the display name falls back through
+  /// display_name -> username.
+  User _userFromProfileRow(Map<String, dynamic> row) {
+    final now = DateTime.now();
+    return User.fromJson({
+      'id': row['id']?.toString() ?? '',
+      'name': row['display_name']?.toString() ??
+          row['username']?.toString() ??
+          '',
+      'username': row['username']?.toString() ?? '',
+      'bio': row['bio']?.toString() ?? row['about_me']?.toString() ?? '',
+      'profile_photo_url': row['profile_photo_url']?.toString() ??
+          row['avatar_url']?.toString() ??
+          '',
+      'createdAt': row['created_at']?.toString() ?? now.toIso8601String(),
+      'updatedAt': row['updated_at']?.toString() ?? now.toIso8601String(),
+    });
+  }
+
+  /// Everyone discoverable, from `public.profiles`.
+  ///
+  /// Was a Phase-1 stub that returned only the signed-in user, with the
+  /// comment "we only guarantee the current user exists". The consequence was
+  /// not that discovery looked thin -- it was that Explore rendered the viewer
+  /// back to themselves, Sync had no candidates, and every social surface
+  /// downstream of this call was untestable. Blocking in particular exists and
+  /// cannot be exercised, because the only routes to the block button are a
+  /// profile sheet and a chat overflow menu and there was nobody to open
+  /// either against.
+  ///
+  /// No migration was needed: `profiles_select_authenticated` on
+  /// public.profiles is `USING (true)` for the authenticated role, verified
+  /// against the live database, so a signed-in client could always read these
+  /// rows. Only the Dart was stubbed.
+  ///
+  /// Results are written to the local user cache so [getUserById] can still
+  /// resolve names offline.
   Future<List<User>> getAllUsers() async {
     try {
-      // Phase-1: we only guarantee the **current user** exists.
-      // This keeps Aura/Explore starters functional without forcing you
-      // to build full discovery queries yet.
-      final me = await getCurrentUser();
-      return me == null ? [] : [me];
+      if (!_supabaseReady) return _getCachedUsers();
+
+      final rows = await _client.from('profiles').select().limit(_discoveryLimit);
+      final users = (rows as List)
+          .whereType<Map<String, dynamic>>()
+          .map(_userFromProfileRow)
+          .where((u) => u.id.trim().isNotEmpty)
+          .toList();
+
+      if (users.isEmpty) return _getCachedUsers();
+      await _cacheUsers(users);
+      return users;
     } catch (e) {
       debugPrint('Failed to get users: $e');
-      return [];
+      return _getCachedUsers();
     }
   }
 
+  /// One profile by id, from the server, falling back to the local cache.
+  ///
+  /// Previously cache-only, which is why the Blocked Users screen rendered raw
+  /// UUIDs for anyone the device had never cached.
   Future<User?> getUserById(String id) async {
+    final wanted = id.trim();
+    if (wanted.isEmpty) return null;
     try {
-      // With auth-only setup, we don't support fetching arbitrary users
-      // from a profiles table. For now, we only return cached users.
+      if (_supabaseReady) {
+        final row = await _client
+            .from('profiles')
+            .select()
+            .eq('id', wanted)
+            .maybeSingle();
+        if (row != null) {
+          final user = _userFromProfileRow(Map<String, dynamic>.from(row));
+          if (user.id.trim().isNotEmpty) {
+            await _cacheUsers(<User>[user]);
+            return user;
+          }
+        }
+      }
+    } catch (e) {
+      debugPrint('Failed to get user $wanted from profiles: $e');
+    }
+    try {
       final cached = await _getCachedUsers();
-      return cached.where((u) => u.id == id).cast<User?>().first;
+      for (final u in cached) {
+        if (u.id == wanted) return u;
+      }
+      return null;
     } catch (e) {
       debugPrint('Failed to get user: $e');
       return null;
+    }
+  }
+
+  /// Merges [incoming] into the local user cache by id.
+  Future<void> _cacheUsers(List<User> incoming) async {
+    if (incoming.isEmpty) return;
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final merged = <String, User>{
+        for (final u in await _getCachedUsers()) u.id: u,
+        for (final u in incoming) u.id: u,
+      };
+      await prefs.setString(_usersKey,
+          jsonEncode(merged.values.map((u) => u.toJson()).toList()));
+    } catch (e) {
+      debugPrint('Failed to cache users: $e');
     }
   }
 
