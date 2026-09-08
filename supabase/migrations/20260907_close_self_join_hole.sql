@@ -1,5 +1,11 @@
 -- APPLIED 2026-09-07 as migration `close_conversation_self_join_hole`.
 --
+-- SUPERSEDES PART OF 20260904_messaging_core.sql. That file's section 4
+-- creates the two INSERT policies this one drops, so re-running it undoes this
+-- migration and reopens the escalation described below. Its header carries the
+-- matching warning. If you ever rebuild this schema from the files, apply
+-- 20260904_messaging_core.sql first and this one immediately after.
+--
 -- Closes a privilege escalation proved by role on 2026-09-07:
 --
 --   C(NONmember) messages=0 conversations=0 member_rows=0 list_rows=0

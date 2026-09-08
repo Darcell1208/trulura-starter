@@ -1,3 +1,30 @@
+-- ############################################################################
+-- DO NOT RE-RUN THIS FILE. Replaying it reopens a privilege escalation.
+--
+-- Section 4 below creates `conversation_members_insert_own` and
+-- `conversations_insert_authenticated`. Both were dropped on purpose by
+-- 20260907_close_self_join_hole.sql, because `with check (user_id = auth.uid())`
+-- restricts WHO you may add but not WHICH conversation you may add them to:
+-- any authenticated user who learns a conversation UUID can insert their own
+-- membership row and read the entire history. A UUID is not a secret -- it
+-- appears in URLs, logs, screenshots and error reports.
+--
+-- Re-applying this file recreates both policies and silently undoes that fix.
+-- Nothing errors; the hole simply comes back.
+--
+-- Conversation and membership creation is now reachable ONLY through
+-- public.start_direct_conversation(uuid), which is SECURITY DEFINER and so is
+-- unaffected by the absence of those policies.
+--
+-- The SQL below is deliberately left as it ran on 2026-09-07 rather than
+-- edited to remove the offending statements: this file is the record of what
+-- was actually applied, and rewriting it would make the repo misrepresent its
+-- own history. Read it as history, not as a runnable script.
+--
+-- If you need this schema from scratch, apply this file and then immediately
+-- apply 20260907_close_self_join_hole.sql, in that order.
+-- ############################################################################
+--
 -- APPLIED 2026-09-07 as migration `messaging_core`; end state verified by role.
 --
 -- Makes messaging usable end to end. Written against the live schema read on
