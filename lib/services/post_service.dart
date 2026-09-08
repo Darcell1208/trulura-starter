@@ -6,12 +6,30 @@ import 'package:trulura/models/post.dart';
 import 'package:trulura/models/experience/experience_mode.dart';
 
 class PostService {
-  static const String _postsKey = 'posts_cache';
+  /// The old device-global feed cache. Dead: deleted on first access.
+  ///
+  /// It held server rows for whoever last loaded the feed on this device, and
+  /// those rows carry `post_privacy`, so a followers-only post cached for one
+  /// account could render for the next account to sign in.
+  static const String _legacyGlobalPostsKey = 'posts_cache';
+
+  static String _postsCacheKeyFor(String uid) => 'posts_cache_$uid';
+
   static const String _feedView = 'posts_feed';
   static const String _reactionsTable = 'post_reactions';
   static const String _defaultReactionType = 'glow';
 
   bool get _supabaseReady => DatabaseService.instance.isInitialized;
+
+  /// The account the cache belongs to, or null when signed out.
+  String? get _cacheUid {
+    try {
+      if (!DatabaseService.instance.isInitialized) return null;
+      return DatabaseService.instance.client.auth.currentUser?.id;
+    } catch (_) {
+      return null;
+    }
+  }
 
   bool _looksLikeUuid(String value) =>
       RegExp(r'^[0-9a-fA-F]{8}-([0-9a-fA-F]{4}-){3}[0-9a-fA-F]{12}$')
@@ -493,10 +511,20 @@ class PostService {
     }
   }
 
+  /// The feed cache for the signed-in account.
+  ///
+  /// Returns empty when signed out rather than falling back to a shared cache.
+  /// An empty feed is a worse first paint; showing another account's cached
+  /// rows is a disclosure.
   Future<List<Post>> _readCachedPosts() async {
     try {
       final prefs = await SharedPreferences.getInstance();
-      final data = prefs.getString(_postsKey);
+      await _dropLegacyGlobalCache(prefs);
+
+      final uid = _cacheUid;
+      if (uid == null) return [];
+
+      final data = prefs.getString(_postsCacheKeyFor(uid));
       if (data == null) return [];
       final list = (jsonDecode(data) as List).cast<Map<String, dynamic>>();
       return list.map(Post.fromJson).toList();
@@ -509,10 +537,42 @@ class PostService {
   Future<void> _cachePosts(List<Post> posts) async {
     try {
       final prefs = await SharedPreferences.getInstance();
-      await prefs.setString(
-          _postsKey, jsonEncode(posts.map((p) => p.toJson()).toList()));
+      await _dropLegacyGlobalCache(prefs);
+
+      final uid = _cacheUid;
+      if (uid == null) return;
+
+      await prefs.setString(_postsCacheKeyFor(uid),
+          jsonEncode(posts.map((p) => p.toJson()).toList()));
     } catch (e) {
       debugPrint('Failed to cache posts: $e');
+    }
+  }
+
+  /// Deletes the old device-global feed cache outright, once.
+  ///
+  /// Deleted rather than orphaned, which is the opposite of how consent,
+  /// safety and identity prefs were handled in 4ff6dae and c78a37a. Those hold
+  /// decisions; this holds a copy of server rows that re-fetch on the next
+  /// load. Keeping a stale copy of other people's posts on disk under a dead
+  /// key has a cost and no benefit -- these rows carry `post_privacy`, so a
+  /// non-public post cached for one account must not survive where another
+  /// account's code could reach it.
+  ///
+  /// Caveat on "re-fetch on the next load": [savePost] writes a post straight
+  /// into this cache when Supabase was never initialised, and nothing ever
+  /// pushes it to the server afterwards. Such a post is already destroyed by
+  /// the next successful feed load, since [_cachePosts] replaces the list
+  /// wholesale with the server's. So this delete loses nothing the app does
+  /// not already lose on its own -- but that pre-existing hole is real and
+  /// belongs with the swallowed-write-failure work, not here.
+  Future<void> _dropLegacyGlobalCache(SharedPreferences prefs) async {
+    try {
+      if (!prefs.containsKey(_legacyGlobalPostsKey)) return;
+      await prefs.remove(_legacyGlobalPostsKey);
+      debugPrint('PostService: dropped device-global feed cache');
+    } catch (e) {
+      debugPrint('PostService._dropLegacyGlobalCache failed: $e');
     }
   }
 }
