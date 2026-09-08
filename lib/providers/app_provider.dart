@@ -384,9 +384,17 @@ class AppProvider with ChangeNotifier {
           )?.toIso8601String() ??
           DateTime.now().toIso8601String();
       _currentUser = model.User.fromJson(normalizedProfile);
+      // Redacted deliberately. This used to print the account id, username and
+      // full bio on every profile load, which put a person's identity and
+      // their own words into the console -- and into any log, screenshot or
+      // screen-share taken while debugging. The diagnostic value was "did the
+      // profile hydrate and were the fields populated", which presence flags
+      // answer without disclosing anything.
       debugPrint(
         'AppProvider._syncCurrentUserFromSupabase loaded profile: '
-        'id=${_currentUser?.id}, username=${_currentUser?.username}, bio=${_currentUser?.bio}',
+        'hasId=${(_currentUser?.id ?? '').isNotEmpty}, '
+        'hasUsername=${(_currentUser?.username ?? '').isNotEmpty}, '
+        'bioChars=${(_currentUser?.bio ?? '').length}',
       );
     } catch (e) {
       debugPrint('AppProvider._syncCurrentUserFromSupabase failed: $e');

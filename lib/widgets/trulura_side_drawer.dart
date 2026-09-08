@@ -262,11 +262,8 @@ class TruLuraSideDrawer extends StatelessWidget {
                       _DrawerAtmosphereStatus(soft: soft),
                       const SizedBox(height: 14),
                       Expanded(
-                        child: Scrollbar(
-                          thumbVisibility: false,
-                          child: SingleChildScrollView(
-                            padding: const EdgeInsets.only(bottom: 10),
-                            child: Column(
+                        child: _DrawerScrollArea(
+                          child: Column(
                               children: [
                                 _DrawerIsland(
                                   title: 'CORE WORLDS',
@@ -323,7 +320,6 @@ class TruLuraSideDrawer extends StatelessWidget {
                               ],
                             ),
                           ),
-                        ),
                       ),
                     ],
                   ),
@@ -392,6 +388,47 @@ class TruLuraSideDrawer extends StatelessWidget {
     if (!context.mounted) return;
     context.pop();
     context.go(AppRoutes.profile);
+  }
+}
+
+/// The drawer's scrolling body, owning the one controller its Scrollbar and
+/// its SingleChildScrollView both attach to.
+///
+/// Previously a Scrollbar wrapped a SingleChildScrollView with neither given a
+/// controller and neither marked primary, so the Scrollbar had no scroll
+/// position to track and threw on every hover -- the repeating console error.
+/// A Scrollbar needs the same ScrollController as the view it decorates;
+/// inheriting one implicitly is only safe when exactly one scrollable in the
+/// subtree claims it, which is why this holds an explicit controller instead.
+class _DrawerScrollArea extends StatefulWidget {
+  final Widget child;
+
+  const _DrawerScrollArea({required this.child});
+
+  @override
+  State<_DrawerScrollArea> createState() => _DrawerScrollAreaState();
+}
+
+class _DrawerScrollAreaState extends State<_DrawerScrollArea> {
+  final ScrollController _controller = ScrollController();
+
+  @override
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Scrollbar(
+      controller: _controller,
+      thumbVisibility: false,
+      child: SingleChildScrollView(
+        controller: _controller,
+        padding: const EdgeInsets.only(bottom: 10),
+        child: widget.child,
+      ),
+    );
   }
 }
 

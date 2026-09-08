@@ -189,8 +189,12 @@ class UserService {
         'UserService._persistProfile optional profile columns unavailable yet; saved base profile only.',
       );
     }
+    // Keys only, never values: safePayload carries display_name, bio, avatar
+    // url and whatever else the profile holds, and printing it wrote the user's
+    // own profile content to the console on every save.
     debugPrint(
-      'UserService._persistProfile saved base profile: $safePayload',
+      'UserService._persistProfile saved base profile columns: '
+      '${safePayload.keys.toList()..sort()}',
     );
   }
 
