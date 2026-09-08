@@ -7,7 +7,9 @@ import 'package:trulura/core/navigation/app_router.dart';
 import 'package:trulura/core/navigation/tru_navigation.dart';
 import 'package:trulura/models/post.dart';
 import 'package:trulura/models/feed_item.dart';
+import 'package:trulura/models/experience/experience_mode.dart';
 import 'package:trulura/providers/app_provider.dart';
+import 'package:trulura/providers/experience_mode_controller.dart';
 import 'package:trulura/providers/trulura_mode_controller.dart';
 import 'package:trulura/services/post_service.dart';
 import 'package:trulura/theme.dart';
@@ -45,6 +47,45 @@ class _VentScreenState extends State<VentScreen> {
   void initState() {
     super.initState();
     _loadVentPosts();
+    WidgetsBinding.instance.addPostFrameCallback((_) => _enterVentMode());
+  }
+
+  /// Puts the app in Vent experience mode on entry.
+  ///
+  /// CreatePostScreen decides its privacy and anonymity defaults from
+  /// ExperienceModeController.participationContext.activeMode, not from the
+  /// route that opened it. Arriving in Vent from the drawer while in Social
+  /// mode therefore produced a Public, attributed composer under copy that
+  /// promises anonymity -- so entering the Sanctuary has to be what sets the
+  /// mode, since arriving here IS the statement of intent.
+  ///
+  /// confirmed: true because opening this screen is an explicit, deliberate
+  /// user action. setActiveMode can still refuse -- a locked or blocked
+  /// transition -- so the result is logged rather than assumed; a refusal means
+  /// the composer keeps whatever defaults the current mode gives it.
+  Future<void> _enterVentMode() async {
+    try {
+      final controller = context.read<ExperienceModeController>();
+      if (controller.activeMode == TruExperienceMode.vent) return;
+      final ok = await controller.setActiveMode(TruExperienceMode.vent,
+          confirmed: true);
+      if (!ok) {
+        debugPrint('VentScreen: could not switch to Vent experience mode');
+      }
+    } catch (e) {
+      debugPrint('VentScreen._enterVentMode failed: $e');
+    }
+  }
+
+  /// Opens the composer and refreshes when it closes.
+  ///
+  /// The composer pops with no callback and nothing re-runs the query on route
+  /// resume, so without this a successful post left the Sanctuary showing its
+  /// pre-post state -- the post was in vent_feed and never once displayed.
+  Future<void> _openComposer() async {
+    await TruNavigation.pushWithReturnTo(context, AppRoutes.createPost);
+    if (!mounted) return;
+    await _loadVentPosts();
   }
 
   Future<void> _loadVentPosts() async {
@@ -103,137 +144,155 @@ class _VentScreenState extends State<VentScreen> {
       body: TruLuraLayeredBackground(
         tone: TruLuraModeTone.aura,
         mode: TruLuraMode.vent,
-        child: Column(
-          children: [
-            const SizedBox(height: 92),
-            TruluraContentLane(
-              maxWidth: kTruluraDesktopContentMaxWidth,
-              padding: const EdgeInsets.fromLTRB(16, 0, 16, 12),
-              child: _VentSanctuaryHeader(
-                onWrite: () => TruNavigation.pushWithReturnTo(
-                  context,
-                  AppRoutes.createPost,
+        // Header, filters and banner scroll WITH the feed rather than sitting
+        // above it in a fixed Column.
+        //
+        // They used to be fixed children of a Column whose last child was
+        // Expanded(feed). Their combined height -- a 92px spacer, a header with
+        // a 390px min-height, a 54px filter strip and the banner -- exceeded
+        // the viewport, so Expanded resolved to zero height and the feed had
+        // nowhere to render. That is the 136px bottom overflow, and it is why
+        // the query could succeed while nothing appeared: the posts were laid
+        // out into a box with no room in it.
+        //
+        // SliverFillRemaining(hasScrollBody: true) gives the feed the remaining
+        // viewport and lets its own ListView scroll, while the header above it
+        // scrolls out of the way instead of competing for space.
+        child: CustomScrollView(
+          slivers: [
+            SliverToBoxAdapter(
+              child: Column(
+                children: [
+                  const SizedBox(height: 92),
+              TruluraContentLane(
+                maxWidth: kTruluraDesktopContentMaxWidth,
+                padding: const EdgeInsets.fromLTRB(16, 0, 16, 12),
+                child: _VentSanctuaryHeader(
+                  onWrite: _openComposer,
+                  onHealing: () => setState(() => _circle = 'Healing'),
                 ),
-                onHealing: () => setState(() => _circle = 'Healing'),
               ),
-            ),
-            SizedBox(
-              height: 54,
-              child: ListView.separated(
-                padding: const EdgeInsets.symmetric(horizontal: 16),
-                scrollDirection: Axis.horizontal,
-                itemCount: _circles.length,
-                separatorBuilder: (_, __) => const SizedBox(width: 10),
-                itemBuilder: (context, i) {
-                  final c = _circles[i];
-                  final selected = c == _circle;
-                  return GestureDetector(
-                    onTap: () => setState(() => _circle = c),
-                    child: TruLuraGlassCard(
-                      radius: 999,
+              SizedBox(
+                height: 54,
+                child: ListView.separated(
+                  padding: const EdgeInsets.symmetric(horizontal: 16),
+                  scrollDirection: Axis.horizontal,
+                  itemCount: _circles.length,
+                  separatorBuilder: (_, __) => const SizedBox(width: 10),
+                  itemBuilder: (context, i) {
+                    final c = _circles[i];
+                    final selected = c == _circle;
+                    return GestureDetector(
+                      onTap: () => setState(() => _circle = c),
+                      child: TruLuraGlassCard(
+                        radius: 999,
+                        padding: const EdgeInsets.symmetric(
+                            horizontal: 14, vertical: 10),
+                        fillAOverride: selected
+                            ? TruLuraBrandColors.neonBlue.withValues(alpha: 0.20)
+                            : null,
+                        fillBOverride: selected
+                            ? TruLuraBrandColors.neonPurple
+                                .withValues(alpha: 0.12)
+                            : null,
+                        child: Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            TruLuraIcon(
+                                glyph: TruLuraGlyph.groups,
+                                size: 18,
+                                active: selected,
+                                color: Theme.of(context)
+                                    .colorScheme
+                                    .onSurface
+                                    .withValues(alpha: selected ? 0.92 : 0.72)),
+                            const SizedBox(width: 8),
+                            Text(c,
+                                style: Theme.of(context)
+                                    .textTheme
+                                    .labelLarge
+                                    ?.copyWith(
+                                        fontWeight: FontWeight.w900,
+                                        color: Theme.of(context)
+                                            .colorScheme
+                                            .onSurface
+                                            .withValues(
+                                                alpha: selected ? 0.92 : 0.72))),
+                          ],
+                        ),
+                      ),
+                    );
+                  },
+                ),
+              ),
+              Padding(
+                padding: const EdgeInsets.fromLTRB(16, 12, 16, 8),
+                child: ClipRRect(
+                  borderRadius: BorderRadius.circular(18),
+                  child: BackdropFilter(
+                    filter: ImageFilter.blur(
+                      sigmaX: soft
+                          ? TruLuraSurfaces.glassBlurSoft
+                          : TruLuraSurfaces.glassBlurStrong,
+                      sigmaY: soft
+                          ? TruLuraSurfaces.glassBlurSoft
+                          : TruLuraSurfaces.glassBlurStrong,
+                    ),
+                    child: Container(
                       padding: const EdgeInsets.symmetric(
-                          horizontal: 14, vertical: 10),
-                      fillAOverride: selected
-                          ? TruLuraBrandColors.neonBlue.withValues(alpha: 0.20)
-                          : null,
-                      fillBOverride: selected
-                          ? TruLuraBrandColors.neonPurple
-                              .withValues(alpha: 0.12)
-                          : null,
+                          horizontal: 14, vertical: 12),
+                      decoration: BoxDecoration(
+                        gradient: LinearGradient(
+                          begin: Alignment.topLeft,
+                          end: Alignment.bottomRight,
+                          colors: [
+                            cs.surface.withValues(
+                                alpha: Theme.of(context).brightness ==
+                                        Brightness.dark
+                                    ? TruLuraSurfaces.glassDarkA
+                                    : TruLuraSurfaces.glassLightA),
+                            cs.surfaceContainerHighest.withValues(
+                                alpha: Theme.of(context).brightness ==
+                                        Brightness.dark
+                                    ? TruLuraSurfaces.glassDarkB
+                                    : TruLuraSurfaces.glassLightB),
+                          ],
+                        ),
+                        border: Border.all(
+                            color: Colors.white
+                                .withValues(alpha: soft ? 0.10 : 0.085),
+                            width: TruLuraSurfaces.hairline),
+                      ),
                       child: Row(
-                        mainAxisSize: MainAxisSize.min,
                         children: [
                           TruLuraIcon(
-                              glyph: TruLuraGlyph.groups,
+                              glyph: TruLuraGlyph.shield,
                               size: 18,
-                              active: selected,
-                              color: Theme.of(context)
-                                  .colorScheme
-                                  .onSurface
-                                  .withValues(alpha: selected ? 0.92 : 0.72)),
-                          const SizedBox(width: 8),
-                          Text(c,
+                              active: true,
+                              color: cs.onSurface),
+                          const SizedBox(width: 10),
+                          Expanded(
+                            child: Text(
+                              'Safety Active • This is a protected space',
                               style: Theme.of(context)
                                   .textTheme
                                   .labelLarge
                                   ?.copyWith(
-                                      fontWeight: FontWeight.w900,
-                                      color: Theme.of(context)
-                                          .colorScheme
-                                          .onSurface
-                                          .withValues(
-                                              alpha: selected ? 0.92 : 0.72))),
-                        ],
-                      ),
-                    ),
-                  );
-                },
-              ),
-            ),
-            Padding(
-              padding: const EdgeInsets.fromLTRB(16, 12, 16, 8),
-              child: ClipRRect(
-                borderRadius: BorderRadius.circular(18),
-                child: BackdropFilter(
-                  filter: ImageFilter.blur(
-                    sigmaX: soft
-                        ? TruLuraSurfaces.glassBlurSoft
-                        : TruLuraSurfaces.glassBlurStrong,
-                    sigmaY: soft
-                        ? TruLuraSurfaces.glassBlurSoft
-                        : TruLuraSurfaces.glassBlurStrong,
-                  ),
-                  child: Container(
-                    padding: const EdgeInsets.symmetric(
-                        horizontal: 14, vertical: 12),
-                    decoration: BoxDecoration(
-                      gradient: LinearGradient(
-                        begin: Alignment.topLeft,
-                        end: Alignment.bottomRight,
-                        colors: [
-                          cs.surface.withValues(
-                              alpha: Theme.of(context).brightness ==
-                                      Brightness.dark
-                                  ? TruLuraSurfaces.glassDarkA
-                                  : TruLuraSurfaces.glassLightA),
-                          cs.surfaceContainerHighest.withValues(
-                              alpha: Theme.of(context).brightness ==
-                                      Brightness.dark
-                                  ? TruLuraSurfaces.glassDarkB
-                                  : TruLuraSurfaces.glassLightB),
-                        ],
-                      ),
-                      border: Border.all(
-                          color: Colors.white
-                              .withValues(alpha: soft ? 0.10 : 0.085),
-                          width: TruLuraSurfaces.hairline),
-                    ),
-                    child: Row(
-                      children: [
-                        TruLuraIcon(
-                            glyph: TruLuraGlyph.shield,
-                            size: 18,
-                            active: true,
-                            color: cs.onSurface),
-                        const SizedBox(width: 10),
-                        Expanded(
-                          child: Text(
-                            'Safety Active • This is a protected space',
-                            style: Theme.of(context)
-                                .textTheme
-                                .labelLarge
-                                ?.copyWith(
-                                    color: cs.onSurface,
-                                    fontWeight: FontWeight.w800),
+                                      color: cs.onSurface,
+                                      fontWeight: FontWeight.w800),
+                            ),
                           ),
-                        ),
-                      ],
+                        ],
+                      ),
                     ),
                   ),
                 ),
               ),
+                ],
+              ),
             ),
-            Expanded(
+            SliverFillRemaining(
+              hasScrollBody: true,
               child: ui == TruUiState.loading
                   ? const _VentSkeleton()
                   : ui == TruUiState.empty
@@ -246,8 +305,7 @@ class _VentScreenState extends State<VentScreen> {
                             TruStateAction(
                                 label: 'Write a vent',
                                 glyph: TruLuraGlyph.edit,
-                                onTap: () => TruNavigation.pushWithReturnTo(
-                                    context, AppRoutes.createPost),
+                                onTap: _openComposer,
                                 primary: true),
                             TruStateAction(
                                 label: 'Join support circle',
@@ -272,8 +330,7 @@ class _VentScreenState extends State<VentScreen> {
                                 TruStateAction(
                                     label: 'Write another vent',
                                     glyph: TruLuraGlyph.edit,
-                                    onTap: () => TruNavigation.pushWithReturnTo(
-                                        context, AppRoutes.createPost)),
+                                    onTap: _openComposer),
                               ],
                             )
                           : _isLoading
@@ -336,8 +393,7 @@ class _VentScreenState extends State<VentScreen> {
         ),
       ),
       floatingActionButton: FloatingActionButton.extended(
-        onPressed: () =>
-            TruNavigation.pushWithReturnTo(context, AppRoutes.createPost),
+        onPressed: _openComposer,
         icon: const TruLuraIcon(
             glyph: TruLuraGlyph.edit,
             size: 20,

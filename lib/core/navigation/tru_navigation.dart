@@ -179,12 +179,19 @@ class TruNavigation {
     return uri.replace(queryParameters: query).toString();
   }
 
-  static void pushWithReturnTo(
+  /// Pushes [route], returning the future that completes when it pops.
+  ///
+  /// Returns the future rather than void so a caller can refresh itself after
+  /// the pushed screen closes. Vent Sanctuary needs this: the composer pops
+  /// back with no callback, so without awaiting, a successful post leaves the
+  /// screen showing its pre-post state. Existing callers that ignore the
+  /// result are unaffected.
+  static Future<T?> pushWithReturnTo<T extends Object?>(
     BuildContext context,
     String route, {
     Map<String, dynamic>? extra,
   }) {
-    context.push(
+    return context.push<T>(
       routeWithReturnTo(context, route),
       extra: withReturnTo(context, extra: extra),
     );
