@@ -15,7 +15,15 @@ class PostService {
 
   static String _postsCacheKeyFor(String uid) => 'posts_cache_$uid';
 
+  /// The main feed. Since 20260908_vent_containment this view EXCLUDES Vent.
   static const String _feedView = 'posts_feed';
+
+  /// The Vent environment's own feed. Returns only Vent, and nothing else does.
+  ///
+  /// Containment is a property of these two views, not of the client asking
+  /// correctly -- a caller that forgets now gets a feed with no Vent in it
+  /// rather than one that quietly leaks. Both carry the same privacy predicate.
+  static const String _ventFeedView = 'vent_feed';
   static const String _reactionsTable = 'post_reactions';
   static const String _defaultReactionType = 'glow';
 
@@ -383,6 +391,16 @@ class PostService {
   ///
   /// Anonymous rows deliberately return `user_id = null` from `posts_feed`.
   /// Writes still target `posts`; reads should not bypass this view.
+  /// Reads the Vent environment. Separate view, same shape, same privacy rules.
+  Future<List<Map<String, dynamic>>> fetchVentFeed() async {
+    if (!_supabaseReady) return [];
+    final rows = await DatabaseService.instance.client
+        .from(_ventFeedView)
+        .select()
+        .order('created_at', ascending: false);
+    return List<Map<String, dynamic>>.from(rows as List);
+  }
+
   Future<List<Map<String, dynamic>>> fetchAuraFeed() async {
     if (!_supabaseReady) return [];
 
@@ -460,8 +478,23 @@ class PostService {
     }
   }
 
+  /// Posts for one feed bucket.
+  ///
+  /// 'Vent' reads the vent_feed view rather than filtering the main feed.
+  /// After 20260908_vent_containment posts_feed excludes Vent entirely, so the
+  /// old client-side filter would return nothing forever -- and the filter was
+  /// never the containment anyway, it was the thing standing in for it.
+  ///
+  /// Vent results are NOT written to the feed cache. That cache is read by
+  /// getAllPosts as the main feed's fallback, and letting Vent rows into it
+  /// would reintroduce the leak through the back door on the next offline read.
   Future<List<Post>> getPostsByCategory(String category) async {
     try {
+      if (category == 'Vent') {
+        if (!_supabaseReady) return <Post>[];
+        final rows = await fetchVentFeed();
+        return rows.map(fromAuraRow).toList(growable: false);
+      }
       final posts = await getAllPosts();
       if (category == 'ForYou') return posts;
       return posts.where((p) => p.category == category).toList();
