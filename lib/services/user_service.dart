@@ -109,30 +109,42 @@ class UserService {
     });
   }
 
-  Future<void> _persistMood(String userId, List<String> moodTags) async {
-    final mood = _firstNonEmpty(moodTags);
-    if (mood == null) return;
-    final nowIso = DateTime.now().toIso8601String();
+  /// Persists the onboarding Vibe to `profiles.vibe`.
+  ///
+  /// Was `_persistMood`, writing `user_states.mood_tag`. That column now has a
+  /// single writer -- MoodSyncService -- and a single vocabulary, the `Mood`
+  /// enum. This method was the second writer, and it wrote a different
+  /// vocabulary entirely.
+  ///
+  /// `user.moodTags` is not mood. It is the Vibe chosen in
+  /// onboarding_vibe_screen.dart, whose own comment admits the stopgap --
+  /// "Phase-1: store vibe as a mood tag". Its seven values (Reflective,
+  /// Dreamy, Calm, Flirty, Healing, Energetic, Creative) are not a subset of
+  /// the five Mood values: Dreamy, Energetic and Creative have no Mood
+  /// equivalent, and `social` has no Vibe equivalent.
+  ///
+  /// The consequence of sharing the column was a silent, per-user failure:
+  /// MoodSyncService.currentMood() could not map 'Dreamy' to a Mood, returned
+  /// null, and AuraStateController fell back to its Mood.calm placeholder
+  /// forever -- for that user only, which is why it survived testing.
+  ///
+  /// `profiles.vibe` is the correct home: text, nullable, and previously unused
+  /// by any code. Note it is NOT `profiles.vibe_status`, which already holds
+  /// `TruVibeLabel` (oldSoul, grounded, ...) -- a third vocabulary again.
+  Future<void> _persistVibe(String userId, List<String> moodTags) async {
+    final vibe = _firstNonEmpty(moodTags);
+    if (vibe == null) return;
 
-    final updated = await _client
-        .from('user_states')
+    // profiles rows are created by a trigger on auth.users, so the row always
+    // exists by the time this runs -- a plain update is enough, and there is no
+    // insert fallback of the kind user_states needed.
+    await _client
+        .from('profiles')
         .update({
-          'mood_tag': mood,
-          'updated_at': nowIso,
+          'vibe': vibe,
+          'updated_at': DateTime.now().toUtc().toIso8601String(),
         })
-        .eq('user_id', userId)
-        .select('user_id');
-
-    if ((updated as List).isNotEmpty) return;
-
-    await _client.from('user_states').insert({
-      'user_id': userId,
-      'active_mode': 'social',
-      'mood_tag': mood,
-      'energy_level': 'medium',
-      'low_energy_mode': false,
-      'updated_at': nowIso,
-    });
+        .eq('id', userId);
   }
 
   Future<void> _persistProfile(User user) async {
@@ -390,10 +402,10 @@ class UserService {
             );
           }
           try {
-            await _persistMood(user.id, user.moodTags);
+            await _persistVibe(user.id, user.moodTags);
           } catch (e) {
             debugPrint(
-              'UserService.saveUser persist mood failed (non-fatal): $e',
+              'UserService.saveUser persist vibe failed (non-fatal): $e',
             );
           }
           try {

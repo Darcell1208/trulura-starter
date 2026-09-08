@@ -8,10 +8,14 @@ how it was checked.*
 
 ## Core features
 
-The Blueprint's "Core Loop" (§2.6) is a data-flow, not a feature list. The
-nearest six-item list in the repo is the Implementation Roadmap's **Core Beta
-backbone** — sections 1, 2/3, 4, 5, 9, 12 — used here. Note that messaging is
-not on it, so if a different six is intended, this table needs correcting.
+The Blueprint's "Core Loop" (§2.6) is a data-flow, not a feature list. The rows
+below track the Implementation Roadmap's **Core Beta backbone** (sections 1,
+2/3, 4, 5, 9, 12) plus the delivery-order features actually being built.
+
+Two of the six delivery-order features are named but not started:
+**5 — block / report / crisis** and **6 — invite-only signup**. Neither has any
+code or schema yet beyond the `blocks`, `reports`, `moderation_events` and
+`safety_flags` tables, which exist with RLS but no application code.
 
 | # | Feature | State | Verified how |
 |---|---|---|---|
@@ -20,11 +24,11 @@ not on it, so if a different six is intended, this table needs correcting.
 | 3 | **Discovery / Aura feed** (§4) | Built | Real posts via `posts_feed` view (security_barrier). Anonymous rows return `user_id = null`. Verified by role. |
 | 4 | **Profile** (§5) | Partial | `profiles` table + profile screens. Read access verified by role (authenticated sees others, anon sees none). |
 | 5 | **Safety** (§9) | Partial | 4 safety services, all client-side. `moderation_events` / `safety_flags` are service-role only. No server enforcement. |
-| 6 | **MoodSync** (§12) | Built | `MoodSyncService` writes `user_states.mood_tag` (current) and appends to `mood_states` (history); `AuraStateController.updateMood` persists and `initialize()` hydrates. Per-user isolation verified by role. Not yet exercised in the UI. |
+| 6 | **MoodSync** (§12) | Built + verified | `MoodSyncService` writes `user_states.mood_tag` (current) and appends to `mood_states` (history); `AuraStateController.updateMood` persists, `initialize()` hydrates. Per-user isolation verified by role. **Verified in the UI**: mood set, app closed and reopened, mood survived; confirmed server-side (`mood_tag='flirty'`, 1 history row). |
 | — | **Messaging** | Built + verified | Only feature verified at every layer: by role in SQL, and a two-window browser test where a message crossed sessions without a refresh. |
 
-**Verification depth is uneven.** Messaging is the only feature exercised
-through the UI. Everything else is "the code exists and compiles."
+**Verification depth is uneven.** Messaging and MoodSync are the only features
+exercised through the UI. Everything else is "the code exists and compiles."
 
 ---
 
@@ -132,6 +136,12 @@ Top blockers, unchanged:
     history. `intensity` is never written — `recordMood` accepts it, nothing
     passes it — and its `0..100` CHECK is a sanity bound, not the product
     scale, which the Blueprint never defines.
+14. `profiles.vibe` for `d9fa2f57` holds `'flirty'`, a Mood value, not a Vibe.
+    The `separate_vibe_from_mood` migration copied `mood_tag` into `vibe` on
+    the premise that everything in `mood_tag` was a Vibe — true when written,
+    false when applied, because a successful MoodSync test overwrote
+    `'Reflective'` in between. The original is recoverable from this session's
+    logs but has not been restored pending confirmation.
 12. No automated tests cover any of the above. Every verification recorded here
     was run by hand.
 13. Fourteen tracked files are zero bytes, including nine `README.md`
