@@ -440,10 +440,19 @@ class PostService {
     try {
       if (!_supabaseReady) return _readCachedPosts();
 
+      // Capture the account BEFORE the fetch and cache under that same id.
+      //
+      // _cachePosts used to resolve the account itself, at write time, which
+      // meant a sign-out and sign-in during the round trip filed one account's
+      // feed under the next account's key -- reintroducing the cross-account
+      // disclosure 7ecb53e closed, by a slower route. These rows carry
+      // post_privacy, so the destination has to be decided by whose read this
+      // was, not by whoever happens to be signed in when it returns.
+      final uid = _cacheUid;
       final rows = await fetchAuraFeed();
       final posts = rows.map(fromAuraRow).toList(growable: false);
 
-      await _cachePosts(posts);
+      await _cachePostsFor(uid, posts);
       return posts;
     } catch (e) {
       debugPrint('Failed to get posts: $e');
@@ -534,12 +543,21 @@ class PostService {
     }
   }
 
-  Future<void> _cachePosts(List<Post> posts) async {
+  /// Caches under whoever is signed in now. Only safe when the read that
+  /// produced [posts] cannot have spanned a session change; prefer
+  /// [_cachePostsFor] with an account captured before the read.
+  Future<void> _cachePosts(List<Post> posts) async =>
+      _cachePostsFor(_cacheUid, posts);
+
+  /// Caches [posts] under [uid], the account the read was made for.
+  ///
+  /// A null uid writes nothing: there is no account to file the feed under, and
+  /// falling back to a shared key is what this whole change removed.
+  Future<void> _cachePostsFor(String? uid, List<Post> posts) async {
     try {
       final prefs = await SharedPreferences.getInstance();
       await _dropLegacyGlobalCache(prefs);
 
-      final uid = _cacheUid;
       if (uid == null) return;
 
       await prefs.setString(_postsCacheKeyFor(uid),

@@ -95,26 +95,26 @@ class ConnectionService {
   /// Reads one of this account's sets. Empty when signed out -- there is no
   /// account whose graph it would be.
   Future<Set<String>> _getSet(String Function(String uid) keyFor) async {
+    final uid = _uid;
+    if (uid == null) return <String>{};
+    return _getSetFor(uid, keyFor);
+  }
+
+  Future<Set<String>> _getSetFor(
+      String uid, String Function(String uid) keyFor) async {
     try {
-      final uid = _uid;
-      if (uid == null) return <String>{};
       final prefs = await SharedPreferences.getInstance();
       await _claimLegacy(prefs, uid);
       return _decode(prefs.getString(keyFor(uid)));
     } catch (e) {
-      debugPrint('ConnectionService._getSet failed: $e');
+      debugPrint('ConnectionService._getSetFor failed: $e');
       return <String>{};
     }
   }
 
   /// Returns false if the write did not persist, including when signed out.
-  Future<bool> _setSet(
-      String Function(String uid) keyFor, Set<String> values) async {
-    final uid = _uid;
-    if (uid == null) {
-      debugPrint('ConnectionService._setSet skipped: no signed-in account');
-      return false;
-    }
+  Future<bool> _setSetFor(
+      String uid, String Function(String uid) keyFor, Set<String> values) async {
     try {
       final prefs = await SharedPreferences.getInstance();
       await _claimLegacy(prefs, uid);
@@ -122,7 +122,7 @@ class ConnectionService {
           keyFor(uid), jsonEncode(values.toList(growable: false)));
       return true;
     } catch (e) {
-      debugPrint('ConnectionService._setSet failed: $e');
+      debugPrint('ConnectionService._setSetFor failed: $e');
       return false;
     }
   }
@@ -136,20 +136,37 @@ class ConnectionService {
   /// Returns false if the change did not persist. Callers currently fire this
   /// through `unawaited` and show the new state optimistically, which is the
   /// separate swallowed-write-failure pass.
+  ///
+  /// The account is resolved ONCE and used for both the read and the write.
+  /// Resolving it twice -- read A's follows, then resolve again on the way out
+  /// -- means a sign-out between the two writes A's graph into B's key, which
+  /// is the cross-account leak 48025ab set out to close arriving through a
+  /// narrower door.
   Future<bool> toggleFollow(String userId) async {
-    final set = await _getSet(_followsKeyFor);
+    final uid = _uid;
+    if (uid == null) {
+      debugPrint('ConnectionService.toggleFollow skipped: no signed-in account');
+      return false;
+    }
+    final set = await _getSetFor(uid, _followsKeyFor);
     if (set.contains(userId)) {
       set.remove(userId);
     } else {
       set.add(userId);
     }
-    return _setSet(_followsKeyFor, set);
+    return _setSetFor(uid, _followsKeyFor, set);
   }
 
-  /// Returns false if the spark did not persist.
+  /// Returns false if the spark did not persist. Resolves the account once,
+  /// for the same reason as [toggleFollow].
   Future<bool> sendSpark(String userId) async {
-    final set = await _getSet(_sparksKeyFor);
+    final uid = _uid;
+    if (uid == null) {
+      debugPrint('ConnectionService.sendSpark skipped: no signed-in account');
+      return false;
+    }
+    final set = await _getSetFor(uid, _sparksKeyFor);
     set.add(userId);
-    return _setSet(_sparksKeyFor, set);
+    return _setSetFor(uid, _sparksKeyFor, set);
   }
 }

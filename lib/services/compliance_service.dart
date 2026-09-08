@@ -68,12 +68,22 @@ class ComplianceService {
   /// the safe direction to fail: an unnecessary prompt costs a tap, a skipped
   /// one opens a surface nobody agreed to.
   Future<TruCompliancePrefs> getPrefs() async {
+    final uid = _uid;
+    if (uid == null) {
+      // Still worth running the orphan step so the dead global key goes away
+      // even on a signed-out launch.
+      try {
+        await _orphanLegacyGlobalKey(await SharedPreferences.getInstance());
+      } catch (_) {}
+      return const TruCompliancePrefs();
+    }
+    return _getPrefsFor(uid);
+  }
+
+  Future<TruCompliancePrefs> _getPrefsFor(String uid) async {
     try {
       final prefs = await SharedPreferences.getInstance();
       await _orphanLegacyGlobalKey(prefs);
-
-      final uid = _uid;
-      if (uid == null) return const TruCompliancePrefs();
 
       final raw = prefs.getString(_keyFor(uid));
       if (raw == null) return const TruCompliancePrefs();
@@ -98,6 +108,10 @@ class ComplianceService {
       debugPrint('ComplianceService.setPrefs skipped: no signed-in account');
       return false;
     }
+    return _setPrefsFor(uid, next);
+  }
+
+  Future<bool> _setPrefsFor(String uid, TruCompliancePrefs next) async {
     try {
       final prefs = await SharedPreferences.getInstance();
       await _orphanLegacyGlobalKey(prefs);
@@ -150,19 +164,35 @@ class ComplianceService {
 
   /// Returns false if the acceptance did not persist. Already-accepted is
   /// true: the user's intent holds either way.
+  /// Resolves the account ONCE and uses it for both the read and the write.
+  /// Resolving twice -- read A's consent, then resolve again on the way out --
+  /// means a session change between them records A's acceptance under B, which
+  /// is the inherited-consent bug 4ff6dae closed arriving by a narrower route.
   Future<bool> acceptTerms() async {
-    final prefs = await getPrefs();
+    final uid = _uid;
+    if (uid == null) {
+      debugPrint('ComplianceService.acceptTerms skipped: no signed-in account');
+      return false;
+    }
+    final prefs = await _getPrefsFor(uid);
     if (prefs.termsAcceptedAt != null) return true;
-    return setPrefs(prefs.copyWith(termsAcceptedAt: DateTime.now()));
+    return _setPrefsFor(uid, prefs.copyWith(termsAcceptedAt: DateTime.now()));
   }
 
   /// Returns false if the consent did not persist.
+  /// Resolves the account once, for the same reason as [acceptTerms].
   Future<bool> acceptModeConsent(TruExperienceMode mode) async {
-    final prefs = await getPrefs();
+    final uid = _uid;
+    if (uid == null) {
+      debugPrint(
+          'ComplianceService.acceptModeConsent skipped: no signed-in account');
+      return false;
+    }
+    final prefs = await _getPrefsFor(uid);
     if (prefs.modeConsentAt[mode] != null) return true;
     final next = Map<TruExperienceMode, DateTime>.from(prefs.modeConsentAt);
     next[mode] = DateTime.now();
-    return setPrefs(prefs.copyWith(modeConsentAt: next));
+    return _setPrefsFor(uid, prefs.copyWith(modeConsentAt: next));
   }
 }
 

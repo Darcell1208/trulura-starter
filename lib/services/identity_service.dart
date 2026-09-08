@@ -62,12 +62,20 @@ class IdentityService {
   /// false, so failing this way fails toward posting as yourself rather than
   /// toward an anonymity nobody selected.
   Future<TruIdentityPrefs> getPrefs() async {
+    final uid = _uid;
+    if (uid == null) {
+      try {
+        await _orphanLegacyGlobalKey(await SharedPreferences.getInstance());
+      } catch (_) {}
+      return const TruIdentityPrefs();
+    }
+    return _getPrefsFor(uid);
+  }
+
+  Future<TruIdentityPrefs> _getPrefsFor(String uid) async {
     try {
       final prefs = await SharedPreferences.getInstance();
       await _orphanLegacyGlobalKey(prefs);
-
-      final uid = _uid;
-      if (uid == null) return const TruIdentityPrefs();
 
       final raw = prefs.getString(_keyFor(uid));
       if (raw == null) return const TruIdentityPrefs();
@@ -87,6 +95,17 @@ class IdentityService {
       debugPrint('IdentityService.setPrefs skipped: no signed-in account');
       return false;
     }
+    return _setPrefsFor(uid, next);
+  }
+
+  /// Reads and writes under an account resolved by the caller.
+  ///
+  /// The setters below resolve it once and pass it through both halves. Reading
+  /// A's prefs and resolving again on the way out means a session change
+  /// between the two writes A's identity settings into B's key -- including
+  /// anonymousOverlayEnabled, where inheriting the wrong value means somebody
+  /// publishes under a presentation they never chose.
+  Future<bool> _setPrefsFor(String uid, TruIdentityPrefs next) async {
     try {
       final prefs = await SharedPreferences.getInstance();
       await _orphanLegacyGlobalKey(prefs);
@@ -114,14 +133,18 @@ class IdentityService {
   }
 
   Future<void> setActiveMode(TruIdentityMode mode) async {
-    final prefs = await getPrefs();
+    final uid = _uid;
+    if (uid == null) return;
+    final prefs = await _getPrefsFor(uid);
     final active = prefs.activeModes.contains(mode) ? prefs.activeModes : <TruIdentityMode>[...prefs.activeModes, mode];
-    await setPrefs(prefs.copyWith(activeMode: mode, activeModes: active));
+    await _setPrefsFor(uid, prefs.copyWith(activeMode: mode, activeModes: active));
     await _applyToCachedUser((u) => u.copyWith(activeIdentityMode: mode, updatedAt: DateTime.now()));
   }
 
   Future<void> setModeEnabled({required TruIdentityMode mode, required bool enabled}) async {
-    final prefs = await getPrefs();
+    final uid = _uid;
+    if (uid == null) return;
+    final prefs = await _getPrefsFor(uid);
     final set = prefs.activeModes.toSet();
     if (enabled) {
       set.add(mode);
@@ -131,19 +154,23 @@ class IdentityService {
     final nextList = set.toList(growable: false);
     final nextActive = prefs.activeMode;
     final activeMode = set.contains(nextActive) ? nextActive : (nextList.isNotEmpty ? nextList.first : TruIdentityMode.social);
-    await setPrefs(prefs.copyWith(activeModes: nextList, activeMode: activeMode));
+    await _setPrefsFor(uid, prefs.copyWith(activeModes: nextList, activeMode: activeMode));
     await _applyToCachedUser((u) => u.copyWith(activeIdentityMode: activeMode, updatedAt: DateTime.now()));
   }
 
   Future<void> setAnonymousOverlay(bool enabled) async {
-    final prefs = await getPrefs();
-    await setPrefs(prefs.copyWith(anonymousOverlayEnabled: enabled));
+    final uid = _uid;
+    if (uid == null) return;
+    final prefs = await _getPrefsFor(uid);
+    await _setPrefsFor(uid, prefs.copyWith(anonymousOverlayEnabled: enabled));
     await _applyToCachedUser((u) => u.copyWith(anonymousOverlayEnabled: enabled, updatedAt: DateTime.now()));
   }
 
   Future<void> setVibeLabel(TruVibeLabel label) async {
-    final prefs = await getPrefs();
-    await setPrefs(prefs.copyWith(vibeLabel: label));
+    final uid = _uid;
+    if (uid == null) return;
+    final prefs = await _getPrefsFor(uid);
+    await _setPrefsFor(uid, prefs.copyWith(vibeLabel: label));
     await _applyToCachedUser((u) => u.copyWith(vibeLabel: label, updatedAt: DateTime.now()));
   }
 

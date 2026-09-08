@@ -124,31 +124,28 @@ class _SafetyCenterScreenState extends State<SafetyCenterScreen> {
                       await _load();
                     },
                   ),
-                  const SizedBox(height: 12),
-                  Text('Who can message you', style: Theme.of(context).textTheme.labelLarge?.copyWith(fontWeight: FontWeight.w900)),
-                  const SizedBox(height: 8),
-                  DropdownButtonHideUnderline(
-                    child: Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
-                      decoration: BoxDecoration(
-                        color: cs.surfaceContainerHighest.withValues(alpha: 0.18),
-                        borderRadius: BorderRadius.circular(16),
-                        border: Border.all(color: Colors.white.withValues(alpha: 0.10), width: TruLuraSurfaces.hairline),
-                      ),
-                      child: DropdownButton<TruDmPermission>(
-                        value: p.dmPermission,
-                        isExpanded: true,
-                        items: TruDmPermission.values.map((v) => DropdownMenuItem(value: v, child: Text(v.label))).toList(),
-                        onChanged: (v) async {
-                          if (v == null) return;
-                          await _svc.setDmPermission(v);
-                          await _load();
-                        },
-                      ),
-                    ),
-                  ),
-                  const SizedBox(height: 6),
-                  Text(p.dmPermission.helper, style: Theme.of(context).textTheme.bodySmall?.copyWith(color: cs.onSurface.withValues(alpha: 0.70), height: 1.3)),
+                  // "Who can message you" is deliberately not rendered.
+                  //
+                  // dmPermission is stored and was displayed, but nothing in
+                  // messaging has ever consulted it -- the only readers were
+                  // this screen drawing its own control. A setting that names
+                  // who may contact you and does not govern it is worse than
+                  // no setting, because someone relies on it.
+                  //
+                  // It is hidden rather than enforced because three of its four
+                  // options cannot be enforced yet, and not merely because the
+                  // code is unwritten. followersOnly and mutualsOnly need a
+                  // follows table that does not exist -- follows live in
+                  // SharedPreferences under graph_follows_v1_<uid>, on one
+                  // device, per 48025ab -- and verifiedOnly would gate on
+                  // verificationLevel, which safety_verification_screen lets a
+                  // user raise on themselves with the "Advance level (stub)"
+                  // button.
+                  //
+                  // The stored value is untouched, so restoring this control is
+                  // deleting a comment once messaging RLS can consult a real
+                  // follows table. See TruSafetyCenterPrefs.dmPermission and
+                  // SafetyCenterService.setDmPermission, both still live.
                 ],
               ),
             ),

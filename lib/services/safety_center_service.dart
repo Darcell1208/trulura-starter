@@ -63,12 +63,20 @@ class SafetyCenterService {
   /// Returns defaults when signed out. Every protection defaults on, so
   /// failing this way fails safe.
   Future<TruSafetyCenterPrefs> getPrefs() async {
+    final uid = _uid;
+    if (uid == null) {
+      try {
+        await _orphanLegacyGlobalKey(await SharedPreferences.getInstance());
+      } catch (_) {}
+      return const TruSafetyCenterPrefs();
+    }
+    return _getPrefsFor(uid);
+  }
+
+  Future<TruSafetyCenterPrefs> _getPrefsFor(String uid) async {
     try {
       final prefs = await SharedPreferences.getInstance();
       await _orphanLegacyGlobalKey(prefs);
-
-      final uid = _uid;
-      if (uid == null) return const TruSafetyCenterPrefs();
 
       final raw = prefs.getString(_keyFor(uid));
       if (raw == null) return const TruSafetyCenterPrefs();
@@ -90,6 +98,10 @@ class SafetyCenterService {
       debugPrint('SafetyCenterService.setPrefs skipped: no signed-in account');
       return false;
     }
+    return _setPrefsFor(uid, next);
+  }
+
+  Future<bool> _setPrefsFor(String uid, TruSafetyCenterPrefs next) async {
     try {
       final prefs = await SharedPreferences.getInstance();
       await _orphanLegacyGlobalKey(prefs);
@@ -116,49 +128,72 @@ class SafetyCenterService {
     }
   }
 
+  // Each setter below resolves the account ONCE and uses it for both the read
+  // and the write. Reading A's prefs and then resolving the account again on
+  // the way out means a session change between the two writes A's safety
+  // posture into B's key -- the cross-account inheritance c78a37a closed,
+  // arriving through a narrower door.
   Future<bool> setMessageFilteringEnabled(bool enabled) async {
-    final prefs = await getPrefs();
-    return setPrefs(prefs.copyWith(messageFilteringEnabled: enabled));
+    final uid = _uid;
+    if (uid == null) return false;
+    final prefs = await _getPrefsFor(uid);
+    return _setPrefsFor(uid, prefs.copyWith(messageFilteringEnabled: enabled));
   }
 
   Future<bool> setScamPromptsEnabled(bool enabled) async {
-    final prefs = await getPrefs();
-    return setPrefs(prefs.copyWith(scamPromptsEnabled: enabled));
+    final uid = _uid;
+    if (uid == null) return false;
+    final prefs = await _getPrefsFor(uid);
+    return _setPrefsFor(uid, prefs.copyWith(scamPromptsEnabled: enabled));
   }
 
   Future<bool> setDmPermission(TruDmPermission permission) async {
-    final prefs = await getPrefs();
-    return setPrefs(prefs.copyWith(dmPermission: permission));
+    final uid = _uid;
+    if (uid == null) return false;
+    final prefs = await _getPrefsFor(uid);
+    return _setPrefsFor(uid, prefs.copyWith(dmPermission: permission));
   }
 
   Future<bool> setAllowNonMutualSparks(bool allow) async {
-    final prefs = await getPrefs();
-    return setPrefs(prefs.copyWith(allowNonMutualSparks: allow));
+    final uid = _uid;
+    if (uid == null) return false;
+    final prefs = await _getPrefsFor(uid);
+    return _setPrefsFor(uid, prefs.copyWith(allowNonMutualSparks: allow));
   }
 
   Future<bool> setAuraShieldEnabled(bool enabled) async {
-    final prefs = await getPrefs();
-    return setPrefs(prefs.copyWith(auraShieldEnabled: enabled));
+    final uid = _uid;
+    if (uid == null) return false;
+    final prefs = await _getPrefsFor(uid);
+    return _setPrefsFor(uid, prefs.copyWith(auraShieldEnabled: enabled));
   }
 
   Future<bool> setAntiDoxxingEnabled(bool enabled) async {
-    final prefs = await getPrefs();
-    return setPrefs(prefs.copyWith(antiDoxxingEnabled: enabled));
+    final uid = _uid;
+    if (uid == null) return false;
+    final prefs = await _getPrefsFor(uid);
+    return _setPrefsFor(uid, prefs.copyWith(antiDoxxingEnabled: enabled));
   }
 
   Future<bool> setCrisisSupportEnabled(bool enabled) async {
-    final prefs = await getPrefs();
-    return setPrefs(prefs.copyWith(crisisSupportEnabled: enabled));
+    final uid = _uid;
+    if (uid == null) return false;
+    final prefs = await _getPrefsFor(uid);
+    return _setPrefsFor(uid, prefs.copyWith(crisisSupportEnabled: enabled));
   }
 
   Future<bool> setEphemeralMessagingEnabled(bool enabled) async {
-    final prefs = await getPrefs();
-    return setPrefs(prefs.copyWith(ephemeralMessagingEnabled: enabled));
+    final uid = _uid;
+    if (uid == null) return false;
+    final prefs = await _getPrefsFor(uid);
+    return _setPrefsFor(uid, prefs.copyWith(ephemeralMessagingEnabled: enabled));
   }
 
   Future<bool> setShowSafetyMeterDetails(bool show) async {
-    final prefs = await getPrefs();
-    return setPrefs(prefs.copyWith(showSafetyMeterDetails: show));
+    final uid = _uid;
+    if (uid == null) return false;
+    final prefs = await _getPrefsFor(uid);
+    return _setPrefsFor(uid, prefs.copyWith(showSafetyMeterDetails: show));
   }
 }
 

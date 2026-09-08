@@ -329,8 +329,22 @@ class BlockService {
     );
 
     if (outcome.isComplete) {
-      await prefs.setBool(_markerKey(uid), true);
-      await _claimLegacyLocal(prefs, uid, local);
+      // Claim BEFORE marking done, and only mark done if the claim landed.
+      //
+      // The reverse order reopened the bug this migration exists to close: if
+      // the process died between setting the marker and consuming the legacy
+      // key, this account would never run again -- the marker says done -- and
+      // safety_blocks_v1 would still be sitting there for the next account to
+      // import as its own. The marker records that the work happened; the
+      // claim IS the work, so the claim goes first.
+      //
+      // Failing to claim now leaves the marker unset and the whole migration
+      // re-runs next launch. That is cheap and safe: every insert is idempotent
+      // against the unique index on (user_id, blocked_user_id), so a re-run
+      // reports the rows as alreadyPresent rather than duplicating them.
+      if (await _claimLegacyLocal(prefs, uid, local)) {
+        await prefs.setBool(_markerKey(uid), true);
+      }
     }
 
     debugPrint('BlockService.migrateLocalBlocksIfNeeded: $outcome');
@@ -347,17 +361,21 @@ class BlockService {
   /// the two, the list exists in both places and the next launch re-imports it
   /// into the same account, which the unique index makes a no-op. The reverse
   /// order could lose it entirely.
-  Future<void> _claimLegacyLocal(
+  /// Returns false if the legacy key could not be consumed.
+  ///
+  /// The caller must not set the completion marker on false: the blocks are
+  /// already safe on the server, but the shared list is still sitting there for
+  /// another account to claim, and only a re-run can clear it.
+  Future<bool> _claimLegacyLocal(
       SharedPreferences prefs, String uid, Set<String> claimed) async {
     try {
       await prefs.setString('$_legacyClaimedKeyPrefix$uid',
           jsonEncode(claimed.toList(growable: false)));
       await prefs.remove(_legacyLocalKey);
+      return true;
     } catch (e) {
-      // Not fatal: the blocks are already on the server. The cost is that the
-      // legacy key survives and another account on this device could import
-      // it, so it is worth a log line rather than silence.
       debugPrint('BlockService._claimLegacyLocal failed: $e');
+      return false;
     }
   }
 
