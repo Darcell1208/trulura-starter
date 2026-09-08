@@ -32,12 +32,187 @@ class StartConversationException implements Exception {
       'StartConversationException(${code ?? 'client'}): $message';
 }
 
+/// The local chat store for one identity: the prefs handle plus the two keys
+/// that identity reads and writes.
+class _LocalChatStore {
+  final SharedPreferences prefs;
+  final String chatsKey;
+  final String messagesKey;
+
+  const _LocalChatStore(this.prefs, this.chatsKey, this.messagesKey);
+}
+
 class ChatService {
-  static const String _chatsKey = 'chats';
-  static const String _messagesKey = 'messages';
+  /// The original device-global keys.
+  ///
+  /// Still live, and deliberately so. They are the store for a session with no
+  /// identity at all -- see [_localScopeUid] -- and they are NOT removed once
+  /// an account has migrated out of them.
+  ///
+  /// That inverts the retain rule used for follows and sparks in 48025ab,
+  /// where the global key was removed on first claim so a second account could
+  /// not re-import the first account's data. The difference is that this data
+  /// is self-attributing: Chat.participantIds and Message.senderId/chatId
+  /// record who each row belongs to, so each account selects its own rows
+  /// rather than claiming the lot. Removing the global key here would destroy
+  /// another account's conversations instead of bounding a guess.
+  static const String _legacyChatsKey = 'chats';
+  static const String _legacyMessagesKey = 'messages';
+
+  /// Set once an identity has pulled its own rows out of the global keys.
+  static String _localMigrationMarker(String uid) =>
+      'chat_local_store_migrated_v1_$uid';
+
+  static String _localChatsKey(String? uid) =>
+      uid == null ? _legacyChatsKey : 'chats_$uid';
+  static String _localMessagesKey(String? uid) =>
+      uid == null ? _legacyMessagesKey : 'messages_$uid';
+
+  /// Seeds three fictional conversations into the device-global keys.
+  ///
+  /// Debug builds only. These are development scaffolding -- ids '1'..'3' with
+  /// participants '1'..'4', none of which is a real account -- and they used to
+  /// be written unconditionally into the same store as real content, which is
+  /// what made scoping this store delicate: a wholesale migration would have
+  /// imported three conversations that never happened into somebody's real
+  /// history, rendered indistinguishably from real ones.
+  ///
+  /// Left device-global rather than scoped per account on purpose. Scoping
+  /// would give every real account its own three fake conversations instead of
+  /// sharing three, which is worse. This is a development convenience and
+  /// should read as one.
+  static const bool _seedSampleChats = kDebugMode;
+
   final UserService _userService = UserService();
 
   bool get _supabaseReady => DatabaseService.instance.isInitialized;
+
+  /// The identity the local store is scoped to, or null if there is none.
+  ///
+  /// Falls back to the cached current user because the local store is only
+  /// ever read in a session where Supabase never initialised -- exactly the
+  /// state in which `auth.currentUser` is unavailable. Without the fallback the
+  /// per-identity keys would be write-only.
+  Future<String?> _localScopeUid() async {
+    try {
+      if (_supabaseReady) {
+        final authId = DatabaseService.instance.client.auth.currentUser?.id;
+        if (authId != null && authId.isNotEmpty) return authId;
+      }
+      final cached = await _userService.getCurrentUser();
+      final id = cached?.id.trim() ?? '';
+      return id.isEmpty ? null : id;
+    } catch (e) {
+      debugPrint('ChatService._localScopeUid failed: $e');
+      return null;
+    }
+  }
+
+  /// Resolves the local store for the current identity, migrating its rows out
+  /// of the device-global keys the first time.
+  Future<_LocalChatStore> _localStore() async {
+    final prefs = await SharedPreferences.getInstance();
+    final uid = await _localScopeUid();
+    if (uid != null) await _migrateLocalStoreIfNeeded(prefs, uid);
+    return _LocalChatStore(
+        prefs, _localChatsKey(uid), _localMessagesKey(uid));
+  }
+
+  /// Copies this identity's own rows out of the device-global keys, once.
+  ///
+  /// Selection is by attribution, not by who ran first: a chat comes across
+  /// only if [uid] is one of its participants, and a message only if it
+  /// belongs to one of those chats or was sent by [uid]. So there is no
+  /// first-claimant caveat here of the kind recorded in 48025ab -- nothing is
+  /// being guessed, and a second account can still collect its own rows
+  /// afterwards.
+  ///
+  /// The sample conversations fall out for free: their participants are '1'
+  /// through '4' and a real uid is a UUID, so they never match.
+  ///
+  /// Rows are merged by id rather than appended, so a re-run cannot duplicate
+  /// them, and the marker is only set after both writes land.
+  Future<void> _migrateLocalStoreIfNeeded(
+      SharedPreferences prefs, String uid) async {
+    try {
+      if (prefs.getBool(_localMigrationMarker(uid)) ?? false) return;
+
+      final globalChats = _decodeChats(prefs.getString(_legacyChatsKey));
+      final globalMessages =
+          _decodeMessages(prefs.getString(_legacyMessagesKey));
+      if (globalChats.isEmpty && globalMessages.isEmpty) {
+        await prefs.setBool(_localMigrationMarker(uid), true);
+        return;
+      }
+
+      final mine = globalChats
+          .where((c) => c.participantIds.contains(uid))
+          .toList(growable: false);
+      final myChatIds = mine.map((c) => c.id).toSet();
+      final myMessages = globalMessages
+          .where((m) => myChatIds.contains(m.chatId) || m.senderId == uid)
+          .toList(growable: false);
+
+      if (mine.isNotEmpty) {
+        final merged = <String, Chat>{
+          for (final c in _decodeChats(prefs.getString(_localChatsKey(uid))))
+            c.id: c,
+          for (final c in mine) c.id: c,
+        };
+        await prefs.setString(_localChatsKey(uid),
+            jsonEncode(merged.values.map((c) => c.toJson()).toList()));
+      }
+
+      if (myMessages.isNotEmpty) {
+        final merged = <String, Message>{
+          for (final m
+              in _decodeMessages(prefs.getString(_localMessagesKey(uid))))
+            m.id: m,
+          for (final m in myMessages) m.id: m,
+        };
+        await prefs.setString(_localMessagesKey(uid),
+            jsonEncode(merged.values.map((m) => m.toJson()).toList()));
+      }
+
+      await prefs.setBool(_localMigrationMarker(uid), true);
+      debugPrint('ChatService: pulled ${mine.length} chats and '
+          '${myMessages.length} messages out of the shared local store');
+    } catch (e) {
+      // Leave the marker unset so the next launch retries. The global keys are
+      // untouched either way, so nothing is lost by failing here.
+      debugPrint('ChatService._migrateLocalStoreIfNeeded failed: $e');
+    }
+  }
+
+  List<Chat> _decodeChats(String? raw) {
+    if (raw == null) return <Chat>[];
+    try {
+      final decoded = jsonDecode(raw);
+      if (decoded is! List) return <Chat>[];
+      return decoded
+          .whereType<Map<String, dynamic>>()
+          .map(Chat.fromJson)
+          .toList();
+    } catch (e) {
+      debugPrint('ChatService._decodeChats failed: $e');
+      return <Chat>[];
+    }
+  }
+
+  List<Message> _decodeMessages(String? raw) {
+    if (raw == null) return <Message>[];
+    try {
+      final decoded = jsonDecode(raw);
+      if (decoded is! List) return <Message>[];
+      return decoded
+          .whereType<Map<String, dynamic>>()
+          .map(Message.fromJson)
+          .toList();
+    } catch (e) {
+      debugPrint('ChatService._decodeMessages failed: $e');
+      return <Message>[];
+    }
+  }
 
   static final RegExp _explicitZone = RegExp(r'(Z|z|[+-]\d{2}:?\d{2})$');
 
@@ -262,9 +437,11 @@ class ChatService {
   }
 
   Future<void> _initSampleData() async {
+    // Debug builds only. See _seedSampleChats.
+    if (!_seedSampleChats) return;
     final prefs = await SharedPreferences.getInstance();
-    final existingChats = prefs.getString(_chatsKey);
-    final existingMessages = prefs.getString(_messagesKey);
+    final existingChats = prefs.getString(_legacyChatsKey);
+    final existingMessages = prefs.getString(_legacyMessagesKey);
 
     if (existingChats == null) {
       final chats = [
@@ -297,7 +474,7 @@ class ChatService {
         ),
       ];
       await prefs.setString(
-          _chatsKey, jsonEncode(chats.map((c) => c.toJson()).toList()));
+          _legacyChatsKey, jsonEncode(chats.map((c) => c.toJson()).toList()));
     }
 
     if (existingMessages == null) {
@@ -346,8 +523,8 @@ class ChatService {
           updatedAt: DateTime.now().subtract(const Duration(minutes: 30)),
         ),
       ];
-      await prefs.setString(
-          _messagesKey, jsonEncode(messages.map((m) => m.toJson()).toList()));
+      await prefs.setString(_legacyMessagesKey,
+          jsonEncode(messages.map((m) => m.toJson()).toList()));
     }
   }
 
@@ -356,9 +533,10 @@ class ChatService {
       if (_supabaseReady) {
         return await _getRemoteChats(currentUserId);
       }
-      final prefs = await SharedPreferences.getInstance();
       await _initSampleData();
-      final data = prefs.getString(_chatsKey);
+      final store = await _localStore();
+      final prefs = store.prefs;
+      final data = prefs.getString(store.chatsKey);
       if (data != null) {
         final List<dynamic> jsonList = jsonDecode(data);
         final chats = jsonList.map((json) => Chat.fromJson(json)).toList();
@@ -401,9 +579,10 @@ class ChatService {
       if (_supabaseReady) {
         return await _getRemoteMessagesByChatId(chatId);
       }
-      final prefs = await SharedPreferences.getInstance();
       await _initSampleData();
-      final data = prefs.getString(_messagesKey);
+      final store = await _localStore();
+      final prefs = store.prefs;
+      final data = prefs.getString(store.messagesKey);
       if (data != null) {
         final List<dynamic> jsonList = jsonDecode(data);
         final messages =
@@ -421,8 +600,8 @@ class ChatService {
           kept.add(m);
         }
         if (changed) {
-          await prefs.setString(
-              _messagesKey, jsonEncode(kept.map((m) => m.toJson()).toList()));
+          await prefs.setString(store.messagesKey,
+              jsonEncode(kept.map((m) => m.toJson()).toList()));
         }
 
         return kept.where((m) => m.chatId == chatId).toList()
@@ -472,16 +651,17 @@ class ChatService {
       // Basic block enforcement: if the receiver is blocked, prevent send.
       // (In this local stub we infer "other" user by chat participants elsewhere.
       // ChatThreadScreen performs a stronger check.)
-      final prefs = await SharedPreferences.getInstance();
-      final data = prefs.getString(_messagesKey);
+      final store = await _localStore();
+      final prefs = store.prefs;
+      final data = prefs.getString(store.messagesKey);
       final messages = data != null
           ? (jsonDecode(data) as List)
               .map((json) => Message.fromJson(json))
               .toList()
           : <Message>[];
       messages.add(message);
-      await prefs.setString(
-          _messagesKey, jsonEncode(messages.map((m) => m.toJson()).toList()));
+      await prefs.setString(store.messagesKey,
+          jsonEncode(messages.map((m) => m.toJson()).toList()));
     } catch (e) {
       debugPrint('Failed to save message: $e');
     }
@@ -630,9 +810,10 @@ class ChatService {
               updatedAt: DateTime.now(),
             );
       }
-      final prefs = await SharedPreferences.getInstance();
       await _initSampleData();
-      final data = prefs.getString(_chatsKey);
+      final store = await _localStore();
+      final prefs = store.prefs;
+      final data = prefs.getString(store.chatsKey);
       final chats = data != null
           ? (jsonDecode(data) as List)
               .map((e) => Chat.fromJson(e as Map<String, dynamic>))
@@ -657,8 +838,8 @@ class ChatService {
           createdAt: now,
           updatedAt: now);
       chats.add(next);
-      await prefs.setString(
-          _chatsKey, jsonEncode(chats.map((c) => c.toJson()).toList()));
+      await prefs.setString(store.chatsKey,
+          jsonEncode(chats.map((c) => c.toJson()).toList()));
       return next;
     } catch (e) {
       debugPrint('ChatService.ensureChatWithUser failed: $e');
