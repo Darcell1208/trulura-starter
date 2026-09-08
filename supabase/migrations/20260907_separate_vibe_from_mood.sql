@@ -1,5 +1,13 @@
 -- APPLIED 2026-09-07 as migration `separate_vibe_from_mood`.
 --
+-- DO NOT REPLAY. Step 1 is now actively destructive. It copies
+-- user_states.mood_tag into profiles.vibe for any profile whose vibe is NULL,
+-- and d9fa2f57 is exactly that as of 2026-09-08: vibe NULL (deliberately
+-- cleared by `20260908_null_the_clobbered_vibe.sql`) and mood_tag 'flirty'.
+-- Re-running would copy the Mood back into the Vibe column and undo that
+-- repair silently -- the same failure this file's closing note describes.
+-- Steps 2 and 3 are idempotent; step 1 is not.
+--
 -- Gives user_states.mood_tag a single writer and a single vocabulary, and
 -- relocates the onboarding Vibe to the column that was already there for it.
 --
