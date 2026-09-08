@@ -520,7 +520,12 @@ class PostService {
 
       Future<void> attemptInsert(Map<String, dynamic> row) async {
         if (kDebugMode) {
-          debugPrint('PostService: inserting into posts: ${jsonEncode(row)}');
+          // Column names only. This used to print the whole row, which meant
+          // the text of every post -- including private, anonymous Vent posts
+          // -- was written to the browser console, together with the author's
+          // user_id. Vent content in a console defeats the point of Vent.
+          debugPrint('PostService: inserting into posts, columns: '
+              '${row.keys.toList()..sort()}');
         }
         await DatabaseService.instance.client.from('posts').insert(row);
       }

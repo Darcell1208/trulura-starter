@@ -114,8 +114,16 @@ class _VentScreenState extends State<VentScreen> {
         .toList();
   }
 
+  /// The post list, sized to its content.
+  ///
+  /// shrinkWrap with NeverScrollableScrollPhysics because this now lives inside
+  /// the page's CustomScrollView: one scrollable, one scroll position. Pull to
+  /// refresh belongs to that outer view, which is why the RefreshIndicator
+  /// moved out of here and up to the page body.
   Widget _buildVentFeedList(List<TruFeedItem> items) {
     return ListView.separated(
+      shrinkWrap: true,
+      physics: const NeverScrollableScrollPhysics(),
       padding: AppSpacing.paddingMd,
       itemCount: items.length,
       separatorBuilder: (_, __) => const SizedBox(height: 10),
@@ -155,228 +163,239 @@ class _VentScreenState extends State<VentScreen> {
         // the query could succeed while nothing appeared: the posts were laid
         // out into a box with no room in it.
         //
-        // SliverFillRemaining(hasScrollBody: true) gives the feed the remaining
-        // viewport and lets its own ListView scroll, while the header above it
-        // scrolls out of the way instead of competing for space.
-        child: CustomScrollView(
-          slivers: [
-            SliverToBoxAdapter(
-              child: Column(
-                children: [
-                  const SizedBox(height: 92),
-              TruluraContentLane(
-                maxWidth: kTruluraDesktopContentMaxWidth,
-                padding: const EdgeInsets.fromLTRB(16, 0, 16, 12),
-                child: _VentSanctuaryHeader(
-                  onWrite: _openComposer,
-                  onHealing: () => setState(() => _circle = 'Healing'),
-                ),
-              ),
-              SizedBox(
-                height: 54,
-                child: ListView.separated(
-                  padding: const EdgeInsets.symmetric(horizontal: 16),
-                  scrollDirection: Axis.horizontal,
-                  itemCount: _circles.length,
-                  separatorBuilder: (_, __) => const SizedBox(width: 10),
-                  itemBuilder: (context, i) {
-                    final c = _circles[i];
-                    final selected = c == _circle;
-                    return GestureDetector(
-                      onTap: () => setState(() => _circle = c),
-                      child: TruLuraGlassCard(
-                        radius: 999,
-                        padding: const EdgeInsets.symmetric(
-                            horizontal: 14, vertical: 10),
-                        fillAOverride: selected
-                            ? TruLuraBrandColors.neonBlue.withValues(alpha: 0.20)
-                            : null,
-                        fillBOverride: selected
-                            ? TruLuraBrandColors.neonPurple
-                                .withValues(alpha: 0.12)
-                            : null,
-                        child: Row(
-                          mainAxisSize: MainAxisSize.min,
-                          children: [
-                            TruLuraIcon(
-                                glyph: TruLuraGlyph.groups,
-                                size: 18,
-                                active: selected,
-                                color: Theme.of(context)
-                                    .colorScheme
-                                    .onSurface
-                                    .withValues(alpha: selected ? 0.92 : 0.72)),
-                            const SizedBox(width: 8),
-                            Text(c,
-                                style: Theme.of(context)
-                                    .textTheme
-                                    .labelLarge
-                                    ?.copyWith(
-                                        fontWeight: FontWeight.w900,
-                                        color: Theme.of(context)
-                                            .colorScheme
-                                            .onSurface
-                                            .withValues(
-                                                alpha: selected ? 0.92 : 0.72))),
-                          ],
-                        ),
+        // The header block now scrolls out of the way instead of competing for
+        // space, and the feed sits below it in the same scroll view.
+        child: RefreshIndicator(
+          onRefresh: _loadVentPosts,
+          // One scroll view for the page, so one scroll position and one
+          // refresh gesture. The feed list inside shrink-wraps.
+          child: CustomScrollView(
+            slivers: [
+              SliverToBoxAdapter(
+                child: Column(
+                  children: [
+                    const SizedBox(height: 92),
+                    TruluraContentLane(
+                      maxWidth: kTruluraDesktopContentMaxWidth,
+                      padding: const EdgeInsets.fromLTRB(16, 0, 16, 12),
+                      child: _VentSanctuaryHeader(
+                        onWrite: _openComposer,
+                        onHealing: () => setState(() => _circle = 'Healing'),
                       ),
-                    );
-                  },
-                ),
-              ),
-              Padding(
-                padding: const EdgeInsets.fromLTRB(16, 12, 16, 8),
-                child: ClipRRect(
-                  borderRadius: BorderRadius.circular(18),
-                  child: BackdropFilter(
-                    filter: ImageFilter.blur(
-                      sigmaX: soft
-                          ? TruLuraSurfaces.glassBlurSoft
-                          : TruLuraSurfaces.glassBlurStrong,
-                      sigmaY: soft
-                          ? TruLuraSurfaces.glassBlurSoft
-                          : TruLuraSurfaces.glassBlurStrong,
                     ),
-                    child: Container(
-                      padding: const EdgeInsets.symmetric(
-                          horizontal: 14, vertical: 12),
-                      decoration: BoxDecoration(
-                        gradient: LinearGradient(
-                          begin: Alignment.topLeft,
-                          end: Alignment.bottomRight,
-                          colors: [
-                            cs.surface.withValues(
-                                alpha: Theme.of(context).brightness ==
-                                        Brightness.dark
-                                    ? TruLuraSurfaces.glassDarkA
-                                    : TruLuraSurfaces.glassLightA),
-                            cs.surfaceContainerHighest.withValues(
-                                alpha: Theme.of(context).brightness ==
-                                        Brightness.dark
-                                    ? TruLuraSurfaces.glassDarkB
-                                    : TruLuraSurfaces.glassLightB),
-                          ],
-                        ),
-                        border: Border.all(
-                            color: Colors.white
-                                .withValues(alpha: soft ? 0.10 : 0.085),
-                            width: TruLuraSurfaces.hairline),
+                    SizedBox(
+                      height: 54,
+                      child: ListView.separated(
+                        padding: const EdgeInsets.symmetric(horizontal: 16),
+                        scrollDirection: Axis.horizontal,
+                        itemCount: _circles.length,
+                        separatorBuilder: (_, __) => const SizedBox(width: 10),
+                        itemBuilder: (context, i) {
+                          final c = _circles[i];
+                          final selected = c == _circle;
+                          return GestureDetector(
+                            onTap: () => setState(() => _circle = c),
+                            child: TruLuraGlassCard(
+                              radius: 999,
+                              padding: const EdgeInsets.symmetric(
+                                  horizontal: 14, vertical: 10),
+                              fillAOverride: selected
+                                  ? TruLuraBrandColors.neonBlue
+                                      .withValues(alpha: 0.20)
+                                  : null,
+                              fillBOverride: selected
+                                  ? TruLuraBrandColors.neonPurple
+                                      .withValues(alpha: 0.12)
+                                  : null,
+                              child: Row(
+                                mainAxisSize: MainAxisSize.min,
+                                children: [
+                                  TruLuraIcon(
+                                      glyph: TruLuraGlyph.groups,
+                                      size: 18,
+                                      active: selected,
+                                      color: Theme.of(context)
+                                          .colorScheme
+                                          .onSurface
+                                          .withValues(
+                                              alpha: selected ? 0.92 : 0.72)),
+                                  const SizedBox(width: 8),
+                                  Text(c,
+                                      style: Theme.of(context)
+                                          .textTheme
+                                          .labelLarge
+                                          ?.copyWith(
+                                              fontWeight: FontWeight.w900,
+                                              color: Theme.of(context)
+                                                  .colorScheme
+                                                  .onSurface
+                                                  .withValues(
+                                                      alpha: selected
+                                                          ? 0.92
+                                                          : 0.72))),
+                                ],
+                              ),
+                            ),
+                          );
+                        },
                       ),
-                      child: Row(
-                        children: [
-                          TruLuraIcon(
-                              glyph: TruLuraGlyph.shield,
-                              size: 18,
-                              active: true,
-                              color: cs.onSurface),
-                          const SizedBox(width: 10),
-                          Expanded(
-                            child: Text(
-                              'Safety Active • This is a protected space',
-                              style: Theme.of(context)
-                                  .textTheme
-                                  .labelLarge
-                                  ?.copyWith(
-                                      color: cs.onSurface,
-                                      fontWeight: FontWeight.w800),
+                    ),
+                    Padding(
+                      padding: const EdgeInsets.fromLTRB(16, 12, 16, 8),
+                      child: ClipRRect(
+                        borderRadius: BorderRadius.circular(18),
+                        child: BackdropFilter(
+                          filter: ImageFilter.blur(
+                            sigmaX: soft
+                                ? TruLuraSurfaces.glassBlurSoft
+                                : TruLuraSurfaces.glassBlurStrong,
+                            sigmaY: soft
+                                ? TruLuraSurfaces.glassBlurSoft
+                                : TruLuraSurfaces.glassBlurStrong,
+                          ),
+                          child: Container(
+                            padding: const EdgeInsets.symmetric(
+                                horizontal: 14, vertical: 12),
+                            decoration: BoxDecoration(
+                              gradient: LinearGradient(
+                                begin: Alignment.topLeft,
+                                end: Alignment.bottomRight,
+                                colors: [
+                                  cs.surface.withValues(
+                                      alpha: Theme.of(context).brightness ==
+                                              Brightness.dark
+                                          ? TruLuraSurfaces.glassDarkA
+                                          : TruLuraSurfaces.glassLightA),
+                                  cs.surfaceContainerHighest.withValues(
+                                      alpha: Theme.of(context).brightness ==
+                                              Brightness.dark
+                                          ? TruLuraSurfaces.glassDarkB
+                                          : TruLuraSurfaces.glassLightB),
+                                ],
+                              ),
+                              border: Border.all(
+                                  color: Colors.white
+                                      .withValues(alpha: soft ? 0.10 : 0.085),
+                                  width: TruLuraSurfaces.hairline),
+                            ),
+                            child: Row(
+                              children: [
+                                TruLuraIcon(
+                                    glyph: TruLuraGlyph.shield,
+                                    size: 18,
+                                    active: true,
+                                    color: cs.onSurface),
+                                const SizedBox(width: 10),
+                                Expanded(
+                                  child: Text(
+                                    'Safety Active • This is a protected space',
+                                    style: Theme.of(context)
+                                        .textTheme
+                                        .labelLarge
+                                        ?.copyWith(
+                                            color: cs.onSurface,
+                                            fontWeight: FontWeight.w800),
+                                  ),
+                                ),
+                              ],
                             ),
                           ),
-                        ],
+                        ),
                       ),
                     ),
-                  ),
+                  ],
                 ),
               ),
-                ],
-              ),
-            ),
-            SliverFillRemaining(
-              hasScrollBody: true,
-              child: ui == TruUiState.loading
-                  ? const _VentSkeleton()
-                  : ui == TruUiState.empty
-                      ? TruStatePanel(
-                          glyph: TruLuraGlyph.shield,
-                          title: 'This is your protected space',
-                          message:
-                              'Vent anonymously, join a support circle, or browse gentle topics. You’re safe here.',
-                          actions: [
-                            TruStateAction(
-                                label: 'Write a vent',
-                                glyph: TruLuraGlyph.edit,
-                                onTap: _openComposer,
-                                primary: true),
-                            TruStateAction(
-                                label: 'Join support circle',
-                                glyph: TruLuraGlyph.groups,
-                                onTap: () =>
-                                    setState(() => _circle = 'Healing')),
-                          ],
-                        )
-                      : ui == TruUiState.action
-                          ? TruStatePanel(
-                              glyph: TruLuraGlyph.shield,
-                              title: 'Your vent is under review',
-                              message:
-                                  'To keep Vent Space emotionally safe, some posts are briefly held for moderation. You’ll see it here once approved.',
-                              actions: [
-                                TruStateAction(
-                                    label: 'Browse circles',
-                                    glyph: TruLuraGlyph.groups,
-                                    onTap: () =>
-                                        setState(() => _circle = 'All'),
-                                    primary: true),
-                                TruStateAction(
-                                    label: 'Write another vent',
-                                    glyph: TruLuraGlyph.edit,
-                                    onTap: _openComposer),
-                              ],
-                            )
-                          : _isLoading
-                              ? const _VentSkeleton()
-                              : _hasError
-                                  ? TruStatePanel(
-                                      glyph: TruLuraGlyph.info,
-                                      title: 'Vent Space couldn’t load',
-                                      message:
-                                          'We couldn’t load this protected space right now. Try again.',
-                                      actions: [
-                                        TruStateAction(
-                                            label: 'Retry',
-                                            glyph: TruLuraGlyph.spark,
-                                            onTap: _loadVentPosts,
-                                            primary: true)
-                                      ],
-                                    )
-                                  : _ventPosts.isEmpty
-                                      ? TruStatePanel(
-                                          glyph: TruLuraGlyph.shield,
-                                          title: 'Vent Space is quiet',
-                                          message:
-                                              'Start a protected reflection when you are ready.',
-                                          padding: const EdgeInsets.fromLTRB(
-                                              14, 14, 14, 14),
-                                        )
-                                      : _filtered.isEmpty
-                                          ? TruStatePanel(
-                                              glyph: TruLuraGlyph.groups,
-                                              title:
-                                                  'No posts in this support circle',
-                                              message:
-                                                  'Try a different circle, or check back soon.',
-                                              actions: [
-                                                TruStateAction(
-                                                    label: 'Show all',
-                                                    glyph: TruLuraGlyph.spark,
-                                                    onTap: () => setState(
-                                                        () => _circle = 'All'),
-                                                    primary: true)
-                                              ],
-                                            )
-                                          : RefreshIndicator(
-                                              onRefresh: _loadVentPosts,
-                                              child: _buildVentFeedList(
+              // hasScrollBody: false so the child is given the remaining
+              // viewport as a MINIMUM and may exceed it, scrolling with the page
+              // instead of being clipped. With hasScrollBody: true the child was
+              // capped at the leftover height, which is what produced the 96px
+              // overflow once the header no longer left much behind it.
+              SliverFillRemaining(
+                hasScrollBody: false,
+                child: ui == TruUiState.loading
+                    ? const _VentSkeleton()
+                    : ui == TruUiState.empty
+                        ? TruStatePanel(
+                            glyph: TruLuraGlyph.shield,
+                            title: 'This is your protected space',
+                            message:
+                                'Vent anonymously, join a support circle, or browse gentle topics. You’re safe here.',
+                            actions: [
+                              TruStateAction(
+                                  label: 'Write a vent',
+                                  glyph: TruLuraGlyph.edit,
+                                  onTap: _openComposer,
+                                  primary: true),
+                              TruStateAction(
+                                  label: 'Join support circle',
+                                  glyph: TruLuraGlyph.groups,
+                                  onTap: () =>
+                                      setState(() => _circle = 'Healing')),
+                            ],
+                          )
+                        : ui == TruUiState.action
+                            ? TruStatePanel(
+                                glyph: TruLuraGlyph.shield,
+                                title: 'Your vent is under review',
+                                message:
+                                    'To keep Vent Space emotionally safe, some posts are briefly held for moderation. You’ll see it here once approved.',
+                                actions: [
+                                  TruStateAction(
+                                      label: 'Browse circles',
+                                      glyph: TruLuraGlyph.groups,
+                                      onTap: () =>
+                                          setState(() => _circle = 'All'),
+                                      primary: true),
+                                  TruStateAction(
+                                      label: 'Write another vent',
+                                      glyph: TruLuraGlyph.edit,
+                                      onTap: _openComposer),
+                                ],
+                              )
+                            : _isLoading
+                                ? const _VentSkeleton()
+                                : _hasError
+                                    ? TruStatePanel(
+                                        glyph: TruLuraGlyph.info,
+                                        title: 'Vent Space couldn’t load',
+                                        message:
+                                            'We couldn’t load this protected space right now. Try again.',
+                                        actions: [
+                                          TruStateAction(
+                                              label: 'Retry',
+                                              glyph: TruLuraGlyph.spark,
+                                              onTap: _loadVentPosts,
+                                              primary: true)
+                                        ],
+                                      )
+                                    : _ventPosts.isEmpty
+                                        ? TruStatePanel(
+                                            glyph: TruLuraGlyph.shield,
+                                            title: 'Vent Space is quiet',
+                                            message:
+                                                'Start a protected reflection when you are ready.',
+                                            padding: const EdgeInsets.fromLTRB(
+                                                14, 14, 14, 14),
+                                          )
+                                        : _filtered.isEmpty
+                                            ? TruStatePanel(
+                                                glyph: TruLuraGlyph.groups,
+                                                title:
+                                                    'No posts in this support circle',
+                                                message:
+                                                    'Try a different circle, or check back soon.',
+                                                actions: [
+                                                  TruStateAction(
+                                                      label: 'Show all',
+                                                      glyph: TruLuraGlyph.spark,
+                                                      onTap: () => setState(
+                                                          () =>
+                                                              _circle = 'All'),
+                                                      primary: true)
+                                                ],
+                                              )
+                                            : _buildVentFeedList(
                                                 _filtered
                                                     .map(
                                                       (post) => TruPostFeedItem(
@@ -387,9 +406,9 @@ class _VentScreenState extends State<VentScreen> {
                                                     )
                                                     .toList(growable: false),
                                               ),
-                                            ),
-            ),
-          ],
+              ),
+            ],
+          ),
         ),
       ),
       floatingActionButton: FloatingActionButton.extended(
