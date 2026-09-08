@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:trulura/core/navigation/tru_navigation.dart';
-import 'package:trulura/services/reporting_service.dart';
+import 'package:trulura/services/block_service.dart';
 import 'package:trulura/services/safety_center_service.dart';
 import 'package:trulura/core/navigation/app_router.dart';
 import 'package:trulura/theme.dart';
@@ -20,7 +20,7 @@ class SafetyCenterScreen extends StatefulWidget {
 
 class _SafetyCenterScreenState extends State<SafetyCenterScreen> {
   final _svc = SafetyCenterService();
-  final _reporting = ReportingService();
+  final _blocks = BlockService();
   bool _loading = true;
   TruSafetyCenterPrefs _prefs = const TruSafetyCenterPrefs();
   int _blockedCount = 0;
@@ -35,7 +35,7 @@ class _SafetyCenterScreenState extends State<SafetyCenterScreen> {
     setState(() => _loading = true);
     try {
       final prefs = await _svc.getPrefs();
-      final blocked = await _reporting.getBlockedUserIds();
+      final blocked = await _blocks.blockedUserIds();
       if (!mounted) return;
       setState(() {
         _prefs = prefs;

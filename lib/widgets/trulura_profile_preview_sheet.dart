@@ -6,7 +6,7 @@ import 'package:trulura/models/user.dart';
 import 'package:trulura/models/profile/compatibility_report.dart';
 import 'package:trulura/services/compatibility_service.dart';
 import 'package:trulura/services/connection_service.dart';
-import 'package:trulura/services/reporting_service.dart';
+import 'package:trulura/services/block_service.dart';
 import 'package:trulura/services/safety_center_service.dart';
 import 'package:trulura/services/safety_meter_service.dart';
 import 'package:trulura/theme.dart';
@@ -39,8 +39,8 @@ class TruluraProfilePreviewSheet {
     final hasSparked = !isAnonymous ? await graph.hasSparked(userId) : false;
     final safetyPrefs = await SafetyCenterService().getPrefs();
     final canSpark = safetyPrefs.allowNonMutualSparks || isFollowing;
-    final reporting = ReportingService();
-    final isBlocked = !isAnonymous ? await reporting.isBlocked(userId) : false;
+    final blocks = BlockService();
+    final isBlocked = !isAnonymous ? await blocks.isBlocked(userId) : false;
     final meter = const SafetyMeterService().meterForUser(user);
     if (!context.mounted) return;
 
@@ -202,11 +202,16 @@ class TruluraProfilePreviewSheet {
                             glyph: TruLuraGlyph.close,
                             label: isBlocked ? 'Blocked' : 'Block',
                             onTap: () async {
-                              await reporting.blockUser(userId);
+                              final blocked = await blocks.blockUser(userId);
                               if (context.mounted) {
+                                // A block is a server write now, so it can
+                                // fail. Do not tell someone they are protected
+                                // when nothing persisted.
                                 ScaffoldMessenger.of(context).showSnackBar(
-                                    const SnackBar(
-                                        content: Text('User blocked.')));
+                                    SnackBar(
+                                        content: Text(blocked
+                                            ? 'User blocked.'
+                                            : 'Could not block. Check your connection and try again.')));
                               }
                               if (context.mounted) context.pop();
                             },

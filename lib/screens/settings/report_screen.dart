@@ -34,6 +34,8 @@ class _ReportScreenState extends State<ReportScreen> {
     try {
       final now = DateTime.now();
       final report = TruSafetyReport(
+        // Both ignored by submitReport: the row id is gen_random_uuid() and
+        // the status defaults to 'queued', both server-side.
         id: 'r_${now.microsecondsSinceEpoch}',
         targetType: widget.targetType,
         targetId: widget.targetId,
@@ -41,8 +43,16 @@ class _ReportScreenState extends State<ReportScreen> {
         details: _controller.text.trim().isEmpty ? null : _controller.text.trim(),
         createdAt: now,
       );
-      await ReportingService().submitReport(report);
+      final submitted = await ReportingService().submitReport(report);
       if (!mounted) return;
+      if (!submitted) {
+        // Reports go to Postgres now, so submission can genuinely fail. Saying
+        // "thank you" regardless would tell someone their report is filed when
+        // it is not -- and this is the one screen where that matters most.
+        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
+            content: Text('Couldn\'t submit report. Check your connection and try again.')));
+        return;
+      }
       ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Report submitted. Thank you.')));
       context.pop();
     } catch (e) {

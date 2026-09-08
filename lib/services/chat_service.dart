@@ -6,7 +6,6 @@ import 'package:trulura/models/chat.dart';
 import 'package:trulura/models/message.dart';
 import 'package:trulura/models/user.dart';
 import 'package:trulura/services/database_service/database_service.dart';
-import 'package:trulura/services/reporting_service.dart';
 import 'package:trulura/services/user_service.dart';
 
 /// A failure the person starting a conversation should actually be told about.
@@ -436,15 +435,11 @@ class ChatService {
     }
   }
 
-  Future<bool> canInteractWithUser({required String otherUserId}) async {
-    // Local-only enforcement for blocks. (Server enforcement can later mirror this.)
-    try {
-      return !(await ReportingService().isBlocked(otherUserId));
-    } catch (e) {
-      debugPrint('ChatService.canInteractWithUser failed: $e');
-      return true;
-    }
-  }
+  // canInteractWithUser was removed in Feature 5 phase 2. It read the old
+  // local block store and had no callers anywhere in the app, so it looked
+  // like block enforcement lived here when nothing consulted it. The real
+  // client-side check is in chat_thread_screen.dart before a send; genuine
+  // server enforcement is phase 3, where messages RLS consults public.blocks.
 
   /// Persists a message.
   ///

@@ -7,7 +7,7 @@ import 'package:trulura/models/message.dart';
 import 'package:trulura/models/sync_candidate/sync_candidate.dart';
 import 'package:trulura/services/chat_service.dart';
 import 'package:trulura/services/communication_safety_service.dart';
-import 'package:trulura/services/reporting_service.dart';
+import 'package:trulura/services/block_service.dart';
 import 'package:trulura/services/aura_shield_service.dart';
 import 'package:trulura/services/chat_thread_prefs_service.dart';
 import 'package:trulura/services/safety_meter_service.dart';
@@ -46,7 +46,7 @@ class _ChatThreadScreenState extends State<ChatThreadScreen> {
   final AuraShieldService _auraShield = AuraShieldService();
   final ChatThreadPrefsService _threadPrefs = ChatThreadPrefsService();
   final SafetyMeterService _meter = const SafetyMeterService();
-  final ReportingService _reporting = ReportingService();
+  final BlockService _blocks = BlockService();
   final _messageController = TextEditingController();
   List<Message> _messages = [];
   String? _currentUserId;
@@ -279,7 +279,7 @@ class _ChatThreadScreenState extends State<ChatThreadScreen> {
           : (match.viewerUserId == _currentUserId
               ? match.targetUserId
               : match.viewerUserId);
-      if (otherId != null && await _reporting.isBlocked(otherId)) {
+      if (otherId != null && await _blocks.isBlocked(otherId)) {
         if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
               content: Text('You blocked this user. Unblock to message.')));
@@ -817,7 +817,18 @@ class _ChatThreadScreenState extends State<ChatThreadScreen> {
                       navigator.pop();
                       return;
                     }
-                    await _reporting.blockUser(otherId);
+                    final blocked = await _blocks.blockUser(otherId);
+                    if (!blocked) {
+                      // The block is a server write now and can fail. Reporting
+                      // it as done would leave someone believing they are
+                      // protected when nothing was written.
+                      if (!mounted) return;
+                      messenger.showSnackBar(const SnackBar(
+                          content: Text(
+                              'Couldn\'t block. Check your connection and try again.')));
+                      navigator.pop();
+                      return;
+                    }
                     await _auraShield.recordUserSignal(TruAuraShieldUserSignal(
                         targetUserId: otherId,
                         type: TruAuraShieldSignalType.blocked,

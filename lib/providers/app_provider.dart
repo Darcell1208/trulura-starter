@@ -5,6 +5,7 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:trulura/models/emotional_presence_state.dart';
 import 'package:trulura/models/user.dart' as model;
 import 'package:trulura/services/app_settings_service.dart';
+import 'package:trulura/services/block_service.dart';
 import 'package:trulura/services/user_service.dart';
 import 'package:trulura/supabase/supabase_config.dart';
 
@@ -197,6 +198,17 @@ class AppProvider with ChangeNotifier {
       notifyListeners();
       return;
     }
+
+    // Move this device's pre-Supabase blocks onto the server, once per
+    // account. This is the first point where a session definitely exists,
+    // which the insert needs -- blocks_insert_own is predicated on auth.uid().
+    //
+    // Deliberately not awaited: it is idempotent, it retries on the next
+    // launch if it cannot finish, and nothing on this path should wait on it.
+    // BlockService writes the completion marker only when every local entry
+    // reached a definite outcome, so an offline launch leaves the migration
+    // pending rather than quietly dropping blocks it could not write.
+    unawaited(BlockService().migrateLocalBlocksIfNeeded());
 
     model.User? cachedUser;
     try {

@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:trulura/core/navigation/app_router.dart';
 import 'package:trulura/core/navigation/tru_navigation.dart';
-import 'package:trulura/services/reporting_service.dart';
+import 'package:trulura/services/block_service.dart';
 import 'package:trulura/services/user_service.dart';
 import 'package:trulura/theme.dart';
 import 'package:trulura/trulura_mode.dart';
@@ -18,7 +18,7 @@ class BlockedUsersScreen extends StatefulWidget {
 }
 
 class _BlockedUsersScreenState extends State<BlockedUsersScreen> {
-  final _reporting = ReportingService();
+  final _blocks = BlockService();
   bool _loading = true;
   List<String> _blocked = const [];
 
@@ -31,7 +31,7 @@ class _BlockedUsersScreenState extends State<BlockedUsersScreen> {
   Future<void> _load() async {
     setState(() => _loading = true);
     try {
-      final ids = await _reporting.getBlockedUserIds();
+      final ids = await _blocks.blockedUserIds();
       if (!mounted) return;
       setState(() {
         _blocked = ids.toList()..sort();
@@ -141,7 +141,14 @@ class _BlockedUsersScreenState extends State<BlockedUsersScreen> {
                           const SizedBox(width: 10),
                           OutlinedButton(
                             onPressed: () async {
-                              await _reporting.unblockUser(id);
+                              final messenger = ScaffoldMessenger.of(context);
+                              final removed = await _blocks.unblockUser(id);
+                              if (!removed) {
+                                messenger.showSnackBar(const SnackBar(
+                                    content: Text(
+                                        'Could not unblock. Check your connection and try again.')));
+                                return;
+                              }
                               await _load();
                             },
                             child: const Text('Unblock'),
