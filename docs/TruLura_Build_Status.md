@@ -20,7 +20,7 @@ not on it, so if a different six is intended, this table needs correcting.
 | 3 | **Discovery / Aura feed** (§4) | Built | Real posts via `posts_feed` view (security_barrier). Anonymous rows return `user_id = null`. Verified by role. |
 | 4 | **Profile** (§5) | Partial | `profiles` table + profile screens. Read access verified by role (authenticated sees others, anon sees none). |
 | 5 | **Safety** (§9) | Partial | 4 safety services, all client-side. `moderation_events` / `safety_flags` are service-role only. No server enforcement. |
-| 6 | **MoodSync** (§12) | **Schema only** | `moods`, `mood_events`, `mood_states` exist with RLS. **No Dart code references any of them.** |
+| 6 | **MoodSync** (§12) | Built | `MoodSyncService` writes `user_states.mood_tag` (current) and appends to `mood_states` (history); `AuraStateController.updateMood` persists and `initialize()` hydrates. Per-user isolation verified by role. Not yet exercised in the UI. |
 | — | **Messaging** | Built + verified | Only feature verified at every layer: by role in SQL, and a two-window browser test where a message crossed sessions without a refresh. |
 
 **Verification depth is uneven.** Messaging is the only feature exercised
@@ -55,9 +55,16 @@ INSERT policies were dropped, see Known issues.
 - `authenticated` can read other users' `profiles` rows; `anon` sees none.
 - Anonymous `posts` rows return `user_id = null` through `posts_feed`.
 
-**Realtime publication** `supabase_realtime` contains 9 public tables:
+**MoodSync**: `user_states` (current, one row per user, live) and
+`mood_states` (history, `user_id NOT NULL`, `created_at timestamptz`). Verified
+by role that each user reads only their own history — a targeted query for
+another user's rows returns 0, cross-user writes are blocked (42501), and anon
+sees nothing.
+
+**Realtime publication** `supabase_realtime` contains 7 public tables:
 `conversations`, `conversation_members`, `messages`, `device_users`,
-`glow_sessions`, `mood_events`, `moods`, `sparks`, `vents`.
+`glow_sessions`, `sparks`, `vents`. (`moods` and `mood_events` were dropped
+with the tables themselves in `20260907_moodsync_foundation`.)
 
 ---
 
@@ -89,9 +96,11 @@ Top blockers, unchanged:
 2. `identity_core`'s three policies and `profiles_update_own` are scoped
    `to public` rather than `to authenticated`. Harmless today (anon holds no
    grants, `auth.uid()` is null) but the wrong default.
-3. `post_reactions` carries two overlapping SELECT policies —
-   `post_reactions_read_all` and `post_reactions_select_authenticated`.
-   Permissive policies OR together; the broader one wins. Worth auditing.
+3. ~~`post_reactions` overlapping SELECT policies~~ — **fixed**
+   (`20260907_close_post_reactions_anon_read`). `post_reactions_read_all` was
+   `to {anon, authenticated} using (true)`, so anon could read `user_id` and
+   `post_id` for every reaction, on posts anon cannot itself read. Policy
+   dropped and anon's grants revoked; anon now fails at the privilege layer.
 4. `conversations` and `conversation_members` are `replica identity d`, so
    DELETE events won't carry enough for RLS to evaluate. Inert until something
    deletes — fix alongside any future delete policy.
@@ -118,7 +127,15 @@ Top blockers, unchanged:
 
 **Coverage**
 
-11. MoodSync (§12) has tables and RLS but no application code, despite being the
-    highest-fan-out backend service in the roadmap.
+11. MoodSync persists but has no UI surface of its own: `moodPattern()` (the
+    §5.6.3 pattern over time) has no caller yet, and no screen shows mood
+    history. `intensity` is never written — `recordMood` accepts it, nothing
+    passes it — and its `0..100` CHECK is a sanity bound, not the product
+    scale, which the Blueprint never defines.
 12. No automated tests cover any of the above. Every verification recorded here
     was run by hand.
+13. Fourteen tracked files are zero bytes, including nine `README.md`
+    placeholders, `docs/DOCUMENTATION-STANDARDS.md`,
+    `docs/02-Product/TruLura_Product_Decision_Log.md`, and four
+    `src/storage/*.js` stubs. The decision log in particular reads as
+    authoritative from its name and contains nothing.
