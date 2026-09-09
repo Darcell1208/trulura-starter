@@ -3,6 +3,8 @@ import 'dart:math' as math;
 import 'package:flutter/material.dart';
 import 'package:trulura/compat/provider_compat.dart';
 import 'package:go_router/go_router.dart';
+import 'package:trulura/core/format/relative_time.dart';
+import 'package:trulura/core/identity/vent_pseudonym.dart';
 import 'package:trulura/core/navigation/app_router.dart';
 import 'package:trulura/models/post.dart';
 import 'package:trulura/models/user.dart';
@@ -116,7 +118,7 @@ class _FeedCardState extends State<FeedCard>
   }
 
   String _fallbackIdentityLabel(Post post) {
-    if (post.isAnonymous) return 'Anonymous';
+    if (post.isAnonymous) return ventPseudonymFor(post.id);
     return 'New member';
   }
 
@@ -125,7 +127,10 @@ class _FeedCardState extends State<FeedCard>
     if (post.isAnonymous) {
       if (!mounted) return;
       setState(() {
-        _resolvedName = 'Anonymous';
+        // Derived from the post id, never the author's. See vent_pseudonym.dart
+        // -- a name derived from the user would be a persistent handle, which
+        // is the per-user pseudonym ruled out on Blueprint 1.1 grounds.
+        _resolvedName = ventPseudonymFor(post.id);
         _resolvedProfileImage = null;
       });
       return;
@@ -677,7 +682,7 @@ class _FeedCardState extends State<FeedCard>
 
     final rawName = _resolvedName ?? post.user?.name;
     final displayName = post.isAnonymous
-        ? 'Anonymous'
+        ? ventPseudonymFor(post.id)
         : User.publicDisplayNameFrom(
             rawName,
             email: post.user?.email,
@@ -690,6 +695,15 @@ class _FeedCardState extends State<FeedCard>
         : (_resolvedProfileImage ?? post.user?.profileImage);
     final vibeLabel =
         post.isAnonymous ? 'Anonymous' : _vibeLabelFor(post, displayName);
+
+    // Vent cards only, deliberately. created_at is on every row and FeedCard
+    // renders it nowhere, so the main feed has no timestamp either -- but that
+    // is a separate product call and this card is shared with it. Here it earns
+    // its place: a vent with no time on it could be from an hour ago or last
+    // year, and a relative time discloses nothing about who wrote it.
+    final timestampLabel = post.category.trim().toLowerCase() == 'vent'
+        ? relativeTimeAgo(post.createdAt)
+        : null;
 
     final auraBackground = _PostAuraBackground(
       mode: mode,
@@ -885,6 +899,7 @@ class _FeedCardState extends State<FeedCard>
                               mode: mode,
                               name: displayName,
                               vibeLabel: vibeLabel,
+                              timestampLabel: timestampLabel,
                               moodTag: post.moodTag,
                               isAnonymous: post.isAnonymous,
                               isFallbackIdentity: isFallbackIdentity,
@@ -1826,6 +1841,10 @@ class _FeedHeaderRow extends StatelessWidget {
   final TruLuraMode mode;
   final String name;
   final String vibeLabel;
+
+  /// Relative age, e.g. `2h ago`. Null on cards that do not show one, which is
+  /// currently every card outside Vent.
+  final String? timestampLabel;
   final String? moodTag;
   final bool isAnonymous;
   final bool isFallbackIdentity;
@@ -1842,6 +1861,7 @@ class _FeedHeaderRow extends StatelessWidget {
     required this.mode,
     required this.name,
     required this.vibeLabel,
+    required this.timestampLabel,
     required this.moodTag,
     required this.isAnonymous,
     required this.isFallbackIdentity,
@@ -1958,6 +1978,16 @@ class _FeedHeaderRow extends StatelessWidget {
                                 color: Colors.white.withValues(alpha: 0.92)),
                           ),
                         ),
+                        if (timestampLabel != null) ...[
+                          const SizedBox(width: 8),
+                          Text(
+                            timestampLabel!,
+                            style: t.labelSmall?.copyWith(
+                              fontWeight: FontWeight.w600,
+                              color: cs.onSurface.withValues(alpha: 0.62),
+                            ),
+                          ),
+                        ],
                         if (showTransparency && (isBoosted || isMonetized)) ...[
                           const SizedBox(width: 8),
                           Container(
