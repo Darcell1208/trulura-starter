@@ -323,9 +323,18 @@ non-Vent posts that happen to be anonymous.
 **This is a consequence of the containment fix, and it was not noticed when that
 landed.** Before `8484ab0` the tab could show Vent posts — which was the leak.
 Containment correctly emptied it; nothing updated the tab. What hides the
-emptiness is `feed_demo_content_service.ventItems`, which supplies placeholder
-cards ("This space feels calmer tonight", "3 people tuning into this vibe") so
-the tab looks populated. The "Open Vent Space" button on it routes to Vent
+emptiness is placeholder copy inlined in the feed screen itself --
+`'This space feels calmer tonight.'` at
+[home_feed_screen.dart:1226](../lib/screens/home/home_feed_screen.dart#L1226)
+and `'$activeCount people tuning into this vibe'` at
+[:1411](../lib/screens/home/home_feed_screen.dart#L1411) -- so the tab looks
+populated.
+
+*(Corrected 2026-09-08: this section first attributed those cards to
+`feed_demo_content_service.ventItems`. That was wrong -- `FeedDemoContentService`
+has no callers anywhere in `lib/`. The copy is inline in the feed screen. The
+attribution was asserted from having read the service, not from tracing the
+strings.)* The "Open Vent Space" button on it routes to Vent
 Sanctuary, the surface that actually reads `vent_feed`.
 
 So: a tab pointing at nothing, dressed with placeholder content, with a button
@@ -358,3 +367,115 @@ else in a session:
 If either appears: stop `flutter run`, restart it, hard-reload the browser
 (Ctrl+Shift+R), and confirm both are gone before drawing conclusions about
 layout, empty states, or anything else.
+
+---
+
+## Placeholder & simulation inventory
+
+> **How this was checked: it mostly wasn't.** This is a *read of the code* by a
+> review pass, folded in on 2026-09-08. It is **not verified by role and not
+> exercised in the UI**, which is a weaker standard than everything above it.
+> Items marked **[verified]** were traced in the repo before being written down;
+> everything else is a claim to confirm before acting on. Treat the unmarked
+> rows as leads, not findings.
+
+### The distinction that matters
+
+**Placeholder** — nothing behind the presentation.
+**Simulation** — local behaviour exists, but the promised multi-user or external
+operation does not.
+
+That split is more useful than done/not-done, and it maps onto the two classes
+already in issue 17: a placeholder is a confirmation with no write behind it; a
+simulation is the swallowed-write case one layer up, where something real
+happens locally and nothing reaches anyone else.
+
+### Three claims the app makes about reality that are not true
+
+These are called out above the rest because each one asserts something to a
+person that is false, rather than merely being unfinished.
+
+1. **Identity verification is self-service.** **[verified]**
+   [safety_verification_screen.dart:150-173](../lib/screens/settings/safety_verification_screen.dart#L150)
+   has a button captioned "Advance level (stub)" that increments
+   `verificationLevel` and saves it. `SafetyMeterService.meterForUser` reads
+   that value to decide Strong / Standard / Basic, so self-advancing changes
+   what the safety meter tells *other people* about you. This is also why
+   `dmPermission`'s `verifiedOnly` option could not be enforced (`e51d122`).
+2. **Sync manufactures mutual interest.** **[verified]**
+   [sync_service.dart:112-116](../lib/services/sync_service/sync_service.dart#L112):
+   `chance = 0.12 + (compatibility/100) * 0.58`, then
+   `Random(_hash('$id|mutual')).nextDouble() < chance`. A true result sets
+   `mutual` and `createdMatch` and opens a chat. The seed is the signal id, so
+   it is deterministic — the same signal always returns the same verdict, which
+   is why it looks stable rather than flickering under testing.
+3. **Creator analytics are literals.** **[verified]**
+   [trustudio_screen.dart:207,211](../lib/screens/trustudio/trustudio_screen.dart#L207)
+   — `value: '12.4K'` for Views and `value: '328'` for Subs, as string
+   constants.
+
+### Dead code, not decisions
+
+- `FeedDemoContentService` — **[verified] no callers anywhere in `lib/`.** It
+  defines synthetic profile-expression posts, community echoes, AI nudges and
+  Vent demo items, and nothing constructs it. Deletable; it is not a feature to
+  decide about. (See the correction on issue 20: the placeholder cards visible
+  on the Aura Vent tab are inline copy in `home_feed_screen.dart`, not this.)
+- The `?ui=` demonstration states — **[verified] these are NOT dead.** Seven
+  screens read `queryParameters['ui']` and branch on it, and 15 sites reference
+  `TruUiState.empty` / `.action`. They are unused by default but fully wired and
+  reachable by appending a query parameter to any of those routes. Do not
+  delete them as scaffolding; decide whether a URL-reachable demo mode should
+  ship.
+- Unused old card components — **not verified.** Claimed by the review pass; no
+  call-graph check has been run.
+
+### Unverified inventory, by area
+
+*Presentation only, nothing behind it:* TruJourney, global search, companion
+search, "Open profile" from preview sheets, and the Aura / Sync / Explore mode
+settings screens. Live rooms, live overlays and moderation, subscriber tiers,
+brand deals, upload queue and scheduling, payouts, Nebula Hours, Festival Drop,
+Replay Capsule, Community Quest. Notifications — the Pulse list is a fixed
+demonstration set for glows, sparks, replies, follows, safety events and
+events; filtering it works, which makes it read as live.
+
+*Local behaviour, no multi-user reality:* follow/unfollow, connection requests,
+profile Glow and Spark, comments and replies, sharing, reposts, group
+membership. Spark delivery and acceptance, "save for later", matchroom
+progression. Message reactions, pin/pause/archive, pause and end connection.
+Healing Circles and the other Vent circles (keyword search over post text, not
+membership). TruCompanion memory, the ten named reflection modes, "Aura
+strength" (derived from an id hash), Emotional Weather, Aura Pulse.
+Verification, background checks, Luxe invitation and membership, screenshot
+permission, profile visibility, auto-delete, support contact.
+
+*Accessibility:* Seizure Safe, Autism Friendly, ADHD Focus, Elder / Low Vision
+and Recovery modes are descriptive previews. Soft Mode is real.
+
+*Quizzes:* Friendship Energy Match, Social Style and Compatibility Layers are
+implemented; the rest of the registry is a planned catalog without scoring.
+
+*Real, and worth not confusing with the above:* auth, profile persistence,
+profile discovery (since `d50ce74`), text posts, post reactions, text
+conversations, quizzes, mood and settings behaviour, block/report storage, and
+Vent's feed and containment.
+
+### What this changes about verification
+
+Placeholder content is pervasive enough that **"is this feature real" cannot be
+answered by looking at the screen.** A populated-looking surface is not evidence
+of a working system, and several placeholders are indistinguishable from the
+real thing by design — the notification list filters, the discovery chips
+highlight, the Vent tab shows cards.
+
+That is not an abstract concern. It is why the Vent question cost a full
+session: the Sanctuary looked like a broken feature, the Aura Vent tab looked
+like a working one, and the truth was the reverse of both. Until this is
+reduced, verification means reading the code or querying the database, and any
+claim on this page that rests on a screenshot should be treated as unverified.
+
+*This also argues against the demo content itself, which is a product decision
+rather than a bug: placeholder cards make empty screens look alive during
+development and make every feature unverifiable at a glance. Same bucket as
+PD-14 and the Aura / For You distinction.*
