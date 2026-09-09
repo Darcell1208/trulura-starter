@@ -311,3 +311,50 @@ device-global keys.
 **This commit reads as done and is inert.** It is correct if that path is ever
 revived; it changes nothing today. Left in place deliberately rather than
 reverted, since the attribution reasoning is the part worth keeping.
+
+**20. Two Vent surfaces, and the one in the Aura feed cannot show Vent.**
+The Aura feed's Vent tab filters `_posts`, which comes from `getAllPosts()` →
+`posts_feed` ([home_feed_screen.dart:853](../lib/screens/home/home_feed_screen.dart#L853)).
+Since `8484ab0` `posts_feed` excludes Vent by construction, so that tab is
+filtering a source with no Vent content in it. Its filter
+(`inferredExperienceMode() == vent || isAnonymous`) can now only ever match
+non-Vent posts that happen to be anonymous.
+
+**This is a consequence of the containment fix, and it was not noticed when that
+landed.** Before `8484ab0` the tab could show Vent posts — which was the leak.
+Containment correctly emptied it; nothing updated the tab. What hides the
+emptiness is `feed_demo_content_service.ventItems`, which supplies placeholder
+cards ("This space feels calmer tonight", "3 people tuning into this vibe") so
+the tab looks populated. The "Open Vent Space" button on it routes to Vent
+Sanctuary, the surface that actually reads `vent_feed`.
+
+So: a tab pointing at nothing, dressed with placeholder content, with a button
+to the real thing. Same shape as the two follow buttons in issue 17 — two paths,
+one real — and the placeholder cards are the same class as a confirmation with
+no write behind it: the UI asserting something nothing backs.
+
+*Decision needed, not a bug fix:* either the tab reads `vent_feed` too (and
+Vent content appears in the main feed, which is what containment deliberately
+stopped), or the tab should not exist. It cannot stay as it is without the demo
+cards, and it should not stay as it is with them.
+
+---
+
+## Reading the console: is the build current?
+
+Twice on 2026-09-08 an observed failure turned out to be a browser serving a
+build from before the fix. Hot reload does not reliably pick up changes on web.
+Two lines are reliable canaries, both cheap to check before trusting anything
+else in a session:
+
+- `PostService: inserting into posts: {"user_id":...,"content_text":...}` — the
+  full row. Redacted in `55c0a94`. If you see post content here, the build
+  predates that commit.
+- `Failed to get user: Bad state: No element` — `getUserById` used
+  `.cast<User?>().first` on a possibly-empty iterable. Replaced with a loop in
+  `d50ce74`. This one is the stronger signal, being the earlier commit: seeing
+  it means the build predates `d50ce74`, and therefore predates every Vent fix.
+
+If either appears: stop `flutter run`, restart it, hard-reload the browser
+(Ctrl+Shift+R), and confirm both are gone before drawing conclusions about
+layout, empty states, or anything else.
