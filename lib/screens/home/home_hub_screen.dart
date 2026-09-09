@@ -454,9 +454,14 @@ class _HomeHubScreenState extends State<HomeHubScreen>
         '${user?.id ?? ''}|${user?.username ?? ''}|${user?.bio ?? ''}';
     if (_lastLoggedProfileSignature != profileSignature) {
       _lastLoggedProfileSignature = profileSignature;
+      // Redacted deliberately, same treatment as ace9144. This used to print
+      // the account id, username and full bio on every profile load. The
+      // diagnostic it serves -- did the profile hydrate, are the fields
+      // populated -- is answered by presence flags and a character count.
       debugPrint(
         'HomeHubScreen loaded profile: '
-        'id=${user?.id}, username=${user?.username}, bio=${user?.bio}, '
+        'hasUsername=${(user?.username ?? '').isNotEmpty}, '
+        'bioChars=${(user?.bio ?? '').length}, '
         'needsOnboarding=${app.needsOnboarding}',
       );
     }
