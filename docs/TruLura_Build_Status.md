@@ -233,7 +233,57 @@ acts on it. That is the pass: make the UI react, not just the services report.
 
 Worth naming the shape, because it is the same one as the report button that
 said "Reported. Thanks for protecting the space." while writing nothing to the
-server (`d50ce74`): a failure that is invisible to the person it failed for.
+server (`d50ce74`): **a promise the app cannot keep.** The UI reports success,
+the row is not there, and nothing anywhere records the gap. Identical to blocks
+and reports before 2026-09-08 — the person believes they are protected and they
+are not.
+
+*Start with the inventory, not the three known sites.* `saveMessage` and
+`ensureChatWithUser` were found by reading messaging code specifically, so the
+list above is what happened to be read, not what exists. The mechanical search
+is the same one that turned the logging leaks from three incidents into a
+class: **a catch whose body is a log call followed by a return that is not a
+rethrow**, plus the `Future<void>` variant that logs and falls off the end.
+Three known cases and a complete list are different things, and the count is
+itself the finding — a handful of bugs or the default the codebase reaches for.
+
+*Inventory run 2026-09-08. It is the default, not a handful.* The mechanical
+search finds **179 swallow sites across roughly 30 files** — 97 of the
+catch/log/return shape and 82 of the `Future<void>` log-and-fall-off variant.
+Heaviest: `app_settings_service.dart` (67), `user_service.dart` (16),
+`post_service.dart` (12), `chat_service.dart` (9), `sync_service.dart` (10).
+Most are reads returning an empty default, which is defensive in the right
+direction; the count matters because it means "catch, log, carry on" is the
+reflex the codebase reaches for, so the fix is a convention plus the specific
+write paths, not a bug list.
+
+*The inventory also found a second class nobody had named, and it is worse.*
+Not a swallowed failure — **a confirmation with no write behind it at all**:
+
+| Site | Says | Actually does |
+|---|---|---|
+| `explore_screen.dart:364` `_sendConnect` | "Connection request sent" | Adds to a local set. No service call. |
+| `explore_screen.dart:344` `_toggleFollow` | "Followed \<name\>" | Mutates an in-memory set. Never calls `ConnectionService.toggleFollow`, so it does not even reach that account's own prefs — while the profile sheet's Follow button does. Two follow paths, one real. |
+| `trulura_profile_preview_sheet.dart:146` Glow | "Glow sent." | Snackbar, then pop. No call. The Spark button beside it does call `sendSpark`. |
+| `sync_screen.dart:2417` Save | "Energy saved" | Snackbar, then pop. No write. |
+| `chat_list_screen.dart:445` swipe | "Archived" | In-memory only (issue 9), and nothing tells the user it will not survive reload. |
+
+These cannot be found by searching for swallowed errors, because there is no
+error and no attempt. They are the same shape as the feed Report button in
+`d50ce74` and as `_persistMood` writing the wrong column: **the UI is the only
+thing that thinks something happened.**
+
+*Verified honest, for contrast:* `create_post_screen.dart:188` shows "Posted ✨"
+only after `savePost` returns, and `savePost` rethrows rather than swallowing —
+so a failed post surfaces. `chat_thread_screen.dart:783` writes through
+`SyncService` before confirming. Those are the pattern to copy.
+
+*The sorting line, which is not "does it swallow".* Not every swallowed failure
+should throw. `ReportingService.isBlocked` returning true on error is defensive
+in the right direction. `ensureChatWithUser` returning null on the Sync path is
+survivable, because the caller can retry and a chat there is a side effect of
+accepting a connection. What matters is narrower: **is the user told something
+succeeded when it did not?** Sort on that.
 
 **18. `20260908_posts_feed_respect_privacy` puts post visibility in three
 places.** `posts_read_visible` on `public.posts`, plus the WHERE clause in each
