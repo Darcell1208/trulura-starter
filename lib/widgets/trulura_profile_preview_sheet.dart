@@ -134,21 +134,14 @@ class TruluraProfilePreviewSheet {
                   ],
                   Row(
                     children: [
-                      Expanded(
-                        child: _SheetAction(
-                          glyph: TruLuraGlyph.spark,
-                          label: 'Glow',
-                          onTap: (isAnonymous || isBlocked)
-                              ? null
-                              : () {
-                                  ScaffoldMessenger.of(context).showSnackBar(
-                                      const SnackBar(
-                                          content: Text('Glow sent.')));
-                                  context.pop();
-                                },
-                        ),
-                      ),
-                      const SizedBox(width: 10),
+                      // Glow removed. It showed "Glow sent." and popped -- no
+                      // service call, no row, nothing delivered -- while the
+                      // Spark button beside it wrote for real. There is no
+                      // user-to-user glow table to wire it to: post_reactions
+                      // is per-post, and glow_posts / glow_sessions are keyed
+                      // by device_id and predate auth. Rather than invent one,
+                      // the button is gone until the concept exists.
+
                       Expanded(
                         child: _SheetAction(
                           glyph: TruLuraGlyph.heartOutline,

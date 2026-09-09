@@ -10,19 +10,15 @@ import 'package:trulura/widgets/trulura_icon.dart';
 /// Reusable Explore grid card.
 class TruluraExploreProfileCard extends StatelessWidget {
   final User user;
-  final bool followed;
   final bool connectSent;
   final VoidCallback onTapCard;
-  final VoidCallback onFollow;
   final VoidCallback? onConnect;
 
   const TruluraExploreProfileCard({
     super.key,
     required this.user,
-    required this.followed,
     required this.connectSent,
     required this.onTapCard,
-    required this.onFollow,
     required this.onConnect,
   });
 
@@ -135,19 +131,13 @@ class TruluraExploreProfileCard extends StatelessWidget {
                       maxLines: 2,
                       overflow: TextOverflow.ellipsis),
                   const SizedBox(height: 10),
+                  // Follow removed with _toggleFollow in explore_screen.dart:
+                  // it wrote nothing and the followed account never heard about
+                  // it, and the only available repair persisted to this device
+                  // only. Connect below is server-backed. Restore Follow when a
+                  // follows table exists.
                   Row(
                     children: [
-                      Expanded(
-                        child: TruLuraCompactActionButton(
-                          label: followed ? 'Following' : 'Follow',
-                          glyph: followed
-                              ? TruLuraGlyph.check
-                              : TruLuraGlyph.postPlus,
-                          emphasized: followed,
-                          onTap: onFollow,
-                        ),
-                      ),
-                      const SizedBox(width: 10),
                       Expanded(
                         child: TruLuraCompactActionButton(
                           label: connectSent ? 'Sent' : 'Connect',

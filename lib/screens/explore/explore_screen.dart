@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:trulura/services/connection_service.dart';
 import 'package:go_router/go_router.dart';
 import 'package:trulura/compat/provider_compat.dart';
 import 'package:trulura/core/navigation/app_router.dart';
@@ -24,8 +25,11 @@ class ExploreScreen extends StatefulWidget {
 class _ExploreScreenState extends State<ExploreScreen> {
   final UserService _userService = UserService();
   final TextEditingController _search = TextEditingController();
-  final Set<String> _followed = <String>{};
-  final Set<String> _connectSent = <String>{};
+  final ConnectionService _connections = ConnectionService();
+
+  /// Hydrated from `spark_interactions` on load, so "Sent" reflects a row that
+  /// exists rather than a tap that happened in this screen's lifetime.
+  Set<String> _connectSent = <String>{};
 
   List<User> _users = [];
   String _selectedCategory = 'All';
@@ -59,6 +63,7 @@ class _ExploreScreenState extends State<ExploreScreen> {
     try {
       final me = await _userService.getCurrentUser();
       final users = await _userService.getAllUsers();
+      final sent = await _connections.sentConnectionTargets();
       // Exclude the viewer. getAllUsers used to return only the signed-in
       // user, so Explore rendered you back to yourself; now that it returns
       // real profiles, you are simply not a person you can discover.
@@ -67,6 +72,7 @@ class _ExploreScreenState extends State<ExploreScreen> {
           : users.where((u) => u.id != me.id).toList(growable: false);
       if (!mounted) return;
       setState(() {
+        _connectSent = sent;
         _users = others;
         _hasError = false;
         _isLoading = false;
@@ -324,10 +330,8 @@ class _ExploreScreenState extends State<ExploreScreen> {
                   final user = filtered[index];
                   return TruluraExploreProfileCard(
                     user: user,
-                    followed: _followed.contains(user.id),
                     connectSent: _connectSent.contains(user.id),
                     onTapCard: () => _openProfilePreview(user),
-                    onFollow: () => _toggleFollow(user),
                     onConnect: _connectSent.contains(user.id)
                         ? null
                         : () => _sendConnect(user),
@@ -341,29 +345,41 @@ class _ExploreScreenState extends State<ExploreScreen> {
     );
   }
 
-  void _toggleFollow(User user) {
-    setState(() {
-      if (_followed.contains(user.id)) {
-        _followed.remove(user.id);
-      } else {
-        _followed.add(user.id);
-      }
-    });
-    final displayHandle = user.publicUsername ?? user.publicDisplayName;
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text(
-          _followed.contains(user.id)
-              ? 'Followed $displayHandle'
-              : 'Unfollowed $displayHandle',
-        ),
-      ),
-    );
-  }
+  // _toggleFollow was removed rather than repaired, and the Follow button with
+  // it. It mutated a screen-local set and announced "Followed <name>"; nothing
+  // was written and the other account never heard about it.
+  //
+  // The available repair was to call ConnectionService.toggleFollow, which the
+  // profile sheet already uses. That was declined deliberately: it persists to
+  // graph_follows_v1_<uid> in SharedPreferences, on one device, with no server
+  // table -- ConnectionService's own header says "when you later add Supabase
+  // tables (follows, sparks)". Wiring it would have made the state survive a
+  // reload while the person being followed still never heard about it, which
+  // makes the false impression more durable, not less. Consistent-but-local is
+  // worse than obviously-absent here.
+  //
+  // Connect, beside it, is now genuinely server-backed. Two buttons on one card
+  // where only one can be real is worse than one button that is. Restore this
+  // when a follows table exists.
 
-  void _sendConnect(User user) {
+  /// Sends a real connection request.
+  ///
+  /// This used to add an id to [_connectSent] and announce success. Nothing was
+  /// written and the other account never heard about it -- confirmed by hand:
+  /// tapped as one account, signed in as the other, no request anywhere. The
+  /// row now goes to `public.spark_interactions`, whose SELECT policy lets the
+  /// recipient read it.
+  Future<void> _sendConnect(User user) async {
+    final messenger = ScaffoldMessenger.of(context);
+    final sent = await _connections.sendConnectionRequest(user.id);
+    if (!mounted) return;
+    if (!sent) {
+      messenger.showSnackBar(const SnackBar(
+          content: Text('Could not send that request. Check your connection and try again.')));
+      return;
+    }
     setState(() => _connectSent.add(user.id));
-    ScaffoldMessenger.of(context).showSnackBar(
+    messenger.showSnackBar(
       const SnackBar(content: Text('Connection request sent')),
     );
   }
@@ -440,19 +456,12 @@ class _ExploreScreenState extends State<ExploreScreen> {
                         ),
                   ),
                   const SizedBox(height: 16),
+                  // Second Follow control, removed for the same reason as the
+                  // one on the card: it wrote nothing that reached the other
+                  // account. This one is inside the profile preview sheet
+                  // opened from Explore.
                   Row(
                     children: [
-                      Expanded(
-                        child: EmotionalChip(
-                          label: _followed.contains(user.id)
-                              ? 'Unfollow'
-                              : 'Follow',
-                          glyph: TruLuraGlyph.person,
-                          selected: _followed.contains(user.id),
-                          onTap: () => _toggleFollow(user),
-                        ),
-                      ),
-                      const SizedBox(width: 10),
                       Expanded(
                         child: EmotionalChip(
                           label: _connectSent.contains(user.id)
