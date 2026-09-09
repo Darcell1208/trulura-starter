@@ -178,9 +178,28 @@ day and none was a policy mistake:
 - Profile diagnostics printed account id, username and full bio on every load;
   `PostService` printed the whole insert row, so a private anonymous Vent post's
   text reached the browser console at creation. Fixed `ace9144`, `55c0a94`.
-- The rest of the class swept in `fbb008c`: an unbounded OpenAI response body,
+- Much of the class swept in `fbb008c`: an unbounded OpenAI response body,
   raw block/report target ids, two `'Tapped mood: $x'` lines, seven auth
   catches, and `truLogStateError` — the aperture every screen funnels through.
+  **That sweep's "class closed" claim was false**, and stood on this page for a
+  day. See the canary section below for how the pattern under-reported by a
+  factor of twenty.
+- The part `fbb008c` did not reach was `FormatException`. `safeError` passed
+  every non-Postgrest/non-Auth error through `toString()` untouched, and
+  `FormatException.toString()` embeds a window of `source` — the string that
+  failed to parse. For every cache in this app that string *is* the user's own
+  data, so a corrupted posts cache printed private Vent text, a corrupted
+  message store printed chat content, and a corrupted profile cache printed the
+  bio. Nobody writes a logging line for that; it arrives through `catch (e)` on
+  a `jsonDecode`. Proven by decoding a truncated store, not assumed — the
+  message text and sender id came out verbatim.
+
+  Closed in two halves, because narrowing the aperture alone would not have
+  done it: `safeError` now renders `FormatException` as type, position and
+  message with `source` dropped, **and** the 31 `catch` sites whose `try` block
+  decodes JSON were routed through `safeError`, which they previously bypassed
+  entirely by printing `$e` directly. 169 bare `$e` log sites remain elsewhere;
+  they are not known to embed user data, and are the obvious next sweep.
 
 The generalisation is the useful part: **the RLS is sound, so look downstream of
 it.** Policies get reviewed; views, caches, log lines and realtime payloads do
@@ -366,32 +385,50 @@ this section was trusted again.** A canary that lies is worse than none.
   stronger signal, being the earlier commit: seeing it means the build predates
   `d50ce74`, and therefore predates every Vent fix.
 
-### NOT a canary: a profile line with id / username / bio
+### NOW a canary: a profile line with id / username / bio
 
-`ace9144` and `fbb008c` are described as having stopped profile content
-reaching the console, so it is natural to read
+A previous revision of this page listed this line as explicitly **not** a
+canary, because it was still an open leak on the tree. It has since been
+redacted, so the reading has inverted. If you see
 
 ```
 HomeHubScreen loaded profile: id=..., username=..., bio=..., needsOnboarding=...
 ```
 
-as proof of a stale build. **It is not.**
-[home_hub_screen.dart:457](../lib/screens/home/home_hub_screen.dart#L457)
-still prints it, on the current tree, on every profile load where the signature
-changes. Seeing it tells you nothing about which build you are running.
+**your build is stale.**
+[home_hub_screen.dart:457](../lib/screens/home/home_hub_screen.dart#L457) now
+prints presence flags and a length only:
 
-*Why it was missed, since that matters more than the line itself:* the
-`fbb008c` sweep searched with a line-oriented regex, so a `debugPrint(` whose
-interpolation sits on a **later line** was never examined. A re-sweep with a
-multiline pattern finds exactly three such calls in `lib/` — in
-`app_provider.dart` and `user_service.dart`, both already redacted, and this
-one. So the gap is bounded at a single site, but the sweep that produced the
-"class closed" claim was narrower than it read.
+```
+HomeHubScreen loaded profile: hasUsername=true, bioChars=42, needsOnboarding=false
+```
 
-**This is an open leak, not a closed one** — it prints an account id, a
-username and a full bio. It is a one-line redaction, deliberately not made in
-the session that found it (scope was investigation and this section only), and
-it should be the first thing done next.
+*Why the original sweep missed it, since that matters more than the line
+itself.* Two separate instrument failures, one after the other:
+
+1. The `fbb008c` sweep used a **line-oriented** regex, so a `debugPrint(` whose
+   interpolation sits on a later line was never examined. A multiline re-sweep
+   found three such calls; two were already clean, and this was the third.
+2. The multiline re-sweep *itself* then under-reported, and by far the wider
+   margin. Its pattern was `\b(bio|username|…|\$e\b|…)` — and the leading `\b`
+   sits immediately before the `$` of `$e`. A word boundary needs a word
+   character on one side, so after a space, which is how `: $e'` always
+   appears, it can never match. The sweep silently reported only the lines that
+   happened to contain some *other* keyword: **9 sites, when the real number
+   was 198.** A plain `grep` disagreeing with it is what exposed the bug.
+
+The lesson is bigger than either bug, and this is now the third instance of it
+in this repo — the two above plus migrations written against invented policy
+names, where `drop policy if exists` matched nothing and silently changed
+nothing. **A negative search result is a claim about the instrument as much as
+about the code.** Before writing "nothing else is open", run the pattern
+against a line you already know should match; if it does not light up a known
+positive, the zero means nothing. Prefer an over-broad pattern plus manual
+triage, and cross-check with a second, differently-shaped tool.
+
+That is the harm an overstated sweep does: it does not merely miss things, it
+forecloses the search. This page carried "class closed" as settled fact, so
+nobody had reason to look again.
 
 If either real canary appears: stop `flutter run`, restart it, hard-reload the
 browser (Ctrl+Shift+R), and confirm both are gone before drawing conclusions
