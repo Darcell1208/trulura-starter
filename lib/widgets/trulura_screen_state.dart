@@ -1,6 +1,7 @@
 import 'dart:math' as math;
 
 import 'package:flutter/material.dart';
+import 'package:trulura/core/diagnostics/log_redaction.dart';
 import 'package:trulura/theme.dart';
 import 'package:trulura/widgets/trulura_glass_card.dart';
 import 'package:trulura/widgets/trulura_icon.dart';
@@ -431,7 +432,21 @@ class _BannerButtonState extends State<_BannerButton> {
   }
 }
 
+/// Logs a screen-level failure through the shared safe-error rendering.
+///
+/// This is an aperture rather than a leak, which is why it is worth being
+/// careful with: every screen funnels its failures here, so a future leak
+/// through this path arrives without anyone writing a new logging line for it.
+///
+/// The concrete hazard is PostgrestException. Its `details` and `hint` are
+/// where Postgres quotes the offending values back -- a unique violation will
+/// print the conflicting row -- so a constraint failure on a private post could
+/// put that post's content in the console via a screen that only ever asked to
+/// log "something went wrong". safeError keeps the code and message, which are
+/// the diagnosis, and drops the two fields that carry the data.
+///
+/// The stack trace is still printed in full. It names code, not user content.
 void truLogStateError(String scope, Object error, [StackTrace? st]) {
-  debugPrint('[$scope] $error');
+  debugPrint('[$scope] ${safeError(error)}');
   if (st != null) debugPrint(st.toString());
 }

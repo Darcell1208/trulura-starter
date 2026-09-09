@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:trulura/core/diagnostics/log_redaction.dart';
 import 'package:go_router/go_router.dart';
 import 'package:trulura/compat/provider_compat.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
@@ -73,7 +74,7 @@ class _SignInScreenState extends State<SignInScreen> {
                     const SnackBar(content: Text('Confirmation email resent.')),
                   );
                 } catch (err) {
-                  debugPrint('Resend confirmation failed: $err');
+                  debugPrint('Resend confirmation failed: ${safeError(err)}');
                   if (!mounted) return;
                   ScaffoldMessenger.of(context).showSnackBar(
                     const SnackBar(
@@ -99,7 +100,7 @@ class _SignInScreenState extends State<SignInScreen> {
                     const SnackBar(content: Text('Password reset email sent.')),
                   );
                 } catch (err) {
-                  debugPrint('Password reset failed: $err');
+                  debugPrint('Password reset failed: ${safeError(err)}');
                   if (!mounted) return;
                   localMessenger.showSnackBar(
                     const SnackBar(

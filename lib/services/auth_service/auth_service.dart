@@ -1,4 +1,5 @@
 import 'package:flutter/foundation.dart';
+import 'package:trulura/core/diagnostics/log_redaction.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:trulura/services/database_service/database_service.dart';
 
@@ -28,7 +29,7 @@ class AuthService {
       // Auth-only setup: do not touch `public.profiles` / mirror tables.
       return await client.auth.signUp(email: email, password: password, data: {'name': name});
     } catch (e) {
-      debugPrint('AuthService.signUpWithEmail failed: $e');
+      debugPrint('AuthService.signUpWithEmail failed: ${safeError(e)}');
       rethrow;
     }
   }
@@ -39,7 +40,7 @@ class AuthService {
     try {
       return await client.auth.signInWithPassword(email: email, password: password);
     } catch (e) {
-      debugPrint('AuthService.signInWithEmail failed: $e');
+      debugPrint('AuthService.signInWithEmail failed: ${safeError(e)}');
       rethrow;
     }
   }
@@ -50,7 +51,7 @@ class AuthService {
     try {
       await client.auth.resend(type: OtpType.signup, email: email);
     } catch (e) {
-      debugPrint('AuthService.resendSignupConfirmationEmail failed: $e');
+      debugPrint('AuthService.resendSignupConfirmationEmail failed: ${safeError(e)}');
       rethrow;
     }
   }

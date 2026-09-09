@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:trulura/core/diagnostics/log_redaction.dart';
 import 'package:trulura/auth/auth_manager.dart';
 import 'package:trulura/models/user.dart';
 import 'package:trulura/services/auth_service/auth_service.dart';
@@ -15,7 +16,7 @@ class SupabaseAuthManager extends AuthManager with EmailSignInManager {
       await AuthService.instance.signInWithEmail(email: email, password: password);
       return await UserService().getCurrentUser();
     } catch (e) {
-      debugPrint('SupabaseAuthManager.signInWithEmail failed: $e');
+      debugPrint('SupabaseAuthManager.signInWithEmail failed: ${safeError(e)}');
       rethrow;
     }
   }
@@ -26,7 +27,7 @@ class SupabaseAuthManager extends AuthManager with EmailSignInManager {
       await AuthService.instance.signUpWithEmail(email: email, password: password, name: email.split('@').first);
       return await UserService().getCurrentUser();
     } catch (e) {
-      debugPrint('SupabaseAuthManager.createAccountWithEmail failed: $e');
+      debugPrint('SupabaseAuthManager.createAccountWithEmail failed: ${safeError(e)}');
       rethrow;
     }
   }

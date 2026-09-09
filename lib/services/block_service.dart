@@ -1,6 +1,7 @@
 import 'dart:convert';
 
 import 'package:flutter/foundation.dart';
+import 'package:trulura/core/diagnostics/log_redaction.dart';
 import 'package:supabase_flutter/supabase_flutter.dart' show PostgrestException;
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:trulura/services/database_service/database_service.dart';
@@ -182,7 +183,10 @@ class BlockService {
 
     final target = userId.trim();
     if (!_uuid.hasMatch(target)) {
-      debugPrint('BlockService.blockUser refused non-uuid target: $target');
+      // Hashed: who you tried to block is exactly what blocks_select_by_owner
+      // exists to keep private, and a raw id here would put it in the console.
+      debugPrint('BlockService.blockUser refused non-uuid target: '
+          '${redactedId(target)}');
       return false;
     }
     if (target == uid) {

@@ -825,7 +825,6 @@ class _HomeHubScreenState extends State<HomeHubScreen>
                             selected: selected,
                             tone: moodTone,
                             onTap: () {
-                              debugPrint('Tapped mood: $mood');
                               context.read<AuraStateController>().updateMood(mood);
                             },
                             padding: EdgeInsets.symmetric(

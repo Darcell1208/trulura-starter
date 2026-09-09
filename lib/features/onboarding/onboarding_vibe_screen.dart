@@ -74,7 +74,6 @@ class _OnboardingVibeScreenState extends State<OnboardingVibeScreen> {
               return GestureDetector(
                 behavior: HitTestBehavior.opaque,
                 onTap: () {
-                  debugPrint('Tapped mood: $v');
                   setState(() => selected = v);
                 },
                 child: TruLuraGlassCard(

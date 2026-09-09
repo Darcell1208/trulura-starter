@@ -45,7 +45,12 @@ class TruOpenAI {
       );
 
       if (resp.statusCode < 200 || resp.statusCode >= 300) {
-        debugPrint('OpenAI suggestReplies failed ${resp.statusCode}: ${utf8.decode(resp.bodyBytes)}');
+        // Status and size only. The body used to be decoded and printed in
+        // full; this path's request carries conversation content, and an error
+        // response can echo it back, so the console got chat text on any
+        // upstream failure.
+        debugPrint('OpenAI suggestReplies failed: status=${resp.statusCode}, '
+            'bodyBytes=${resp.bodyBytes.length}');
         throw Exception('OpenAI request failed');
       }
 
@@ -116,7 +121,9 @@ class TruOpenAI {
       );
 
       if (resp.statusCode < 200 || resp.statusCode >= 300) {
-        debugPrint('OpenAI suggestMatchConciergeTips failed ${resp.statusCode}: ${utf8.decode(resp.bodyBytes)}');
+        // Same treatment as suggestReplies above, same reason.
+        debugPrint('OpenAI suggestMatchConciergeTips failed: '
+            'status=${resp.statusCode}, bodyBytes=${resp.bodyBytes.length}');
         throw Exception('OpenAI request failed');
       }
 

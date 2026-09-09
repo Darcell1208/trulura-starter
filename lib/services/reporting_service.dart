@@ -1,4 +1,5 @@
 import 'package:flutter/foundation.dart';
+import 'package:trulura/core/diagnostics/log_redaction.dart';
 import 'package:supabase_flutter/supabase_flutter.dart' show PostgrestException;
 import 'package:trulura/services/database_service/database_service.dart';
 
@@ -84,7 +85,10 @@ class ReportingService {
       // from a feed card, so this is a real path rather than a defensive
       // nicety. The foreign key would reject it anyway; refusing here means
       // the UI can say so instead of showing a Postgres error.
-      debugPrint('ReportingService.submitReport refused non-uuid target: $targetId');
+      // Hashed for the same reason as the block path: who you reported is
+      // what reports_select_own protects.
+      debugPrint('ReportingService.submitReport refused non-uuid target: '
+          '${redactedId(targetId)}');
       return false;
     }
 

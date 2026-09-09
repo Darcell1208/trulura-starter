@@ -1,6 +1,7 @@
 import 'dart:convert';
 
 import 'package:flutter/foundation.dart';
+import 'package:trulura/core/diagnostics/log_redaction.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:trulura/services/database_service/database_service.dart';
 
@@ -85,7 +86,8 @@ class ConnectionService {
         final merged = _decode(prefs.getString(ownKey))..addAll(_decode(legacyRaw));
         await prefs.setString(ownKey, jsonEncode(merged.toList(growable: false)));
         await prefs.remove(legacyKey);
-        debugPrint('ConnectionService: claimed $legacyKey for $uid');
+        debugPrint(
+            'ConnectionService: claimed $legacyKey for ${redactedId(uid)}');
       } catch (e) {
         debugPrint('ConnectionService._claimLegacy failed for $legacyKey: $e');
       }
