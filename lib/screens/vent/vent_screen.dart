@@ -3,6 +3,7 @@ import 'dart:ui';
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:trulura/compat/provider_compat.dart';
+import 'package:trulura/core/diagnostics/log_redaction.dart';
 import 'package:trulura/core/navigation/app_router.dart';
 import 'package:trulura/core/navigation/tru_navigation.dart';
 import 'package:trulura/models/post.dart';
@@ -43,11 +44,55 @@ class _VentScreenState extends State<VentScreen> {
   ];
   String _circle = 'All';
 
+  /// The mode that was active before the Sanctuary switched it, and the
+  /// controller to hand it back to.
+  ///
+  /// Held rather than re-read in [dispose], because looking a provider up from
+  /// the element tree while it is being torn down is not safe. Non-null means
+  /// "this screen changed the mode and still owes a restore".
+  ExperienceModeController? _modeController;
+  TruExperienceMode? _modeBeforeVent;
+
   @override
   void initState() {
     super.initState();
     _loadVentPosts();
     WidgetsBinding.instance.addPostFrameCallback((_) => _enterVentMode());
+  }
+
+  /// Hands the experience mode back on the way out.
+  ///
+  /// Vent mode is persisted through ExperienceModeService, so before this
+  /// nothing ever set it back: entering the Sanctuary once left the composer
+  /// defaulting to private and anonymous everywhere afterwards, and across
+  /// app restarts. Restoring here rather than on every route change is what
+  /// keeps the composer working -- CreatePostScreen is pushed *on top* of this
+  /// screen, which does not dispose it, so opening the composer correctly
+  /// keeps Vent mode while genuinely leaving the Sanctuary gives it up.
+  ///
+  /// KNOWN GAP: dispose does not run if the process is killed while the
+  /// Sanctuary is open, so a hard kill still leaves Vent mode persisted. That
+  /// is narrower than the bug it replaces but it is not nothing.
+  ///
+  /// Scheduled post-frame because setActiveMode notifies its listeners, and
+  /// notifying during teardown rebuilds widgets mid-dispose.
+  @override
+  void dispose() {
+    final controller = _modeController;
+    final previous = _modeBeforeVent;
+    _modeController = null;
+    _modeBeforeVent = null;
+    if (controller != null && previous != null) {
+      WidgetsBinding.instance.addPostFrameCallback((_) async {
+        try {
+          await controller.setActiveMode(previous, confirmed: true);
+        } catch (e) {
+          debugPrint(
+              'VentScreen: could not restore experience mode: ${safeError(e)}');
+        }
+      });
+    }
+    super.dispose();
   }
 
   /// Puts the app in Vent experience mode on entry.
@@ -63,17 +108,24 @@ class _VentScreenState extends State<VentScreen> {
   /// user action. setActiveMode can still refuse -- a locked or blocked
   /// transition -- so the result is logged rather than assumed; a refusal means
   /// the composer keeps whatever defaults the current mode gives it.
+  /// The mode is recorded only once the switch has actually been accepted, so
+  /// a refused transition leaves nothing to restore and [dispose] does not
+  /// clobber a mode this screen never changed.
   Future<void> _enterVentMode() async {
     try {
       final controller = context.read<ExperienceModeController>();
       if (controller.activeMode == TruExperienceMode.vent) return;
+      final previous = controller.activeMode;
       final ok = await controller.setActiveMode(TruExperienceMode.vent,
           confirmed: true);
       if (!ok) {
         debugPrint('VentScreen: could not switch to Vent experience mode');
+        return;
       }
+      _modeController = controller;
+      _modeBeforeVent = previous;
     } catch (e) {
-      debugPrint('VentScreen._enterVentMode failed: $e');
+      debugPrint('VentScreen._enterVentMode failed: ${safeError(e)}');
     }
   }
 

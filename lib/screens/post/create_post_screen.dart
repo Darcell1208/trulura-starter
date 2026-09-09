@@ -51,6 +51,40 @@ class _CreatePostScreenState extends State<CreatePostScreen> with RouteAware {
     'Focused'
   ];
 
+  // Selecting Vent applies a private, anonymous default. Nothing used to undo
+  // it: switching the post type back to anything else left _privacy and
+  // _isAnonymous exactly where Vent had put them, so a Vent default followed by
+  // a switch away produced a private, anonymous ForYou post. One such row is
+  // already in the posts table (category=ForYou, experience_mode=vent).
+  //
+  // These hold what the fields were immediately before Vent last set them, so
+  // releasing restores precisely that and nothing else. Non-null means "Vent
+  // currently owns these two fields". If the user sets privacy or anonymity
+  // themselves, the pair is forgotten -- their choice is not ours to undo.
+  String? _privacyBeforeVent;
+  bool? _anonymousBeforeVent;
+
+  void _applyVentDefaults() {
+    _privacyBeforeVent ??= _privacy;
+    _anonymousBeforeVent ??= _isAnonymous;
+    _privacy = 'Private';
+    _isAnonymous = true;
+  }
+
+  void _releaseVentDefaults() {
+    final privacy = _privacyBeforeVent;
+    final anonymous = _anonymousBeforeVent;
+    if (privacy == null || anonymous == null) return;
+    _privacy = privacy;
+    _isAnonymous = anonymous;
+    _forgetVentDefaults();
+  }
+
+  void _forgetVentDefaults() {
+    _privacyBeforeVent = null;
+    _anonymousBeforeVent = null;
+  }
+
   void _applyTemplate(String template) {
     setState(() {
       _textTemplate = template;
@@ -79,8 +113,7 @@ class _CreatePostScreenState extends State<CreatePostScreen> with RouteAware {
       if (ctx.activeMode == TruExperienceMode.vent) {
         setState(() {
           _postType = 'Vent';
-          _privacy = 'Private';
-          _isAnonymous = true;
+          _applyVentDefaults();
         });
       } else if (ctx.activeMode == TruExperienceMode.creator) {
         setState(() {
@@ -179,7 +212,13 @@ class _CreatePostScreenState extends State<CreatePostScreen> with RouteAware {
       moodTag: _selectedMood,
       privacy: _mapPrivacyForDb(_privacy),
       category: _postType == 'Vent' ? 'Vent' : 'ForYou',
-      isAnonymous: _isAnonymous || _postType == 'Vent',
+      // Was `_isAnonymous || _postType == 'Vent'`, which silently overrode the
+      // user's own toggle: someone who deliberately un-anonymised a Vent post
+      // still posted anonymously. Selecting Vent sets _isAnonymous = true as a
+      // default (see _applyVentDefaults), and a default the user can see and
+      // change is the whole point -- re-forcing it at submit time made the
+      // control a lie, in the one feature built on not being seen.
+      isAnonymous: _isAnonymous,
       experienceMode: ctx.activeMode,
       createdAt: DateTime.now(),
       updatedAt: DateTime.now(),
@@ -336,8 +375,7 @@ class _CreatePostScreenState extends State<CreatePostScreen> with RouteAware {
                             glyph: TruLuraGlyph.shield,
                             onTap: () => setState(() {
                               _postType = 'Vent';
-                              _privacy = 'Private';
-                              _isAnonymous = true;
+                              _applyVentDefaults();
                             }),
                           ),
                         ],
@@ -413,8 +451,9 @@ class _CreatePostScreenState extends State<CreatePostScreen> with RouteAware {
                             _postType = type;
                             _errorText = null;
                             if (type == 'Vent') {
-                              _privacy = 'Private';
-                              _isAnonymous = true;
+                              _applyVentDefaults();
+                            } else {
+                              _releaseVentDefaults();
                             }
                           });
                         },
@@ -424,8 +463,12 @@ class _CreatePostScreenState extends State<CreatePostScreen> with RouteAware {
                             _errorText = null;
                           });
                         },
-                        onPrivacyChanged: (value) =>
-                            setState(() => _privacy = value),
+                        onPrivacyChanged: (value) => setState(() {
+                          _privacy = value;
+                          // The user owns this field now; there is no Vent
+                          // default left to restore on a later type change.
+                          _forgetVentDefaults();
+                        }),
                         onTemplateChanged: _applyTemplate,
                         onTextStyleChanged: (value) =>
                             setState(() => _textStyle = value),
@@ -433,8 +476,10 @@ class _CreatePostScreenState extends State<CreatePostScreen> with RouteAware {
                             setState(() => _textBackground = value),
                         onMoodChanged: (value) =>
                             setState(() => _selectedMood = value),
-                        onAnonymousChanged: (value) =>
-                            setState(() => _isAnonymous = value),
+                        onAnonymousChanged: (value) => setState(() {
+                          _isAnonymous = value;
+                          _forgetVentDefaults();
+                        }),
                         onToggleMediaStub: () => setState(
                             () => _mediaStubAttached = !_mediaStubAttached),
                         onSubmit: (_isPosting || ui == TruUiState.loading)
