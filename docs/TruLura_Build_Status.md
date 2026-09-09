@@ -353,20 +353,49 @@ cards, and it should not stay as it is with them.
 
 Twice on 2026-09-08 an observed failure turned out to be a browser serving a
 build from before the fix. Hot reload does not reliably pick up changes on web.
-Two lines are reliable canaries, both cheap to check before trusting anything
-else in a session:
+
+**Both canaries below were re-verified against the tree on 2026-09-09 before
+this section was trusted again.** A canary that lies is worse than none.
 
 - `PostService: inserting into posts: {"user_id":...,"content_text":...}` — the
-  full row. Redacted in `55c0a94`. If you see post content here, the build
-  predates that commit.
+  full row. Redacted in `55c0a94`; confirmed still redacted. If you see post
+  content on that line, the build predates that commit.
 - `Failed to get user: Bad state: No element` — `getUserById` used
   `.cast<User?>().first` on a possibly-empty iterable. Replaced with a loop in
-  `d50ce74`. This one is the stronger signal, being the earlier commit: seeing
-  it means the build predates `d50ce74`, and therefore predates every Vent fix.
+  `d50ce74`; confirmed no `.first` remains in `user_service.dart`. This is the
+  stronger signal, being the earlier commit: seeing it means the build predates
+  `d50ce74`, and therefore predates every Vent fix.
 
-If either appears: stop `flutter run`, restart it, hard-reload the browser
-(Ctrl+Shift+R), and confirm both are gone before drawing conclusions about
-layout, empty states, or anything else.
+### NOT a canary: a profile line with id / username / bio
+
+`ace9144` and `fbb008c` are described as having stopped profile content
+reaching the console, so it is natural to read
+
+```
+HomeHubScreen loaded profile: id=..., username=..., bio=..., needsOnboarding=...
+```
+
+as proof of a stale build. **It is not.**
+[home_hub_screen.dart:457](../lib/screens/home/home_hub_screen.dart#L457)
+still prints it, on the current tree, on every profile load where the signature
+changes. Seeing it tells you nothing about which build you are running.
+
+*Why it was missed, since that matters more than the line itself:* the
+`fbb008c` sweep searched with a line-oriented regex, so a `debugPrint(` whose
+interpolation sits on a **later line** was never examined. A re-sweep with a
+multiline pattern finds exactly three such calls in `lib/` — in
+`app_provider.dart` and `user_service.dart`, both already redacted, and this
+one. So the gap is bounded at a single site, but the sweep that produced the
+"class closed" claim was narrower than it read.
+
+**This is an open leak, not a closed one** — it prints an account id, a
+username and a full bio. It is a one-line redaction, deliberately not made in
+the session that found it (scope was investigation and this section only), and
+it should be the first thing done next.
+
+If either real canary appears: stop `flutter run`, restart it, hard-reload the
+browser (Ctrl+Shift+R), and confirm both are gone before drawing conclusions
+about layout, empty states, or anything else.
 
 ---
 
@@ -513,3 +542,42 @@ accept/decline lifecycle, and a status column to hold the answer.
 *Follow, beside it, was removed rather than half-fixed* — it could only have
 persisted to one device, and making that survive a reload would have made the
 false impression more durable. Restore it when a follows table exists.
+
+---
+
+**22. `posts=1` is correct. There is only one public post.** *(Investigated
+2026-09-09, by role.)*
+
+`HomeFeedScreen._loadInitialPosts` logging `posts=1` with
+`firstPostId=2a8cdfa7` twice was read as a feed bug. It is not one. The premise
+— that more than one public post exists — is false.
+
+All six rows in `public.posts`:
+
+| id | author | privacy | category | anonymous |
+|---|---|---|---|---|
+| `7c20080f` | 350201ed | **private** | ForYou | yes |
+| `0179941c` | 350201ed | private | Vent | yes |
+| `cb79e7cf` | 350201ed | private | Vent | yes |
+| `86dc30a6` | d9fa2f57 | private | Vent | yes |
+| `8878ec08` | d9fa2f57 | private | Vent | yes |
+| `2a8cdfa7` | d9fa2f57 | **public** | ForYou | no |
+
+By role against `posts_feed`: `d9fa2f57` gets **1** row (`2a8cdfa7`), which is
+exactly what the log said. `350201ed` gets **2** — the public one plus its own
+private `7c20080f`. The view, the predicate and the screen are all behaving.
+
+**The real bug is the first row, and it is a consequence of `a9db98f`.**
+`7c20080f` is a `ForYou` post that came out private and anonymous. The composer
+takes its privacy and anonymity defaults from the active experience mode, and
+`a9db98f` made entering Vent Sanctuary *set* that mode to `vent` — but nothing
+ever sets it back. Vent mode is sticky, so after one visit to the Sanctuary,
+every subsequent post is private and anonymous no matter which surface it was
+written from.
+
+That also explains why the feed looks empty: five of six posts are private
+because they were composed in a mode the user had left. Not investigated
+further tonight; the fix is a decision about when Vent mode should end (on
+leaving the route, on the next explicit mode choice, or scope it to the
+composer instead of the app), which is the same question raised when the change
+landed.
