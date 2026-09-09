@@ -479,3 +479,37 @@ claim on this page that rests on a screenshot should be treated as unverified.
 rather than a bug: placeholder cards make empty screens look alive during
 development and make every feature unverifiable at a glance. Same bucket as
 PD-14 and the Aura / For You distinction.*
+
+---
+
+## Added 2026-09-09
+
+**21. Connection requests are half-built: the row lands, nothing renders it.**
+
+`f139b5b` made Explore's Connect genuinely server-backed — it writes to
+`public.spark_interactions`, and the recipient can read the row, verified by
+role. `7ba3033` then de-duplicated that table and added the partial unique index
+the service was assuming.
+
+**Do not read "server-backed" as "the loop closes."** It does not, yet:
+
+- Nothing renders an incoming request. Pulse (notifications) is a fixed
+  demonstration list, so the recipient still sees no pending request.
+  `ConnectionService.incomingConnectionRequests()` exists and returns the rows;
+  it has no caller.
+- There is no accept or decline. The table has no status column — a row means
+  "asked", and there is no way to record an answer.
+- Nothing joins the request to the sender's profile, so a rendered request would
+  have no name on it. That join was impossible before `7ba3033`: four FKs to
+  `profiles` where there should be two made the PostgREST embed ambiguous
+  (PGRST201, the same failure that broke `messages` embeds earlier). It is now
+  possible and still unwritten.
+
+So the honest state is: **one direction of one relationship crosses between
+accounts.** That is more than existed before, and it is not a working
+connection system. The remaining pieces are a receiving surface, an
+accept/decline lifecycle, and a status column to hold the answer.
+
+*Follow, beside it, was removed rather than half-fixed* — it could only have
+persisted to one device, and making that survive a reload would have made the
+false impression more durable. Restore it when a follows table exists.
