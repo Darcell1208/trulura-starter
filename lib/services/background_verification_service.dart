@@ -1,3 +1,4 @@
+import 'package:trulura/core/diagnostics/log_redaction.dart';
 import 'dart:convert';
 
 import 'package:flutter/foundation.dart';
@@ -22,7 +23,7 @@ class BackgroundVerificationService {
       if (decoded is! Map) return const TruBackgroundVerification();
       return TruBackgroundVerification.fromJson(decoded.cast<String, dynamic>());
     } catch (e) {
-      debugPrint('BackgroundVerificationService.get failed: $e');
+      debugPrint('BackgroundVerificationService.get failed: ${safeError(e)}');
       return const TruBackgroundVerification();
     }
   }

@@ -1,3 +1,4 @@
+import 'package:trulura/core/diagnostics/log_redaction.dart';
 import 'dart:convert';
 
 import 'package:flutter/foundation.dart';
@@ -26,7 +27,7 @@ class IdentityProfileService {
       if (parsed.isEmpty) return _defaults();
       return _sanitize(parsed);
     } catch (e) {
-      debugPrint('IdentityProfileService.getAll failed: $e');
+      debugPrint('IdentityProfileService.getAll failed: ${safeError(e)}');
       return _defaults();
     }
   }

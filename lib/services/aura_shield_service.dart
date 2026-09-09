@@ -1,3 +1,4 @@
+import 'package:trulura/core/diagnostics/log_redaction.dart';
 import 'dart:convert';
 
 import 'package:flutter/foundation.dart';
@@ -30,7 +31,7 @@ class AuraShieldService {
       final trimmed = list.where((e) => now.difference(e.createdAt) <= _windowLong).toList(growable: false);
       await prefs.setString(_userSignalsKey, jsonEncode(trimmed.map((e) => e.toJson()).toList(growable: false)));
     } catch (e) {
-      debugPrint('AuraShieldService.recordUserSignal failed: $e');
+      debugPrint('AuraShieldService.recordUserSignal failed: ${safeError(e)}');
     }
   }
 

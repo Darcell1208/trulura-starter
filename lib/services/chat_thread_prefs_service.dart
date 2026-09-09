@@ -1,3 +1,4 @@
+import 'package:trulura/core/diagnostics/log_redaction.dart';
 import 'dart:convert';
 
 import 'package:flutter/foundation.dart';
@@ -18,7 +19,7 @@ class ChatThreadPrefsService {
       if (decoded is! Map) return const TruChatThreadPrefs();
       return TruChatThreadPrefs.fromJson(decoded.cast<String, dynamic>());
     } catch (e) {
-      debugPrint('ChatThreadPrefsService.getPrefs failed: $e');
+      debugPrint('ChatThreadPrefsService.getPrefs failed: ${safeError(e)}');
       return const TruChatThreadPrefs();
     }
   }

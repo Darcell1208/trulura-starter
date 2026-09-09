@@ -1,3 +1,4 @@
+import 'package:trulura/core/diagnostics/log_redaction.dart';
 import 'dart:convert';
 
 import 'package:flutter/foundation.dart';
@@ -90,7 +91,7 @@ class ComplianceService {
       final json = jsonDecode(raw) as Map<String, dynamic>;
       return TruCompliancePrefs.fromJson(json);
     } catch (e) {
-      debugPrint('ComplianceService.getPrefs failed: $e');
+      debugPrint('ComplianceService.getPrefs failed: ${safeError(e)}');
       return const TruCompliancePrefs();
     }
   }

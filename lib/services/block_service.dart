@@ -391,7 +391,7 @@ class BlockService {
       if (decoded is! List) return <String>{};
       return decoded.whereType<String>().toSet();
     } catch (e) {
-      debugPrint('BlockService._readLegacyLocal failed: $e');
+      debugPrint('BlockService._readLegacyLocal failed: ${safeError(e)}');
       return <String>{};
     }
   }
@@ -405,7 +405,7 @@ class BlockService {
       if (decoded is! List) return <String>{};
       return decoded.whereType<String>().toSet();
     } catch (e) {
-      debugPrint('BlockService._readCache failed: $e');
+      debugPrint('BlockService._readCache failed: ${safeError(e)}');
       return <String>{};
     }
   }

@@ -1,3 +1,4 @@
+import 'package:trulura/core/diagnostics/log_redaction.dart';
 import 'dart:convert';
 
 import 'package:flutter/foundation.dart';
@@ -37,7 +38,7 @@ class ExperienceModeService {
       }
       return map;
     } catch (e) {
-      debugPrint('ExperienceModeService.getModes failed: $e');
+      debugPrint('ExperienceModeService.getModes failed: ${safeError(e)}');
       return _defaults();
     }
   }

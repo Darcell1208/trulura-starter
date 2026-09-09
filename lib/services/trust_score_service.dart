@@ -1,3 +1,4 @@
+import 'package:trulura/core/diagnostics/log_redaction.dart';
 import 'dart:convert';
 
 import 'package:flutter/foundation.dart';
@@ -28,7 +29,7 @@ class TrustScoreService {
       final score = (decoded['score'] as int?) ?? 70;
       return score.clamp(0, 100);
     } catch (e) {
-      debugPrint('TrustScoreService.getScore failed: $e');
+      debugPrint('TrustScoreService.getScore failed: ${safeError(e)}');
       return 70;
     }
   }

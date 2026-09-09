@@ -59,7 +59,7 @@ class ConnectionService {
       if (decoded is! List) return <String>{};
       return decoded.whereType<String>().toSet();
     } catch (e) {
-      debugPrint('ConnectionService._decode failed: $e');
+      debugPrint('ConnectionService._decode failed: ${safeError(e)}');
       return <String>{};
     }
   }

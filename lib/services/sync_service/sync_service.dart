@@ -1,3 +1,4 @@
+import 'package:trulura/core/diagnostics/log_redaction.dart';
 import 'dart:convert';
 import 'dart:math' as math;
 
@@ -45,7 +46,7 @@ class SyncService {
       if (decoded is! List) return const <TruInteractionSignalEvent>[];
       return decoded.whereType<Map>().map((e) => TruInteractionSignalEvent.fromJson(e.cast<String, dynamic>())).where((e) => e.fromUserId == userId && e.id.isNotEmpty).toList(growable: false);
     } catch (e) {
-      debugPrint('SyncService.getSignals failed: $e');
+      debugPrint('SyncService.getSignals failed: ${safeError(e)}');
       return const <TruInteractionSignalEvent>[];
     }
   }
@@ -67,7 +68,7 @@ class SyncService {
       if (decoded is! List) return const <TruMatchroom>[];
       return decoded.whereType<Map>().map((e) => TruMatchroom.fromJson(e.cast<String, dynamic>())).where((e) => e.id.isNotEmpty).toList(growable: false);
     } catch (e) {
-      debugPrint('SyncService.getMatchrooms failed: $e');
+      debugPrint('SyncService.getMatchrooms failed: ${safeError(e)}');
       return const <TruMatchroom>[];
     }
   }
@@ -160,7 +161,7 @@ class SyncService {
       if (parsed.userId.isEmpty) return TruSyncState.defaults(userId);
       return parsed;
     } catch (e) {
-      debugPrint('SyncService.getState failed: $e');
+      debugPrint('SyncService.getState failed: ${safeError(e)}');
       return TruSyncState.defaults(userId);
     }
   }
@@ -197,7 +198,7 @@ class SyncService {
       if (decoded is! List) return const <TruActiveMatch>[];
       return decoded.whereType<Map>().map((e) => TruActiveMatch.fromJson(e.cast<String, dynamic>())).where((m) => m.viewerUserId == userId && m.id.isNotEmpty).toList(growable: false);
     } catch (e) {
-      debugPrint('SyncService.getActiveMatches failed: $e');
+      debugPrint('SyncService.getActiveMatches failed: ${safeError(e)}');
       return const <TruActiveMatch>[];
     }
   }
@@ -310,7 +311,7 @@ class SyncService {
       await prefs.setString(_k(_dailyMetaKeyBase, userId), jsonEncode({'day': today, 'generatedAt': DateTime.now().toIso8601String()}));
       return next;
     } catch (e) {
-      debugPrint('SyncService.getDailySuggestions failed: $e');
+      debugPrint('SyncService.getDailySuggestions failed: ${safeError(e)}');
       return const <TruSyncSuggestion>[];
     }
   }
@@ -325,7 +326,7 @@ class SyncService {
       list.removeWhere((s) => s.id == suggestionId);
       await prefs.setString(_k(_dailyKeyBase, userId), jsonEncode(list.map((e) => e.toJson()).toList(growable: false)));
     } catch (e) {
-      debugPrint('SyncService.passSuggestion failed: $e');
+      debugPrint('SyncService.passSuggestion failed: ${safeError(e)}');
     }
   }
 

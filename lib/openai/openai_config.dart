@@ -1,3 +1,4 @@
+import 'package:trulura/core/diagnostics/log_redaction.dart';
 import 'dart:convert';
 import 'package:flutter/foundation.dart';
 import 'package:http/http.dart' as http;
@@ -63,7 +64,7 @@ class TruOpenAI {
       if (suggestions.isEmpty) throw Exception('OpenAI returned no suggestions');
       return suggestions.take(count).toList(growable: false);
     } catch (e) {
-      debugPrint('OpenAI suggestReplies error: $e');
+      debugPrint('OpenAI suggestReplies error: ${safeError(e)}');
       rethrow;
     }
   }
@@ -136,7 +137,7 @@ class TruOpenAI {
       if (tips.isEmpty) throw Exception('OpenAI returned no tips');
       return tips.take(count).toList(growable: false);
     } catch (e) {
-      debugPrint('OpenAI suggestMatchConciergeTips error: $e');
+      debugPrint('OpenAI suggestMatchConciergeTips error: ${safeError(e)}');
       rethrow;
     }
   }

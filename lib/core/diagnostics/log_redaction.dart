@@ -69,6 +69,23 @@ String redactedId(String? raw) {
 /// [AuthException] is narrowed for the same reason -- its message is the useful
 /// part and its surrounding object can carry the address that was attempted.
 ///
+/// [FormatException] is the third such type, and it is the one the note below
+/// anticipated. Its `toString` embeds a window of `source` around the failure
+/// offset, and `source` is the string that failed to parse -- which, for every
+/// cache in this app, is the user's own data. A corrupted posts cache prints
+/// private Vent text; a corrupted message store prints chat content; a
+/// corrupted profile cache prints the bio. Nobody writes a logging line for
+/// that; it arrives through `catch (e)` on a `jsonDecode`. Verified rather
+/// than assumed -- decoding a truncated message store prints the message text
+/// and the sender id verbatim.
+///
+/// `message` and `offset` are kept and `source` is dropped. Keeping `message`
+/// is safe only because nothing in this app throws its own FormatException:
+/// every one comes from dart:core or dart:convert, where `message` is a fixed
+/// diagnostic string ("Unexpected character", "Invalid radix-10 number") and
+/// `source` is the payload. If app code ever throws
+/// `FormatException('... $value')`, drop `message` here too.
+///
 /// Everything else is passed through, because an arbitrary error's `toString`
 /// is usually the whole diagnostic and withholding it would make failures
 /// unreadable for no gain. If a future error type is found to embed user data,
@@ -79,6 +96,10 @@ String safeError(Object error) {
   }
   if (error is AuthException) {
     return 'AuthException(${error.statusCode ?? 'no-status'}): ${error.message}';
+  }
+  if (error is FormatException) {
+    final at = error.offset == null ? 'no-offset' : 'at ${error.offset}';
+    return 'FormatException($at): ${error.message}';
   }
   return error.toString();
 }

@@ -1,3 +1,4 @@
+import 'package:trulura/core/diagnostics/log_redaction.dart';
 import 'dart:convert';
 
 import 'package:flutter/foundation.dart';
@@ -597,7 +598,7 @@ class UserService {
       if (data == null) return null;
       return User.fromJson(jsonDecode(data) as Map<String, dynamic>);
     } catch (e) {
-      debugPrint('Failed to read cached current user: $e');
+      debugPrint('Failed to read cached current user: ${safeError(e)}');
       return null;
     }
   }
@@ -619,7 +620,7 @@ class UserService {
       final list = (jsonDecode(data) as List).cast<Map<String, dynamic>>();
       return list.map(User.fromJson).toList();
     } catch (e) {
-      debugPrint('Failed to read cached users: $e');
+      debugPrint('Failed to read cached users: ${safeError(e)}');
       return [];
     }
   }

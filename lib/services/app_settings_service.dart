@@ -1,3 +1,4 @@
+import 'package:trulura/core/diagnostics/log_redaction.dart';
 import 'dart:convert';
 
 import 'package:flutter/foundation.dart';
@@ -675,7 +676,7 @@ class AppSettingsService {
           if (promptId.trim().isNotEmpty) promptId.trim(): 'permanent',
       };
     } catch (e) {
-      debugPrint('Failed to get dismissed home prompt statuses: $e');
+      debugPrint('Failed to get dismissed home prompt statuses: ${safeError(e)}');
       return const <String, String>{};
     }
   }

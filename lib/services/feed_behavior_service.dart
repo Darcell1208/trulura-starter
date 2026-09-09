@@ -1,3 +1,4 @@
+import 'package:trulura/core/diagnostics/log_redaction.dart';
 import 'dart:convert';
 
 import 'package:flutter/foundation.dart';
@@ -32,7 +33,7 @@ class FeedBehaviorService {
       final json = jsonDecode(raw) as Map<String, dynamic>;
       return TruFeedBehaviorProfile.fromJson(json);
     } catch (e) {
-      debugPrint('FeedBehaviorService.getProfile failed: $e');
+      debugPrint('FeedBehaviorService.getProfile failed: ${safeError(e)}');
       return const TruFeedBehaviorProfile();
     }
   }

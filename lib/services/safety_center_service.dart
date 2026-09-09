@@ -1,3 +1,4 @@
+import 'package:trulura/core/diagnostics/log_redaction.dart';
 import 'dart:convert';
 
 import 'package:flutter/foundation.dart';
@@ -83,7 +84,7 @@ class SafetyCenterService {
       final json = jsonDecode(raw) as Map<String, dynamic>;
       return TruSafetyCenterPrefs.fromJson(json);
     } catch (e) {
-      debugPrint('SafetyCenterService.getPrefs failed: $e');
+      debugPrint('SafetyCenterService.getPrefs failed: ${safeError(e)}');
       return const TruSafetyCenterPrefs();
     }
   }

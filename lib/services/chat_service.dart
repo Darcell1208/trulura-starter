@@ -1,3 +1,4 @@
+import 'package:trulura/core/diagnostics/log_redaction.dart';
 import 'dart:convert';
 import 'package:flutter/foundation.dart';
 import 'package:shared_preferences/shared_preferences.dart';
@@ -194,7 +195,7 @@ class ChatService {
           .map(Chat.fromJson)
           .toList();
     } catch (e) {
-      debugPrint('ChatService._decodeChats failed: $e');
+      debugPrint('ChatService._decodeChats failed: ${safeError(e)}');
       return <Chat>[];
     }
   }
@@ -209,7 +210,7 @@ class ChatService {
           .map(Message.fromJson)
           .toList();
     } catch (e) {
-      debugPrint('ChatService._decodeMessages failed: $e');
+      debugPrint('ChatService._decodeMessages failed: ${safeError(e)}');
       return <Message>[];
     }
   }
@@ -558,7 +559,7 @@ class ChatService {
       }
       return [];
     } catch (e) {
-      debugPrint('Failed to get chats: $e');
+      debugPrint('Failed to get chats: ${safeError(e)}');
       return [];
     }
   }
@@ -609,7 +610,7 @@ class ChatService {
       }
       return [];
     } catch (e) {
-      debugPrint('Failed to get messages: $e');
+      debugPrint('Failed to get messages: ${safeError(e)}');
       return [];
     }
   }
@@ -663,7 +664,7 @@ class ChatService {
       await prefs.setString(store.messagesKey,
           jsonEncode(messages.map((m) => m.toJson()).toList()));
     } catch (e) {
-      debugPrint('Failed to save message: $e');
+      debugPrint('Failed to save message: ${safeError(e)}');
     }
   }
 
@@ -842,7 +843,7 @@ class ChatService {
           jsonEncode(chats.map((c) => c.toJson()).toList()));
       return next;
     } catch (e) {
-      debugPrint('ChatService.ensureChatWithUser failed: $e');
+      debugPrint('ChatService.ensureChatWithUser failed: ${safeError(e)}');
       return null;
     }
   }

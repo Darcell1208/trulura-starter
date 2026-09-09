@@ -1,3 +1,4 @@
+import 'package:trulura/core/diagnostics/log_redaction.dart';
 import 'dart:convert';
 
 import 'package:flutter/foundation.dart';
@@ -82,7 +83,7 @@ class IdentityService {
       final json = jsonDecode(raw) as Map<String, dynamic>;
       return TruIdentityPrefs.fromJson(json);
     } catch (e) {
-      debugPrint('IdentityService.getPrefs failed: $e');
+      debugPrint('IdentityService.getPrefs failed: ${safeError(e)}');
       return const TruIdentityPrefs();
     }
   }
