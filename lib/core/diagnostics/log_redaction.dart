@@ -28,9 +28,19 @@ import 'package:supabase_flutter/supabase_flutter.dart'
 /// A hash keeps every debugging property and discloses nothing.
 ///
 /// FNV-1a rather than a crypto hash: this is a log-correlation aid, not a
-/// security boundary, and it avoids pulling in a dependency for it. It is not
-/// reversible, but it is not salted either, so do not treat it as anonymising
-/// a small known set -- it is here to keep raw ids out of logs, nothing more.
+/// security boundary, and it avoids pulling in a dependency for it.
+///
+/// KNOW WHAT THIS IS NOT. It is unsalted and truncated to 32 bits, so anyone
+/// who can enumerate the user list can hash every id and match the output back
+/// to a person in seconds. It is not anonymisation and it does not survive an
+/// adversary who already has the user table.
+///
+/// It is sized for the threat it actually addresses: a console line reaching a
+/// screen share, a screen recording, or a pasted bug report, where the reader
+/// has the log and not the database. That is the whole of its job. Do not
+/// carry it into a context where the reader might hold both -- an analytics
+/// pipeline, an error-reporting service, anything persisted off-device -- and
+/// do not let the word "hashed" do work it cannot support.
 String redactedId(String? raw) {
   final value = (raw ?? '').trim();
   if (value.isEmpty) return 'id#none';
