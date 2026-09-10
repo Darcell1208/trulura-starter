@@ -286,12 +286,29 @@ class AppProvider with ChangeNotifier {
           : (schemaIntent.isNotEmpty
               ? <String>[schemaIntent]
               : const <String>[]);
+      // `user.moodTags` carries the onboarding **Vibe**, not Mood. Its home is
+      // `profiles.vibe` (see UserService._persistVibe), and until now nothing
+      // read it back: this chain looked for `moodTags` / `mood_tags`, and
+      // `profiles` has neither column. So the Vibe a user chose at signup was
+      // written and never reached the app again -- it survived only in local
+      // cache, and vanished on a fresh device. That is why _hasVibe scored
+      // zero and the completion banner sat at 54%.
+      //
+      // The old fallback read `user_states.mood_tag` instead, which is Mood --
+      // a different concept with a disjoint value set. Dropped rather than kept
+      // as a backstop, because that sharing is the exact bug that froze the
+      // aura: MoodSyncService could not map a Vibe like 'Dreamy' to a Mood,
+      // returned null, and AuraStateController fell back to Mood.calm forever.
+      // Two concepts with disjoint value sets must not share a column, and that
+      // includes sharing one by way of a read fallback.
       final profileMoodTags = _stringListOrEmpty(
         normalizedProfile['moodTags'] ?? normalizedProfile['mood_tags'],
       );
+      final profileVibe =
+          (normalizedProfile['vibe'] as String?)?.trim() ?? '';
       final moodTags = profileMoodTags.isNotEmpty
           ? profileMoodTags
-          : (schemaMood.isNotEmpty ? <String>[schemaMood] : const <String>[]);
+          : (profileVibe.isNotEmpty ? <String>[profileVibe] : const <String>[]);
       normalizedProfile['intents'] = intents.isNotEmpty
           ? intents
           : (cachedUser?.intents ?? const <String>[]);
