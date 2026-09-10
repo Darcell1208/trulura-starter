@@ -1978,16 +1978,6 @@ class _FeedHeaderRow extends StatelessWidget {
                                 color: Colors.white.withValues(alpha: 0.92)),
                           ),
                         ),
-                        if (timestampLabel != null) ...[
-                          const SizedBox(width: 8),
-                          Text(
-                            timestampLabel!,
-                            style: t.labelSmall?.copyWith(
-                              fontWeight: FontWeight.w600,
-                              color: cs.onSurface.withValues(alpha: 0.62),
-                            ),
-                          ),
-                        ],
                         if (showTransparency && (isBoosted || isMonetized)) ...[
                           const SizedBox(width: 8),
                           Container(
@@ -2009,6 +1999,24 @@ class _FeedHeaderRow extends StatelessWidget {
                             ),
                           ),
                         ],
+                      ],
+                      // Outside the !isAnonymous block on purpose. Everything
+                      // above -- the vibe chip, the BOOST/INFO chip -- is
+                      // suppressed for anonymous posts, and the first version of
+                      // this timestamp was nested in there, so it rendered on
+                      // every card EXCEPT the Vent cards it was written for.
+                      // Keeping it out here also means it survives a Vent post
+                      // that is not anonymous, which is now reachable since the
+                      // composer stopped forcing anonymity at submit time.
+                      if (timestampLabel != null) ...[
+                        const SizedBox(width: 8),
+                        Text(
+                          timestampLabel!,
+                          style: t.labelSmall?.copyWith(
+                            fontWeight: FontWeight.w600,
+                            color: Colors.white.withValues(alpha: 0.66),
+                          ),
+                        ),
                       ],
                     ],
                   ),
