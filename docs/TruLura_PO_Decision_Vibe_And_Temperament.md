@@ -51,6 +51,38 @@ for that user alone — which is why it survived testing.
 
 No shared columns between `vibe`, `vibe_status` and Mood. Ever.
 
+### The stronger form: no concept reads another concept's storage, even as a fallback
+
+"No shared columns" is not sufficient, and today proved it. The `moodTags`
+hydrate fell through to `user_states.mood_tag` when it found nothing — different
+column, different table, and still the same collision, because **the value path
+was shared even though the storage was not**. A Mood value arrived in a field
+that is supposed to hold a Vibe, by exactly the route the column rule was
+written to prevent.
+
+So the rule is: **no concept reads another concept's storage, in any
+circumstance, including as a fallback, a default, or a migration convenience.**
+If the right column is empty, the correct answer is empty. A plausible value
+from the wrong vocabulary is worse than a null, because null is visibly missing
+and a wrong-vocabulary value looks like data.
+
+### And a hazard the rule does not yet cover: the value sets overlap
+
+`TruVibeLabel` is `{oldSoul, healing, reflective, radiant, grounded,
+mysterious}`. The vibe vocabulary is `{Reflective, Dreamy, Calm, Flirty,
+Healing, Energetic, Creative}`. **They share `reflective` and `healing`.**
+
+This is worse than the frozen-aura case rather than better. That bug was
+*self-announcing*: 'Dreamy' had no Mood equivalent, so the mapping returned null
+and something visibly broke. Two vocabularies that overlap fail silently
+instead — a bare `reflective` cannot be attributed to a vocabulary by
+inspection, by a reader or by code, so a misattributed value survives review and
+looks correct in the database.
+
+Not resolved here. The options are to make the two sets disjoint by renaming the
+overlapping temperament values, or to accept the overlap and rely on the columns
+never being crossed — which is the assumption that has already failed twice.
+
 ---
 
 ## Ordered work, and what is done
