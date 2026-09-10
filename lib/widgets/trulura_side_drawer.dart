@@ -651,8 +651,23 @@ class _ModeConstellation extends StatelessWidget {
                     ),
                   ),
                 ),
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceAround,
+                // Wrap, not Row. Five _ModeSignals are 54px each, so this needs
+                // 270px and the drawer gives it 157 -- the reported 112px
+                // overflow, which is that difference. spaceAround made it
+                // invisible to read: it distributes whatever the collection
+                // produces, so the layout silently depended on modes.length,
+                // and nothing at this call site shows what that is.
+                //
+                // Wrap rather than the horizontal SingleChildScrollView used
+                // for the chip strips elsewhere (notifications, ai_companion,
+                // world_layers) because this is navigation. Scrolling would fit
+                // it on one line at the cost of hiding two modes off-screen
+                // with no affordance; wrapping keeps every mode reachable and
+                // costs vertical space in a drawer that already scrolls.
+                Wrap(
+                  spacing: 8,
+                  runSpacing: 10,
+                  alignment: WrapAlignment.start,
                   children: [
                     for (final mode in modes)
                       _ModeSignal(

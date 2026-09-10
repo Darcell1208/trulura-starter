@@ -2000,29 +2000,18 @@ class _FeedHeaderRow extends StatelessWidget {
                           ),
                         ],
                       ],
-                      // Outside the !isAnonymous block on purpose. Everything
-                      // above -- the vibe chip, the BOOST/INFO chip -- is
-                      // suppressed for anonymous posts, and the first version of
-                      // this timestamp was nested in there, so it rendered on
-                      // every card EXCEPT the Vent cards it was written for.
-                      // Keeping it out here also means it survives a Vent post
-                      // that is not anonymous, which is now reachable since the
-                      // composer stopped forcing anonymity at submit time.
-                      if (timestampLabel != null) ...[
-                        const SizedBox(width: 8),
-                        Text(
-                          timestampLabel!,
-                          style: t.labelSmall?.copyWith(
-                            fontWeight: FontWeight.w600,
-                            color: Colors.white.withValues(alpha: 0.66),
-                          ),
-                        ),
-                      ],
                     ],
                   ),
                 ),
               ),
-              if (moodTag != null || isAnonymous || isFallbackIdentity)
+              // timestampLabel is in this condition because the timestamp lives
+              // in this row now, so the row has to render for a Vent post that
+              // is neither anonymous nor mood-tagged -- reachable since 0d11570
+              // let the composer post an attributed vent.
+              if (moodTag != null ||
+                  isAnonymous ||
+                  isFallbackIdentity ||
+                  timestampLabel != null)
                 Padding(
                   padding: const EdgeInsets.only(top: 6),
                   child: Row(
@@ -2045,6 +2034,22 @@ class _FeedHeaderRow extends StatelessWidget {
                             letterSpacing: 0.18,
                             color: Colors.white.withValues(alpha: 0.82)),
                       ),
+                      // Here rather than beside the name. In the name row the
+                      // timestamp competed with it for width, and since an
+                      // anonymous card's name row holds nothing else, the name
+                      // went from full width to truncated -- "Eastern Beacon"
+                      // rendering as "Eastern Beac...". This row is short copy
+                      // and a chip, so it has the room.
+                      if (timestampLabel != null) ...[
+                        const SizedBox(width: 8),
+                        Text(
+                          timestampLabel!,
+                          style: t.labelSmall?.copyWith(
+                            fontWeight: FontWeight.w600,
+                            color: Colors.white.withValues(alpha: 0.66),
+                          ),
+                        ),
+                      ],
                       if (moodTag != null) ...[
                         const SizedBox(width: 8),
                         TruLuraOrbChip(
