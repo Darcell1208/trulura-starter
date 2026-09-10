@@ -33,6 +33,35 @@
 /// 3. Its own documentation scopes it to correlating console lines and warns
 ///    against carrying it into other contexts.
 ///
+/// ## STOP — do not use this for comments
+///
+/// If you are building comments or replies, [ventPseudonymFor] as written is
+/// the wrong function and it will look like the right one, because it is
+/// already here and it already takes an id.
+///
+/// A comment is a separate row with its own id. Passing the comment's id gives
+/// one commenter **a different name on every reply**, so a three-reply exchange
+/// reads as three strangers — the exact unreadability per-post names were added
+/// to fix. Passing the *post's* id gives every participant in the thread the
+/// same name, which is worse.
+///
+/// The rule for comments is to derive from the **post id and the commenter's
+/// user id together**, so that one person keeps one name for the length of a
+/// thread and gets an unrelated one on a different vent. Nothing links across
+/// posts, and the conversation reads. The vent's author is named the same way,
+/// from their own user id and their own post id. See decision 2a in
+/// `docs/TruLura_PO_Decision_Vent_Identity_And_Blocking.md`.
+///
+/// That function does not exist yet, deliberately: comments are a stub
+/// (`Comment sent (stub)` in feed_card.dart writes nothing). Write it when you
+/// write comments; do not bend this one.
+///
+/// And read decision 2b first. The `comments` table exists with
+/// `select USING (true)` for authenticated, so every comment's `user_id` is
+/// readable by any signed-in client. Until that is fixed with a nulling view,
+/// no naming scheme here means anything — a reader can query the real author,
+/// and an author commenting on their own vent deanonymises it.
+///
 /// ## What this is not
 ///
 /// It is not a security boundary and it is not the anonymity mechanism. The
@@ -52,6 +81,10 @@ library;
 /// post always renders the same name, within and across sessions and devices,
 /// because it is a pure function of the id. Pass the post's own id and nothing
 /// else.
+///
+/// **Posts only.** Not for comments or replies — that needs post id + commenter
+/// user id, and this function will silently give a plausible wrong answer. See
+/// "STOP — do not use this for comments" in the library doc above.
 ///
 /// Falls back to `Anonymous` for an empty id, which happens for a post being
 /// composed but not yet saved, before the database has assigned one.

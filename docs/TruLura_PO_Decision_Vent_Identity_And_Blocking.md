@@ -77,6 +77,72 @@ identity.
 **The cost, accepted deliberately:** per-post names cannot be blocked, which is
 what decision 3 exists to resolve. A per-post name is a label, not a person.
 
+### 2a. Amendment, 2026-09-09 — comments derive from `post_id` + `user_id`
+
+**Recorded before comments exist. Do not build from this; build the feature
+first, then apply this rule.**
+
+Decision 2 as shipped derives the name from the post id alone, which is correct
+for posts and **breaks for comments**. A comment is a separate row with its own
+id, so the shipped scheme would give one commenter a different name on every
+reply — and an unreadable thread is the exact failure per-post names were
+introduced to fix.
+
+The rule for comments is to derive from **the post id and the commenter's user
+id combined**:
+
+- Same person, same thread → the same name throughout.
+- Same person, a different vent → an unrelated name.
+- Nothing links a person across posts, which is what decision 2 protects.
+
+This applies to the vent's author as well, using their own user id with their
+own post id, so the author reads consistently inside their own thread.
+
+**Accepted consequence:** within one thread it becomes possible to tell that two
+comments came from the same person. That is the readability the names exist
+for, and it does not extend beyond the thread.
+
+**Open question, not decided:** should the vent's author be visually
+distinguished from commenters inside their own thread? Distinguishing them
+makes the conversation easier to follow and tells readers which name belongs to
+the author, which is a small disclosure. Not distinguishing them makes the
+author read as one participant among several. This needs deciding before
+comments ship, because it is not a late styling choice — it determines whether
+the author's name carries meaning.
+
+### 2b. BLOCKING prerequisite — `comments` RLS would defeat all of this
+
+Verified against the live database on 2026-09-09, and it contradicts the
+assumption that comments do not exist at all:
+
+- `public.comments` **does exist** — columns `id`, `post_id`, `user_id`, `body`,
+  `created_at`. RLS is on and it has four policies. It holds **zero rows**.
+- What does not exist is the app side: no comment service, no model, no query.
+  The UI shows a snackbar reading `Comment sent (stub)`
+  (`lib/widgets/feed_card.dart:624`) and writes nothing — the same
+  no-write-confirmation class as the other stubs on the placeholder inventory.
+- `authenticated` holds both SELECT and INSERT on the table.
+- **`comments_select_authenticated` is `USING (true)`.** Any signed-in user can
+  read every comment row, `user_id` and `post_id` included. There is no view
+  nulling the author the way `vent_feed` does for posts.
+
+So if comments are built on this table as it stands, the pseudonym is
+decorative for exactly the reason open item B describes for blocks: the client
+can compute what the interface hides. A comment on an anonymous vent ships the
+commenter's real uuid to every authenticated client, and if the **author**
+comments on their own vent, `comments.user_id` joined to `comments.post_id`
+deanonymises the vent itself — through a plain client-runnable query, with no
+exploit involved.
+
+Nothing leaks today because the table is empty. The first comment ever written
+would be exposed. **This is read off the policy definition, not demonstrated
+with data** — no probe row was written to production to prove it.
+
+Before comments ship, `comments` needs the same treatment posts already have: a
+view that nulls `user_id` for comments on anonymous posts, with the raw table
+kept out of the client's reach, exactly as `vent_feed` does. The derivation
+rule above is worthless without it.
+
 ---
 
 ## 3. Blocks resolve on `posts.user_id`, never on the displayed name
