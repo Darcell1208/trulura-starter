@@ -694,3 +694,46 @@ Sanctuary header and the card action row, both *observed* overflowing), 4 in
 
 When one does overflow, the rule is **the text gets the `Flexible`, not the
 controls** — text is the elastic element and the trailing icons are fixed.
+
+### The Vent card overflow is the header row, not anything inside it — MEASURED
+
+Read this before "fixing" a Vent card overflow. Three fixes were proposed and
+argued through before anyone measured the box, and all three were structurally
+incapable of working.
+
+The RenderFlex error carries the answer:
+
+```
+constraints: BoxConstraints(0.0<=w<=34.1, 0.0<=h<=Infinity)
+creator: Row ← Padding ← Column ← Expanded ← Row ← _FeedHeaderRow
+```
+
+**The content column is 34.1px wide.** `_FeedHeaderRow`'s fixed children eat
+almost the entire card at narrow widths:
+
+| child | width |
+|---|---|
+| avatar (`TruLuraHaloAvatar` radius 22) | ~44 |
+| `SizedBox` | 12 |
+| **`Expanded` → name row + "Anonymous share" row** | **34.1** |
+| `_NoSplashIconButton` (info) — padding 10 + icon 20 | 40 |
+| `_NoSplashIconButton` (more) | 40 |
+
+~136px of chrome against ~170px of card. Everything below it is being asked to
+render in what is left.
+
+**Why the obvious fixes do not work.** `Flexible` on the name, `TextOverflow
+.ellipsis`, and converting the row to a `Wrap` all operate *inside* that 34.1px
+box. The word "Anonymous" alone is wider than the box, and **a `Wrap` cannot
+break within a word** — so a `Wrap` reduces the overflow without eliminating
+it. That is the trap: the number moves, it looks like progress, and the wrong
+diagnosis survives another round.
+
+**The fix belongs in `_FeedHeaderRow`**: shrink or drop the avatar and the two
+40px icon buttons at narrow widths, so the `Expanded` gets a usable share.
+
+Method note, because it generalises: this was found by printing the values
+rather than reading the widget tree, after three wrong readings of the tree.
+For any overflow, read the `constraints:` and `size:` lines in the error first
+— they are free and usually decisive. An overflow reported *at* a widget is
+often caused by a sibling several levels up taking the width.
