@@ -75,6 +75,29 @@ begin
   end if;
 end $$;
 
+-- 1b. Rename the two values that overlapped the vibe vocabulary.
+--
+-- TruVibeLabel held {oldSoul, healing, reflective, radiant, grounded,
+-- mysterious} and the vibe vocabulary is {Reflective, Dreamy, Calm, Flirty,
+-- Healing, Energetic, Creative}. They shared 'reflective' and 'healing', which
+-- made a value in the wrong column undetectable by inspection -- an invariant
+-- that cannot be verified is not an invariant. The Dart enum becomes
+-- TruTemperament with contemplative and mending in the same pass.
+--
+-- THIS IS NOT OPTIONAL EVEN THOUGH NO ROW HOLDS THOSE VALUES TODAY.
+-- Checked 2026-09-10: vibe_status is oldSoul x2, grounded x1. That is a
+-- snapshot and this file may sit unapplied for days. The walkthrough's
+-- "Primary vibe" dropdown offers every TruVibeLabel value including
+-- reflective and healing, and _persistProfile writes vibe_status on every
+-- profile save, so a row can acquire one at any moment. Without these updates
+-- TruTemperamentX.tryParse returns null for such a row and the value is lost
+-- silently -- the same shape as the frozen aura, where an unmappable value
+-- became a null nobody saw.
+update public.profiles set temperament = 'contemplative'
+  where temperament = 'reflective';
+update public.profiles set temperament = 'mending'
+  where temperament = 'healing';
+
 comment on column public.profiles.temperament is
   'Dispositional temperament (TruTemperament: oldSoul, grounded, ...). Stable; '
   'does not change week to week. NOT profiles.vibe, which is the expressive, '
@@ -107,3 +130,18 @@ commit;
 -- grounded as of 2026-09-10 -- with vibe unchanged (Dreamy, Dreamy,
 -- reflective). A rename preserves data; if temperament is null anywhere,
 -- something added a new column instead of renaming.
+--
+-- And confirm no overlapping value survived the 1b updates:
+--
+--   select count(*) from public.profiles
+--   where temperament in ('reflective', 'healing');
+--
+-- Expect 0. A non-zero count means a row was written between the updates and
+-- this check, which is possible if the app was live during the migration --
+-- rerun the two updates, they are idempotent.
+--
+-- Note `vibe` legitimately holds 'reflective' for moname. That is the
+-- expressive vocabulary and it is correct there. The point of renaming the
+-- temperament values was to make exactly that distinction visible: after this,
+-- 'reflective' can only mean vibe and 'contemplative' can only mean
+-- temperament, so a value in the wrong column is detectable by reading it.
