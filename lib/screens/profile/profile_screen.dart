@@ -129,7 +129,7 @@ class _ProfileScreenState extends State<ProfileScreen>
               .toList();
       if (mounted) {
         context.read<AppState>().syncProfileState(
-              vibe: (user?.vibeLabel ?? TruVibeLabel.oldSoul).label,
+              vibe: (user?.temperament ?? TruTemperament.oldSoul).label,
               anonymous: user?.anonymousOverlayEnabled ?? false,
             );
         await context.read<AppState>().hydrateQuizState(userId: user?.id);
@@ -260,9 +260,9 @@ class _ProfileScreenState extends State<ProfileScreen>
     final appState = context.watch<AppState>();
     final presence = context.watch<AppProvider>().emotionalPresenceState;
     final anon = appState.isAnonymous;
-    final vibe = TruVibeLabel.values.firstWhere(
+    final vibe = TruTemperament.values.firstWhere(
       (candidate) => candidate.label == appState.selectedVibe,
-      orElse: () => user?.vibeLabel ?? TruVibeLabel.oldSoul,
+      orElse: () => user?.temperament ?? TruTemperament.oldSoul,
     );
 
     final layer = _activeProfile;
@@ -518,7 +518,7 @@ class _ProfileScreenState extends State<ProfileScreen>
 
   Widget _buildAboutTab() {
     final u = _currentUser;
-    final vibe = (u?.vibeLabel ?? TruVibeLabel.oldSoul).label;
+    final vibe = (u?.temperament ?? TruTemperament.oldSoul).label;
     final identity = (u?.activeIdentityMode ?? TruIdentityMode.social).label;
     final primaryIntent =
         (u?.intents.isNotEmpty ?? false) ? u!.intents.first : 'open connection';
@@ -1087,7 +1087,7 @@ class _ProfileScreenState extends State<ProfileScreen>
       );
     }
 
-    final vibe = (u?.vibeLabel ?? TruVibeLabel.oldSoul).label;
+    final vibe = (u?.temperament ?? TruTemperament.oldSoul).label;
     final moods = u!.moodTags;
     final comfortMode = moods.any((m) =>
             m.toLowerCase().contains('calm') ||
@@ -2325,8 +2325,8 @@ class _IdentityModeItem extends StatelessWidget {
 }
 
 class _VibePicker extends StatelessWidget {
-  final TruVibeLabel value;
-  final ValueChanged<TruVibeLabel> onChanged;
+  final TruTemperament value;
+  final ValueChanged<TruTemperament> onChanged;
   const _VibePicker({required this.value, required this.onChanged});
 
   @override
@@ -2342,10 +2342,10 @@ class _VibePicker extends StatelessWidget {
             width: TruLuraSurfaces.hairline),
       ),
       child: DropdownButtonHideUnderline(
-        child: DropdownButton<TruVibeLabel>(
+        child: DropdownButton<TruTemperament>(
           value: value,
           isExpanded: true,
-          items: TruVibeLabel.values
+          items: TruTemperament.values
               .map((v) => DropdownMenuItem(value: v, child: Text(v.label)))
               .toList(),
           onChanged: (v) {

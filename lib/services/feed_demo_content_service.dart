@@ -16,7 +16,7 @@ class FeedDemoContentService {
       ...posts.map((post) => TruPostFeedItem(post: post)),
     ];
 
-    final vibe = (user?.vibeLabel.label ?? '').trim();
+    final vibe = (user?.temperament.label ?? '').trim();
     final expression = (user?.expressionShortPost ?? '').trim();
     if (expression.isNotEmpty) {
       items.add(

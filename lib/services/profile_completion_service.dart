@@ -130,7 +130,7 @@ class ProfileCompletionService {
   }
 
   bool _hasVibe(User user) {
-    return user.vibeLabel != TruVibeLabel.oldSoul || user.moodTags.isNotEmpty;
+    return user.temperament != TruTemperament.oldSoul || user.moodTags.isNotEmpty;
   }
 
   bool _hasExpression(User user) {

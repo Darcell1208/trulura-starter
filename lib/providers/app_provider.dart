@@ -115,7 +115,7 @@ class AppProvider with ChangeNotifier {
         softMode: _softModeEnabled,
         lowEnergy: isLowEnergyContext,
         anonymous: _currentUser?.anonymousOverlayEnabled ?? false,
-        vibe: _currentUser?.vibeLabel.label ?? 'Old Soul',
+        vibe: _currentUser?.temperament.label ?? 'Old Soul',
         moods: _currentUser?.moodTags ?? const <String>[],
       );
 
@@ -368,9 +368,14 @@ class AppProvider with ChangeNotifier {
           (normalizedProfile['anonymous_overlay_enabled'] as bool?) ??
               cachedUser?.anonymousOverlayEnabled ??
               false;
-      normalizedProfile['vibeLabel'] =
-          (normalizedProfile['vibe_status'] as String?) ??
-              cachedUser?.vibeLabel.name ??
+      // New column name first, old one as fallback, so this build hydrates
+      // correctly either side of the rename migration. Both are the SAME
+      // concept under two names, which is what makes this fallback legitimate
+      // -- unlike the moodTags one above, which used to reach into Mood.
+      normalizedProfile['temperament'] =
+          (normalizedProfile['temperament'] as String?) ??
+              (normalizedProfile['vibe_status'] as String?) ??
+              cachedUser?.temperament.name ??
               'oldSoul';
       normalizedProfile['verificationLevel'] =
           cachedUser?.verificationLevel.name ?? 'level0';

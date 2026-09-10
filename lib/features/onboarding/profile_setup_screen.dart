@@ -66,7 +66,7 @@ class _ProfileSetupScreenState extends State<ProfileSetupScreen> {
 
   User? _currentUser;
   TruIdentityMode _mode = TruIdentityMode.social;
-  TruVibeLabel _vibe = TruVibeLabel.oldSoul;
+  TruTemperament _vibe = TruTemperament.oldSoul;
   String? _intent;
   String? _socialPreference;
   final Set<String> _selectedInterests = <String>{};
@@ -119,7 +119,7 @@ class _ProfileSetupScreenState extends State<ProfileSetupScreen> {
       _expressionVibeTag.text = user?.expressionVibeTag ?? '';
       _shortPost.text = user?.expressionShortPost ?? '';
       _mode = user?.activeIdentityMode ?? TruIdentityMode.social;
-      _vibe = user?.vibeLabel ?? TruVibeLabel.oldSoul;
+      _vibe = user?.temperament ?? TruTemperament.oldSoul;
       _intent = user?.intents.firstOrNull;
       _socialPreference = user?.socialPreference;
       _selectedInterests
@@ -150,7 +150,7 @@ class _ProfileSetupScreenState extends State<ProfileSetupScreen> {
       profileImage:
           _photoUrl.text.trim().isEmpty ? null : _photoUrl.text.trim(),
       activeIdentityMode: _mode,
-      vibeLabel: _vibe,
+      temperament: _vibe,
       intents: _intent == null ? existing.intents : <String>[_intent!],
       interests: _selectedInterests.toList(growable: false),
       socialPreference: _socialPreference,
@@ -611,16 +611,16 @@ class _ProfileSetupScreenState extends State<ProfileSetupScreen> {
         ),
         const SizedBox(height: 18),
         Text(
-          'Primary vibe',
+          'Temperament',
           style: Theme.of(context).textTheme.titleSmall?.copyWith(
                 color: Colors.white,
                 fontWeight: FontWeight.w800,
               ),
         ),
         const SizedBox(height: 10),
-        DropdownButtonFormField<TruVibeLabel>(
+        DropdownButtonFormField<TruTemperament>(
           initialValue: _vibe,
-          items: TruVibeLabel.values
+          items: TruTemperament.values
               .map(
                 (v) => DropdownMenuItem(
                   value: v,
@@ -631,7 +631,7 @@ class _ProfileSetupScreenState extends State<ProfileSetupScreen> {
           onChanged: (value) {
             if (value != null) setState(() => _vibe = value);
           },
-          decoration: const InputDecoration(labelText: 'Choose your vibe'),
+          decoration: const InputDecoration(labelText: 'Choose your temperament'),
         ),
       ],
     );

@@ -212,7 +212,7 @@ class CompatibilityService {
       {required User viewer, required TruIdentityMode context}) {
     final now = DateTime.now();
     final seed =
-        '${viewer.id}|${viewer.vibeLabel.name}|${viewer.moodTags.join(',')}|${viewer.intents.join(',')}|${context.name}';
+        '${viewer.id}|${viewer.temperament.name}|${viewer.moodTags.join(',')}|${viewer.intents.join(',')}|${context.name}';
     final h = _hash(seed);
     int pick(int min, int max, int salt) =>
         (min + ((h + salt) % (max - min + 1))).clamp(min, max);
@@ -296,7 +296,7 @@ class CompatibilityService {
       required TruMatchPurpose purpose}) {
     final now = DateTime.now();
     final seed =
-        '${viewer.id}|${target.id}|${viewer.vibeLabel.name}|${target.vibeLabel.name}|${purpose.name}|${now.year}-${now.month}';
+        '${viewer.id}|${target.id}|${viewer.temperament.name}|${target.temperament.name}|${purpose.name}|${now.year}-${now.month}';
     final h = _hash(seed);
     int pick(int min, int max, int salt) =>
         (min + ((h + salt) % (max - min + 1))).clamp(min, max);

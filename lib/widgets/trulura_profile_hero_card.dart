@@ -34,7 +34,7 @@ class TruluraProfileHeroCard extends StatelessWidget {
     final mood = (user?.moodTags.isNotEmpty ?? false)
         ? user!.moodTags.first
         : 'Reflective';
-    final vibe = user?.vibeLabel.label ?? 'Old Soul';
+    final vibe = user?.temperament.label ?? 'Old Soul';
     final intent =
         (user?.intents.isNotEmpty ?? false) ? user!.intents.first : 'Social';
     final identityAccent = _identityAccent(mood, intent);

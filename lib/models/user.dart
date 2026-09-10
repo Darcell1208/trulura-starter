@@ -24,7 +24,7 @@ class User {
   /// `public.profiles` / `identity_modes` schema.
   final TruIdentityMode activeIdentityMode;
   final bool anonymousOverlayEnabled;
-  final TruVibeLabel vibeLabel;
+  final TruTemperament temperament;
 
   /// Verification / trust indicators (user-controlled visibility).
   final TruVerificationLevel verificationLevel;
@@ -64,7 +64,7 @@ class User {
 
     this.activeIdentityMode = TruIdentityMode.social,
     this.anonymousOverlayEnabled = false,
-    this.vibeLabel = TruVibeLabel.oldSoul,
+    this.temperament = TruTemperament.oldSoul,
     this.verificationLevel = TruVerificationLevel.level0,
     this.trustScore = 70,
     this.riskLevel = TruRiskLevel.low,
@@ -100,7 +100,7 @@ class User {
 
     'activeIdentityMode': activeIdentityMode.name,
     'anonymousOverlayEnabled': anonymousOverlayEnabled,
-    'vibeLabel': vibeLabel.name,
+    'temperament': temperament.name,
     'verificationLevel': verificationLevel.name,
     'trustScore': trustScore,
     'riskLevel': riskLevel.name,
@@ -191,9 +191,15 @@ class User {
         (json['anonymousOverlayEnabled'] as bool?) ??
         (json['anonymous_overlay_enabled'] as bool?) ??
         false,
-    vibeLabel: TruVibeLabelX.tryParse(
-            (json['vibeLabel'] ?? json['vibe_status']) as String?) ??
-        TruVibeLabel.oldSoul,
+    // Three keys, newest first. 'temperament' is what this writes now;
+    // 'vibeLabel' is the old local-cache key and 'vibe_status' the old column,
+    // both read so an existing cache or an un-migrated database still hydrates.
+    // Reading an older NAME for the same concept is fine -- what the decision
+    // record forbids is reading a DIFFERENT concept's storage as a fallback.
+    temperament: TruTemperamentX.tryParse(
+            (json['temperament'] ?? json['vibeLabel'] ?? json['vibe_status'])
+                as String?) ??
+        TruTemperament.oldSoul,
     verificationLevel: TruVerificationLevelX.tryParse(
             (json['verificationLevel'] ?? json['verification_level'])
                 as String?) ??
@@ -247,7 +253,7 @@ class User {
 
     TruIdentityMode? activeIdentityMode,
     bool? anonymousOverlayEnabled,
-    TruVibeLabel? vibeLabel,
+    TruTemperament? temperament,
     TruVerificationLevel? verificationLevel,
     int? trustScore,
     TruRiskLevel? riskLevel,
@@ -282,7 +288,7 @@ class User {
 
     activeIdentityMode: activeIdentityMode ?? this.activeIdentityMode,
     anonymousOverlayEnabled: anonymousOverlayEnabled ?? this.anonymousOverlayEnabled,
-    vibeLabel: vibeLabel ?? this.vibeLabel,
+    temperament: temperament ?? this.temperament,
     verificationLevel: verificationLevel ?? this.verificationLevel,
     trustScore: trustScore ?? this.trustScore,
     riskLevel: riskLevel ?? this.riskLevel,
@@ -376,12 +382,32 @@ extension TruIdentityModeX on TruIdentityMode {
   }
 }
 
-enum TruVibeLabel { oldSoul, healing, reflective, radiant, grounded, mysterious }
+/// Dispositional temperament: stable, describes a person rather than a moment.
+///
+/// NOT the same object as the expressive Vibe in `profiles.vibe` (Reflective,
+/// Dreamy, Calm, Flirty, Healing, Energetic, Creative), and not Mood. See
+/// `docs/TruLura_PO_Decision_Vibe_And_Temperament.md`.
+///
+/// `contemplative` and `mending` were `reflective` and `healing`. They were
+/// renamed because those two values also exist in the Vibe vocabulary, and
+/// while they did, a value sitting in the wrong column could not be attributed
+/// to a vocabulary by reading it -- not by a person and not by code. An
+/// invariant that cannot be verified by inspection is not an invariant. The
+/// sets are disjoint now, so `reflective` can only mean Vibe and
+/// `contemplative` can only mean temperament.
+enum TruTemperament {
+  oldSoul,
+  mending,
+  contemplative,
+  radiant,
+  grounded,
+  mysterious
+}
 
-extension TruVibeLabelX on TruVibeLabel {
-  static TruVibeLabel? tryParse(String? raw) {
+extension TruTemperamentX on TruTemperament {
+  static TruTemperament? tryParse(String? raw) {
     if (raw == null) return null;
-    for (final v in TruVibeLabel.values) {
+    for (final v in TruTemperament.values) {
       if (v.name == raw) return v;
     }
     return null;
@@ -389,17 +415,17 @@ extension TruVibeLabelX on TruVibeLabel {
 
   String get label {
     switch (this) {
-      case TruVibeLabel.oldSoul:
+      case TruTemperament.oldSoul:
         return 'Old Soul';
-      case TruVibeLabel.healing:
-        return 'Healing';
-      case TruVibeLabel.reflective:
-        return 'Reflective';
-      case TruVibeLabel.radiant:
+      case TruTemperament.mending:
+        return 'Mending';
+      case TruTemperament.contemplative:
+        return 'Contemplative';
+      case TruTemperament.radiant:
         return 'Radiant';
-      case TruVibeLabel.grounded:
+      case TruTemperament.grounded:
         return 'Grounded';
-      case TruVibeLabel.mysterious:
+      case TruTemperament.mysterious:
         return 'Mysterious';
     }
   }

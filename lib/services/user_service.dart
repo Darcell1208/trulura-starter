@@ -131,7 +131,7 @@ class UserService {
   ///
   /// `profiles.vibe` is the correct home: text, nullable, and previously unused
   /// by any code. Note it is NOT `profiles.vibe_status`, which already holds
-  /// `TruVibeLabel` (oldSoul, grounded, ...) -- a third vocabulary again.
+  /// `TruTemperament` (oldSoul, grounded, ...) -- a third vocabulary again.
   Future<void> _persistVibe(String userId, List<String> moodTags) async {
     final vibe = _firstNonEmpty(moodTags);
     if (vibe == null) return;
@@ -148,6 +148,34 @@ class UserService {
         .eq('id', userId);
   }
 
+  /// Writes the temperament to whichever column this database actually has.
+  ///
+  /// Tries `temperament`, then `vibe_status`, treating a missing-column error
+  /// as "try the next name" and anything else as a real failure worth
+  /// surfacing. Ordered new-name-first so that once the migration lands the
+  /// first attempt succeeds and the fallback costs nothing.
+  ///
+  /// This exists so the schema and the client can be deployed independently. It
+  /// is deliberately narrow: only this one column, only these two names.
+  Future<void> _persistTemperament(String userId, String value) async {
+    for (final column in const <String>['temperament', 'vibe_status']) {
+      try {
+        await _client
+            .from('profiles')
+            .update({column: value})
+            .eq('id', userId)
+            .select('id');
+        return;
+      } catch (e) {
+        if (!_isMissingColumnError(e, column)) rethrow;
+      }
+    }
+    debugPrint(
+      'UserService._persistTemperament: neither temperament nor vibe_status '
+      'exists on profiles; temperament not saved.',
+    );
+  }
+
   Future<void> _persistProfile(User user) async {
     final photoUrl = _nullableTrimmed(user.profileImage);
     final safePayload = <String, dynamic>{
@@ -158,10 +186,25 @@ class UserService {
       'about_me': _nullableTrimmed(user.bio),
       'profile_photo_url': photoUrl,
       'avatar_url': photoUrl,
-      'vibe_status': user.vibeLabel.name,
       'updated_at': DateTime.now().toIso8601String(),
     };
     await _client.from('profiles').upsert(safePayload);
+
+    // Temperament is written separately, and tolerantly, on purpose.
+    //
+    // It used to sit in safePayload, which goes through .upsert() with no
+    // error handling at all. That made the column rename in
+    // 20260910_rename_vibe_status_to_temperament.sql unshippable: applying it
+    // would have failed every profile save with PGRST204 until new Dart
+    // reached every client, and there is no moment when those two things are
+    // simultaneously true.
+    //
+    // This tries the new column name first and falls back to the old one, so a
+    // single build works against both schemas and the migration can land at any
+    // time with no window where a write targets a column that is not there.
+    // Once the migration is applied everywhere, delete the fallback -- that is
+    // step 3, and it is safe to defer.
+    await _persistTemperament(user.id, user.temperament.name);
 
     final optionalPayload = <String, dynamic>{
       'social_preference': _nullableTrimmed(user.socialPreference),
@@ -233,7 +276,7 @@ class UserService {
       activeIdentityMode:
           cached?.activeIdentityMode ?? TruIdentityMode.social,
       anonymousOverlayEnabled: cached?.anonymousOverlayEnabled ?? false,
-      vibeLabel: cached?.vibeLabel ?? TruVibeLabel.oldSoul,
+      temperament: cached?.temperament ?? TruTemperament.oldSoul,
       verificationLevel:
           cached?.verificationLevel ?? TruVerificationLevel.level0,
       trustScore: cached?.trustScore ?? 70,
@@ -454,9 +497,12 @@ class UserService {
         anonymousOverlayEnabled:
             (profile?['anonymous_overlay_enabled'] as bool?) ??
             base.anonymousOverlayEnabled,
-        vibeLabel:
-            TruVibeLabelX.tryParse(profile?['vibe_status']?.toString()) ??
-            base.vibeLabel,
+        // New column name first, old one as fallback, so this build reads
+        // correctly either side of the rename migration.
+        temperament: TruTemperamentX.tryParse(
+              (profile?['temperament'] ?? profile?['vibe_status'])?.toString(),
+            ) ??
+            base.temperament,
         updatedAt: DateTime.now(),
       );
       await _cacheCurrentUser(user);

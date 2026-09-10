@@ -167,12 +167,12 @@ class IdentityService {
     await _applyToCachedUser((u) => u.copyWith(anonymousOverlayEnabled: enabled, updatedAt: DateTime.now()));
   }
 
-  Future<void> setVibeLabel(TruVibeLabel label) async {
+  Future<void> setVibeLabel(TruTemperament label) async {
     final uid = _uid;
     if (uid == null) return;
     final prefs = await _getPrefsFor(uid);
-    await _setPrefsFor(uid, prefs.copyWith(vibeLabel: label));
-    await _applyToCachedUser((u) => u.copyWith(vibeLabel: label, updatedAt: DateTime.now()));
+    await _setPrefsFor(uid, prefs.copyWith(temperament: label));
+    await _applyToCachedUser((u) => u.copyWith(temperament: label, updatedAt: DateTime.now()));
   }
 
   Future<void> setTrustVisibility({bool? showVerification, bool? showTrust}) async {
@@ -211,20 +211,20 @@ class TruIdentityPrefs {
   final TruIdentityMode activeMode;
   final List<TruIdentityMode> activeModes;
   final bool anonymousOverlayEnabled;
-  final TruVibeLabel vibeLabel;
+  final TruTemperament temperament;
 
   const TruIdentityPrefs({
     this.activeMode = TruIdentityMode.social,
     this.activeModes = const [TruIdentityMode.social, TruIdentityMode.dating, TruIdentityMode.creator],
     this.anonymousOverlayEnabled = false,
-    this.vibeLabel = TruVibeLabel.oldSoul,
+    this.temperament = TruTemperament.oldSoul,
   });
 
   Map<String, dynamic> toJson() => {
         'activeMode': activeMode.name,
         'activeModes': activeModes.map((e) => e.name).toList(growable: false),
         'anonymousOverlayEnabled': anonymousOverlayEnabled,
-        'vibeLabel': vibeLabel.name,
+        'temperament': temperament.name,
       };
 
   factory TruIdentityPrefs.fromJson(Map<String, dynamic> json) => TruIdentityPrefs(
@@ -235,13 +235,13 @@ class TruIdentityPrefs {
                 .toList(growable: false) ??
             const [TruIdentityMode.social, TruIdentityMode.dating, TruIdentityMode.creator],
         anonymousOverlayEnabled: (json['anonymousOverlayEnabled'] as bool?) ?? false,
-        vibeLabel: TruVibeLabelX.tryParse(json['vibeLabel'] as String?) ?? TruVibeLabel.oldSoul,
+        temperament: TruTemperamentX.tryParse(json['temperament'] as String?) ?? TruTemperament.oldSoul,
       );
 
-  TruIdentityPrefs copyWith({TruIdentityMode? activeMode, List<TruIdentityMode>? activeModes, bool? anonymousOverlayEnabled, TruVibeLabel? vibeLabel}) => TruIdentityPrefs(
+  TruIdentityPrefs copyWith({TruIdentityMode? activeMode, List<TruIdentityMode>? activeModes, bool? anonymousOverlayEnabled, TruTemperament? temperament}) => TruIdentityPrefs(
         activeMode: activeMode ?? this.activeMode,
         activeModes: activeModes ?? this.activeModes,
         anonymousOverlayEnabled: anonymousOverlayEnabled ?? this.anonymousOverlayEnabled,
-        vibeLabel: vibeLabel ?? this.vibeLabel,
+        temperament: temperament ?? this.temperament,
       );
 }
