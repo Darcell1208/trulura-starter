@@ -108,13 +108,28 @@ class ProfileCompletionService {
         hasInterests &&
         (hasIntent || hasSocialPreference) &&
         hasExpression;
-    final hasMeaningfulProfile = progress >= 72 && discoveryReady;
-    final statusLabel = progress < 26
-        ? 'Just started'
-        : progress < 56
-            ? 'Basics added'
-            : discoveryReady
-                ? (progress >= 88 ? 'Strong profile' : 'Discovery-ready')
+    // Discovery-ready already requires fields worth at least 90 points, so the
+    // old `progress >= 72` guard could never fail and the 'Discovery-ready'
+    // tier (below 88) could never show. Both removed rather than retuned:
+    // loosening what counts as discovery-ready is a separate product question.
+    final hasMeaningfulProfile = discoveryReady;
+
+    // Derived from the same section checks breakdownLabels reports, so the
+    // status cannot claim a section the breakdown lists as missing. It used to
+    // come from percentage cut-offs, which put "Basics added" beside "Basics
+    // missing" on any 26-55% profile without a bio.
+    final sectionsDone = <bool>[
+      hasBasics,
+      hasIdentity,
+      hasLifestyle,
+      hasExpression,
+    ].where((done) => done).length;
+    final statusLabel = discoveryReady
+        ? 'Strong profile'
+        : sectionsDone == 0
+            ? 'Just started'
+            : hasBasics && sectionsDone == 1
+                ? 'Basics added'
                 : 'Building discovery';
 
     return TruProfileCompletionSummary(
