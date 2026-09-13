@@ -46,7 +46,7 @@ class ProfileCompletionService {
   String nextStepCopy(User? user, {int maxItems = 3}) {
     final missing = remainingGuidedFields(user, maxItems: maxItems);
     if (missing.isEmpty) {
-      return 'Your current basics, identity, lifestyle, and expression layers are in place.';
+      return 'Your current basics, vibe, lifestyle, and expression layers are in place.';
     }
     return 'Next: ${_humanizeList(missing)}.';
   }
@@ -54,7 +54,9 @@ class ProfileCompletionService {
   List<String> breakdownLabels(TruProfileCompletionSummary summary) {
     return <String>[
       'Basics ${summary.basicsComplete ? 'done' : 'missing'}',
-      'Identity ${summary.identityComplete ? 'done' : 'missing'}',
+      // "Vibe", not "Identity": this flag is _hasVibe. "Identity" already names
+      // identity mode (the walkthrough's Identity step), which is not scored.
+      'Vibe ${summary.identityComplete ? 'done' : 'missing'}',
       'Lifestyle ${summary.lifestyleComplete ? 'done' : 'missing'}',
       'Expression ${summary.expressionComplete ? 'done' : 'missing'}',
     ];

@@ -27,6 +27,14 @@ void main() {
     );
   });
 
+  test('the vibe section is labelled Vibe, not Identity', () {
+    final empty = scorer.summarize(User.fromJson({}));
+    expect(scorer.breakdownLabels(empty), contains('Vibe missing'));
+    expect(scorer.breakdownLabels(empty).join(' '), isNot(contains('Identity')));
+    final withVibe = scorer.summarize(User.fromJson({'vibe': 'Calm'}));
+    expect(scorer.breakdownLabels(withVibe), contains('Vibe done'));
+  });
+
   test('a discovery-ready profile is Strong and meaningful at its minimum', () {
     final summary = scorer.summarize(User.fromJson({
       'username': 'a',
