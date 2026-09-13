@@ -65,3 +65,7 @@ ios/Pods/
 deps.txt
 deps.txt4
 doctor.txt
+
+# Local-only data snapshots. Never committed: they can hold personal data, and
+# this repository is public.
+/private/

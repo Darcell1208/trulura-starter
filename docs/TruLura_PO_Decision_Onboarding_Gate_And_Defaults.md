@@ -84,10 +84,43 @@ questions. With it gone, signup, sign-in and splash all go to Home. A new
 account is not asked for a vibe, intent or interests unless a Home prompt
 leads them there.
 
-Routing signup into the questions as an ordinary next screen is a separate
-change, held for review. Whether signup must keep asking rests on the Vibe
-record's wording, and that wording is being checked against the Product
-Owner's own words before the routing is committed.
+A change routing signup into the questions as an ordinary next screen was
+drafted, held, and not committed. Two findings on 2026-09-13 explain why:
+
+- **The wording it relied on is the Product Owner's, but about vibe.** The
+  ruling of 2026-09-10 (user message in session `f82cfc6c`, 03:57 UTC) reads:
+  "This is what signup asks for and it should keep asking." That ruling covers
+  **vibe**; the draft routed to the intent screen.
+- **Code placed after signup never runs on this project.** Email confirmation
+  is required: `mailer_autoconfirm: false`, read from the live auth settings
+  endpoint at 2026-09-13 03:43 UTC. A new account gets no session at signup and
+  is sent to sign-in, so the first real entry point is sign-in.
+
+Chosen instead, and implemented: option (b). The draft that routed signup to
+the intent screen was reverted before it was ever committed.
+
+On sign-in, `UserService.readOwnVibe` reads `profiles.vibe` and returns one of
+three states:
+
+| State | Destination |
+|---|---|
+| read, empty | `/onboarding/vibe`, with Home as the return address so Skip shows |
+| read, set | Home |
+| unknown — the query failed, or no row came back | Home, unasked |
+
+A failed read must not look like an empty vibe, which is why "unknown" is its
+own state. Nothing is stored: "once" is the condition itself. A user who skips
+is asked again at their next sign-in, and the behaviour follows the account,
+not the device.
+
+**Verification status.**
+- **Unit-tested:** the destination for all three states
+  (`test/sign_in_destination_test.dart`).
+- **Not observed:** the positive route has not been seen in the running app.
+  Every live account has a vibe, and a new signup depends on SMTP.
+- **To observe:** the failure route, by blocking `*/rest/v1/profiles*` in
+  browser DevTools during sign-in.
+- **Not tested at all:** `readOwnVibe` itself, which needs a live client.
 
 **Guardrail:** do not reintroduce a field check in the router redirect. The
 comment there points to this record.
@@ -168,6 +201,60 @@ masked by the cache. That is intended: visibly missing beats silently wrong.
   gate that made that question dangerous; it does not answer it. §2.1 names
   "initial intent selection" during onboarding as a mode activation trigger, so
   that decision will have to address it.
-- **Scorer labels and thresholds** (the status label, the unreachable tier, and
-  "Identity" meaning Vibe), and the scope of what the completion score counts.
-  Raised on 2026-09-12 and not decided here.
+- **Scorer thresholds and scope.** Settled on 2026-09-13: the status label now
+  derives from the section checks, the dead branches are deleted (`60c1bc6`),
+  and the vibe section is labelled "Vibe" (`95d0015`). Still open: whether
+  discovery-ready should be looser so a middle tier exists, and the scope of
+  what the completion score counts.
+- **Class C — collect Vibe on the signup form and carry it into the profile
+  row through auth metadata.** Recorded, not implemented. *(The Class A–E
+  classification comes from the Product Owner's open-decisions tracker and is
+  not defined in this repository; a search of `docs/` for "Class [A-E]"
+  returned nothing on 2026-09-13.)*
+
+  **The proposal.** The signup form passes the chosen vibe in `signUp` user
+  metadata, alongside the `name` it already sends. The `on_auth_user_created`
+  trigger (`public.handle_new_user`, read from the live database on
+  2026-09-13) already inserts the `profiles` row from the new `auth.users` row,
+  so it can write `profiles.vibe` from `raw_user_meta_data` in the same
+  transaction. Nothing is held on the client.
+
+  **Why it is a candidate.** It is the literal reading of "signup asks". It is
+  also the only option under which a user's first Home already has an aura.
+
+  **What deciding it needs.**
+  - User metadata is client-controlled, so the trigger has to accept only the
+    seven Vibe values and write NULL otherwise.
+  - The trigger currently sets `username` and `display_name` to the part of
+    the email before the @. That is a default counted as an answer, and it is
+    tracked separately below.
+- **Signup fails when two emails share a local part — a signup-failure bug, not
+  a cosmetic default.**
+  - **The cause:** `handle_new_user` writes the email's local part to
+    `profiles.username`, which is `UNIQUE` (`profiles_username_key`).
+    `on conflict (id) do nothing` guards duplicate ids, not duplicate
+    usernames. So a second address with the same local part (`alex@` at two
+    domains) violates the constraint inside the trigger, and the whole signup
+    transaction rolls back. Confirmed 2026-09-13 with a rolled-back probe that
+    raised `unique_violation`.
+  - **What the client sees:** GoTrue answers 500 ("Database error saving new
+    user"), which gotrue-dart raises as `AuthRetryableFetchException` carrying
+    the raw response body. `sign_up_screen` shows that raw body in a SnackBar.
+    Read from the code, not observed.
+  - **So the failure is surfaced, not swallowed**, but it is uninformative, it
+    is labelled "retryable" when a retry can never succeed, and the user cannot
+    fix it, because signup does not ask for a username.
+  - **Status:** fix proposed, not applied. The fallback username needs a
+    Product Owner call.
+- **Email-derived names are visible to other users.**
+  - **Where:** Sync, Explore, feed authors and chat all render other users'
+    `display_name` and `username`. The guard in `User.publicDisplayNameFrom`
+    cannot fire for other users, because their loaded profiles carry no email.
+    `profiles_select_authenticated` is `USING (true)`.
+  - **Snapshot:** before anything touches them, the current `username` and
+    `display_name` of all three rows were saved to
+    `private/profiles_name_snapshot_2026-09-13.json`. It is gitignored and
+    never committed, because this repository is public.
+  - **Which rows:** `d9fa2f57` has a hand-set username and display name;
+    `350201ed` and `d56a61aa` have both email-derived.
+  - **Clearing** any row is a data write, blocked on the naming decision.

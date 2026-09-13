@@ -4,6 +4,7 @@ import 'package:go_router/go_router.dart';
 import 'package:trulura/compat/provider_compat.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:trulura/core/navigation/app_router.dart';
+import 'package:trulura/features/auth/sign_in_destination.dart';
 import 'package:trulura/providers/app_provider.dart';
 import 'package:trulura/services/auth_service/auth_service.dart';
 import 'package:trulura/services/user_service.dart';
@@ -45,12 +46,16 @@ class _SignInScreenState extends State<SignInScreen> {
         email: _email.text.trim(),
         password: _password.text,
       );
-      final user = await UserService().getCurrentUser();
+      final users = UserService();
+      final user = await users.getCurrentUser();
+      // Read separately, as three states: a failed read must not look like an
+      // empty vibe. See signInDestination.
+      final vibe = await users.readOwnVibe();
       if (!mounted) return;
       messenger?.clearSnackBars();
       messenger?.clearMaterialBanners();
       context.read<AppProvider>().setCurrentUser(user);
-      context.go(AppRoutes.home);
+      context.go(signInDestination(vibe));
     } catch (e) {
       debugPrint('Sign in failed: $e');
       if (!mounted) return;

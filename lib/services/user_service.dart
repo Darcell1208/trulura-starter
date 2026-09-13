@@ -5,6 +5,7 @@ import 'package:flutter/foundation.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:supabase_flutter/supabase_flutter.dart' as sb;
 import 'package:trulura/models/user.dart';
+import 'package:trulura/models/vibe_read.dart';
 import 'package:trulura/services/auth_service/auth_service.dart';
 import 'package:trulura/services/database_service/database_service.dart';
 
@@ -501,6 +502,31 @@ class UserService {
     } catch (e) {
       debugPrint('Failed to get current user: $e');
       return null;
+    }
+  }
+
+  /// Reads this account's saved Vibe for the sign-in routing decision.
+  ///
+  /// getCurrentUser cannot answer this: it returns null on any error and fills
+  /// Vibe from the local cache when no profiles row comes back, so an empty
+  /// moodTags there can mean "saved as empty" or "could not read". Only a
+  /// successful read of a present row with an empty vibe is [VibeRead.empty].
+  Future<VibeRead> readOwnVibe() async {
+    try {
+      if (!_supabaseReady) return VibeRead.unknown;
+      final authUser = AuthService.instance.currentAuthUser;
+      if (authUser == null) return VibeRead.unknown;
+      final row = await _client
+          .from('profiles')
+          .select('vibe')
+          .eq('id', authUser.id)
+          .maybeSingle();
+      if (row == null) return VibeRead.unknown;
+      final vibe = row['vibe']?.toString().trim() ?? '';
+      return vibe.isEmpty ? VibeRead.empty : VibeRead.present;
+    } catch (e) {
+      debugPrint('UserService.readOwnVibe failed: ${safeError(e)}');
+      return VibeRead.unknown;
     }
   }
 
