@@ -129,9 +129,13 @@ class ProfileCompletionService {
     );
   }
 
-  bool _hasVibe(User user) {
-    return user.temperament != TruTemperament.oldSoul || user.moodTags.isNotEmpty;
-  }
+  /// Vibe only. `user.moodTags` is hydrated from `profiles.vibe`.
+  ///
+  /// This used to also accept a non-default temperament as evidence of Vibe,
+  /// which is one concept's storage scoring another -- the rule in
+  /// TruLura_PO_Decision_Vibe_And_Temperament.md. An empty vibe scores zero
+  /// whatever the temperament is.
+  bool _hasVibe(User user) => user.moodTags.isNotEmpty;
 
   bool _hasExpression(User user) {
     return (user.expressionPromptAnswer ?? '').trim().isNotEmpty ||

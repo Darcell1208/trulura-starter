@@ -311,6 +311,7 @@ class UserService {
           row['username']?.toString() ??
           '',
       'username': row['username']?.toString() ?? '',
+      'moodTags': User.vibeFromJson(row),
       'bio': row['bio']?.toString() ?? row['about_me']?.toString() ?? '',
       'profile_photo_url': row['profile_photo_url']?.toString() ??
           row['avatar_url']?.toString() ??
@@ -427,15 +428,9 @@ class UserService {
             .eq('user_id', authUser.id)
             .eq('active', true)
             .maybeSingle(),
-        _client
-            .from('user_states')
-            .select('mood_tag')
-            .eq('user_id', authUser.id)
-            .maybeSingle(),
       ]);
       final profile = results[0];
       final matchmakingProfile = results[1];
-      final userState = results[2];
       final base = _fromAuthUser(authUser, cached: cached);
       final profileBio =
           (profile?['bio'] ?? profile?['about_me'])?.toString().trim() ?? '';
@@ -444,7 +439,6 @@ class UserService {
               ? profile!['profile_photo_url'].toString().trim()
               : ((profile?['avatar_url'])?.toString().trim() ?? '');
       final intent = matchmakingProfile?['intent']?.toString().trim() ?? '';
-      final mood = userState?['mood_tag']?.toString().trim() ?? '';
       final profileInterests = _stringListOrEmpty(
         _mapOrEmpty(matchmakingProfile?['preferences'])['interests'],
       );
@@ -460,7 +454,9 @@ class UserService {
         bio: profileBio.isNotEmpty ? profileBio : base.bio,
         profileImage: profileAvatar.isNotEmpty ? profileAvatar : base.profileImage,
         intents: intent.isNotEmpty ? <String>[intent] : base.intents,
-        moodTags: mood.isNotEmpty ? <String>[mood] : base.moodTags,
+        moodTags: profile == null
+            ? base.moodTags
+            : User.vibeFromJson(Map<String, dynamic>.from(profile)),
         interests: profileInterests.isNotEmpty
             ? profileInterests
             : base.interests,

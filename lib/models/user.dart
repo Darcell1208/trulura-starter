@@ -126,6 +126,16 @@ class User {
     return const <String>[];
   }
 
+  /// Vibe only: the profile column is authoritative, including when empty.
+  /// Older cache names describe the same concept; Mood and temperament do not.
+  static List<String> vibeFromJson(Map<String, dynamic> json) {
+    if (json.containsKey('vibe')) {
+      final vibe = (json['vibe'] as String?)?.trim() ?? '';
+      return vibe.isEmpty ? const <String>[] : <String>[vibe];
+    }
+    return _stringListFromJson(json['moodTags'] ?? json['mood_tags']);
+  }
+
   factory User.fromJson(Map<String, dynamic> json) => User(
     id: (json['id'] as String?) ?? '',
     name: (json['name'] as String?) ?? (json['display_name'] as String?) ?? '',
@@ -141,7 +151,7 @@ class User {
     pronouns: json['pronouns'] as String?,
     languages: _stringListFromJson(json['languages']),
     intents: _stringListFromJson(json['intents']),
-    moodTags: _stringListFromJson(json['moodTags'] ?? json['mood_tags']),
+    moodTags: vibeFromJson(json),
     interests: _stringListFromJson(json['interests']),
     socialPreference: ((json['socialPreference'] as String?) ??
                 (json['social_preference'] as String?))
