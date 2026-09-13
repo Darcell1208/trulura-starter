@@ -100,6 +100,16 @@ why `_hasVibe` scored zero and the completion banner read 54%.
 
 The read now sources `profiles.vibe`.
 
+> **Correction (2026-09-12): "FIXED" was only half true when written.**
+> `AppProvider`'s own read sourced `profiles.vibe`, but `AppProvider` loads its
+> cached user through `UserService.getCurrentUser()`, and that path still read
+> `user_states.mood_tag` into the Vibe field. Mood kept reaching Vibe through
+> the cache fallback after this section said it could not. Closed in `b343abe`,
+> which also stopped `ProfileCompletionService._hasVibe` scoring a non-default
+> temperament as Vibe. The last Mood read standing in for Vibe -- the
+> onboarding gate's `needsOnboarding` -- is removed together with the gate;
+> see `TruLura_PO_Decision_Onboarding_Gate_And_Defaults.md`.
+
 **The old fallback was worse than absent.** It read `user_states.mood_tag` — the
 Mood column — so `moodTags` silently backfilled from a different concept with a
 disjoint value set. That is the exact sharing that froze the aura. Dropped
@@ -155,3 +165,6 @@ Neither is done, and neither should be guessed at.
   genuinely do duplicate the walkthrough — same destination
   (`matchmaking_profiles`), later flow wins — and are a separate decision. Vibe
   is not part of that question, which was the finding that prompted this record.
+  Its prerequisite -- whether any profile field may gate entry to the app -- was
+  decided on 2026-09-12 in `TruLura_PO_Decision_Onboarding_Gate_And_Defaults.md`:
+  none may. Whether signup stops asking intent and interests is still open.

@@ -241,15 +241,6 @@ class _ProfileSetupScreenState extends State<ProfileSetupScreen> {
     }
   }
 
-  double _onboardingProgressValue() {
-    final finishedSteps = _step.clamp(0, _stepTitles.length - 1);
-    final progress =
-        (finishedSteps + _stepCompletionFor(_step)) / _stepTitles.length;
-    return progress.clamp(0.0, 0.95);
-  }
-
-  int _onboardingPercent() => (_onboardingProgressValue() * 100).round();
-
   String _progressMessage() {
     return switch (_step) {
       0 => 'Add the basics people should see first: name, username, age, location, photo, and bio.',
@@ -314,8 +305,6 @@ class _ProfileSetupScreenState extends State<ProfileSetupScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final onboardingPercent = _onboardingPercent();
-
     return TruLuraOnboardingScaffold(
       title: 'Profile setup',
       subtitle:
@@ -353,8 +342,15 @@ class _ProfileSetupScreenState extends State<ProfileSetupScreen> {
                         color: Colors.white.withValues(alpha: 0.10),
                       ),
                     ),
+                    // Guidance only. This used to print a percentage --
+                    // (finished steps + share of this step's fields) / 4,
+                    // capped at 95%: 8% on Step 1 with two basics filled, 50%
+                    // one tap later. That measured position in the walkthrough,
+                    // not profile completeness, and disagreed with
+                    // ProfileCompletionService on the same profile. Position is
+                    // already shown by the "Step n of 4" header above.
                     child: Text(
-                      'Setup progress: $onboardingPercent% • ${_progressMessage()}',
+                      _progressMessage(),
                       style: Theme.of(context).textTheme.bodyMedium?.copyWith(
                             color: Colors.white,
                             fontWeight: FontWeight.w700,

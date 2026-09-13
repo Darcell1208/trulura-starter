@@ -58,8 +58,6 @@ class AppProvider with ChangeNotifier {
   bool _fullSyncModeEnabled = false;
 
   bool _initialized = false;
-  bool _hasPersistedIntent = false;
-  bool _hasPersistedMood = false;
   bool _askVibeAtStartup = false;
   bool _askIntentAtStartup = false;
   bool _rememberMoodIntent = true;
@@ -104,8 +102,6 @@ class AppProvider with ChangeNotifier {
   bool get fullSyncModeEnabled => _fullSyncModeEnabled;
   bool get initialized => _initialized;
   int get mainTabIndex => _mainTabIndex;
-  bool get hasPersistedIntent => _hasPersistedIntent;
-  bool get hasPersistedMood => _hasPersistedMood;
   bool get askVibeAtStartup => _askVibeAtStartup;
   bool get askIntentAtStartup => _askIntentAtStartup;
   bool get rememberMoodIntent => _rememberMoodIntent;
@@ -118,18 +114,6 @@ class AppProvider with ChangeNotifier {
         vibe: _currentUser?.temperament.label ?? 'Old Soul',
         moods: _currentUser?.moodTags ?? const <String>[],
       );
-
-  /// Whether the authed user still needs to complete the Phase-1 onboarding flow.
-  ///
-  /// Entry onboarding is complete once the user has chosen an intent
-  /// and at least one mood/vibe tag. Profile setup stays optional.
-  bool get needsOnboarding {
-    final hasIntent = _hasPersistedIntent ||
-        _stringListOrEmpty(_currentUser?.intents).isNotEmpty;
-    final hasMood = _hasPersistedMood ||
-        _stringListOrEmpty(_currentUser?.moodTags).isNotEmpty;
-    return !(hasIntent && hasMood);
-  }
 
   /// 0.3–0.4 is roughly a 60–70% reduction (Soft Mode requirement).
   double get glowScale =>
@@ -188,13 +172,16 @@ class AppProvider with ChangeNotifier {
     return const <String>[];
   }
 
+  String? _trimmedOrNull(dynamic raw) {
+    final value = raw?.toString().trim() ?? '';
+    return value.isEmpty ? null : value;
+  }
+
   Future<void> _syncCurrentUserFromSupabase() async {
     final supabaseUser = SupabaseConfig.auth.currentUser;
 
     if (supabaseUser == null) {
       _currentUser = null;
-      _hasPersistedIntent = false;
-      _hasPersistedMood = false;
       notifyListeners();
       return;
     }
@@ -229,20 +216,14 @@ class AppProvider with ChangeNotifier {
             .eq('user_id', supabaseUser.id)
             .eq('active', true)
             .maybeSingle(),
-        SupabaseConfig.client
-            .from('user_states')
-            .select('mood_tag')
-            .eq('user_id', supabaseUser.id)
-            .maybeSingle(),
+        // No user_states read. It fetched mood_tag -- Mood -- only to let a
+        // Mood satisfy the onboarding gate's "has a vibe" check. The gate is
+        // gone, and Mood was never evidence of Vibe.
       ]);
       final profile = results[0];
       final matchmakingProfile = results[1];
-      final userState = results[2];
       final schemaIntent =
           matchmakingProfile?['intent']?.toString().trim() ?? '';
-      final schemaMood = userState?['mood_tag']?.toString().trim() ?? '';
-      _hasPersistedIntent = schemaIntent.isNotEmpty;
-      _hasPersistedMood = schemaMood.isNotEmpty;
 
       final normalizedProfile =
           Map<String, dynamic>.from(profile ?? <String, dynamic>{});
@@ -290,13 +271,14 @@ class AppProvider with ChangeNotifier {
       final moodTags = profile == null
           ? (cachedUser?.moodTags ?? const <String>[])
           : model.User.vibeFromJson(normalizedProfile);
-      normalizedProfile['intents'] = intents.isNotEmpty
-          ? intents
-          : (cachedUser?.intents ?? const <String>[]);
+      // A fetched value is authoritative, including when it is empty. These
+      // used to fall back to the local cache, so a value that never reached
+      // the server -- a save that failed -- kept scoring as a saved answer.
+      // That is a default counted as an answer. The cache stands in only when
+      // nothing was fetched: the catch below, or no profiles row at all.
+      normalizedProfile['intents'] = intents;
       normalizedProfile['moodTags'] = moodTags;
-      normalizedProfile['interests'] = profileInterests.isNotEmpty
-          ? profileInterests
-          : (cachedUser?.interests ?? const <String>[]);
+      normalizedProfile['interests'] = profileInterests;
       normalizedProfile['location'] =
           (normalizedProfile['location'] as String?)?.trim().isNotEmpty == true
               ? (normalizedProfile['location'] as String?)?.trim()
@@ -310,35 +292,22 @@ class AppProvider with ChangeNotifier {
       ).isNotEmpty
           ? _stringListOrEmpty(normalizedProfile['languages'])
           : (cachedUser?.languages ?? const <String>[]);
-      normalizedProfile['socialPreference'] =
-          (normalizedProfile['social_preference'] as String?)
-                      ?.trim()
-                      .isNotEmpty ==
-                  true
-              ? (normalizedProfile['social_preference'] as String?)?.trim()
-              : cachedUser?.socialPreference;
-      normalizedProfile['expressionPromptAnswer'] =
-          (normalizedProfile['expression_prompt_answer'] as String?)
-                      ?.trim()
-                      .isNotEmpty ==
-                  true
-              ? (normalizedProfile['expression_prompt_answer'] as String?)
-                  ?.trim()
-              : cachedUser?.expressionPromptAnswer;
-      normalizedProfile['expressionVibeTag'] =
-          (normalizedProfile['expression_vibe_tag'] as String?)
-                      ?.trim()
-                      .isNotEmpty ==
-                  true
-              ? (normalizedProfile['expression_vibe_tag'] as String?)?.trim()
-              : cachedUser?.expressionVibeTag;
-      normalizedProfile['expressionShortPost'] =
-          (normalizedProfile['expression_short_post'] as String?)
-                      ?.trim()
-                      .isNotEmpty ==
-                  true
-              ? (normalizedProfile['expression_short_post'] as String?)?.trim()
-              : cachedUser?.expressionShortPost;
+      // Same rule as intents / interests above: the profiles row wins, empty
+      // included. Location, pronouns and languages keep their cache fallback
+      // because profiles has no column for them -- the cache is their only
+      // store, not a stand-in for a saved value.
+      normalizedProfile['socialPreference'] = profile == null
+          ? cachedUser?.socialPreference
+          : _trimmedOrNull(normalizedProfile['social_preference']);
+      normalizedProfile['expressionPromptAnswer'] = profile == null
+          ? cachedUser?.expressionPromptAnswer
+          : _trimmedOrNull(normalizedProfile['expression_prompt_answer']);
+      normalizedProfile['expressionVibeTag'] = profile == null
+          ? cachedUser?.expressionVibeTag
+          : _trimmedOrNull(normalizedProfile['expression_vibe_tag']);
+      normalizedProfile['expressionShortPost'] = profile == null
+          ? cachedUser?.expressionShortPost
+          : _trimmedOrNull(normalizedProfile['expression_short_post']);
       normalizedProfile['activeIdentityMode'] =
           (normalizedProfile['active_identity_mode'] as String?) ??
               cachedUser?.activeIdentityMode.name ??
@@ -399,9 +368,8 @@ class AppProvider with ChangeNotifier {
       );
     } catch (e) {
       debugPrint('AppProvider._syncCurrentUserFromSupabase failed: $e');
+      // Nothing was fetched, so the cache is the only answer available.
       _currentUser = cachedUser;
-      _hasPersistedIntent = cachedUser?.intents.isNotEmpty ?? false;
-      _hasPersistedMood = cachedUser?.moodTags.isNotEmpty ?? false;
     }
 
     notifyListeners();

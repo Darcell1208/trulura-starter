@@ -50,7 +50,7 @@ class _SplashScreenState extends State<SplashScreen> {
       }
 
       app.setCurrentUser(user);
-      _go(app.needsOnboarding ? AppRoutes.onboardingIntent : AppRoutes.home);
+      _go(AppRoutes.home);
     } catch (e) {
       debugPrint('SplashScreen auth gate failed: $e');
       if (mounted) _go(AppRoutes.signIn);

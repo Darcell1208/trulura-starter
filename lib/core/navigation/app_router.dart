@@ -63,10 +63,6 @@ class AppRouter {
             loc == AppRoutes.login ||
             loc == AppRoutes.signup;
         bool isOnboardingFlow(String loc) => loc.startsWith('/onboarding');
-        bool isMinimalEntryOnboarding(String p) =>
-            p == AppRoutes.onboardingIntent ||
-            p == AppRoutes.onboardingVibe ||
-            p == AppRoutes.onboardingInterests;
         bool isPublic(String loc) =>
             loc == AppRoutes.splash ||
             loc == AppRoutes.softMode ||
@@ -80,27 +76,21 @@ class AppRouter {
         if (location == AppRoutes.post) return AppRoutes.createPost;
         if (location == AppRoutes.aiCompanion) return AppRoutes.aiCompanionHub;
 
+        // Being signed in is the only gate. There used to be a second one,
+        // AppProvider.needsOnboarding, which required an intent plus a vibe
+        // and redirected every other route to /onboarding/intent. Any
+        // field-based gate keeps a lockout one flow change away: stop asking
+        // the question and nobody reaches the app, including the walkthrough
+        // that would ask it. A profile missing answers is a scoring problem,
+        // not an access problem. Do not reintroduce a field check here.
+        // PO decision: docs/TruLura_PO_Decision_Onboarding_Gate_And_Defaults.md
         if (path == AppRoutes.splash && appProvider.initialized) {
-          return isAuthed
-              ? (appProvider.needsOnboarding
-                  ? AppRoutes.onboardingIntent
-                  : AppRoutes.home)
-              : AppRoutes.signIn;
+          return isAuthed ? AppRoutes.home : AppRoutes.signIn;
         }
 
         if (!isAuthed && !isPublic(location)) return AppRoutes.signIn;
 
-        if (isAuthed && isAuthFlow(location)) {
-          return appProvider.needsOnboarding
-              ? AppRoutes.onboardingIntent
-              : AppRoutes.home;
-        }
-
-        if (isAuthed &&
-            appProvider.needsOnboarding &&
-            !isMinimalEntryOnboarding(path)) {
-          return AppRoutes.onboardingIntent;
-        }
+        if (isAuthed && isAuthFlow(location)) return AppRoutes.home;
 
         return null;
       },

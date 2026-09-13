@@ -103,9 +103,11 @@ class UserService {
 
     if ((updated as List).isNotEmpty) return;
 
+    // No intent default: payload carries intent only when the user chose one.
+    // This used to insert 'Social', recording an answer nobody gave, which
+    // then scored as intent's 10 points and read back as their choice.
     await _client.from('matchmaking_profiles').insert({
       'user_id': user.id,
-      'intent': intent ?? 'Social',
       ...payload,
     });
   }
@@ -442,7 +444,7 @@ class UserService {
       final profileInterests = _stringListOrEmpty(
         _mapOrEmpty(matchmakingProfile?['preferences'])['interests'],
       );
-      final user = base.copyWith(
+      final merged = base.copyWith(
         name:
             (profile?['display_name']?.toString().trim().isNotEmpty ?? false)
                 ? profile!['display_name'].toString().trim()
@@ -451,41 +453,13 @@ class UserService {
             (profile?['username']?.toString().trim().isNotEmpty ?? false)
                 ? profile!['username'].toString().trim()
                 : base.username,
-        bio: profileBio.isNotEmpty ? profileBio : base.bio,
-        profileImage: profileAvatar.isNotEmpty ? profileAvatar : base.profileImage,
-        intents: intent.isNotEmpty ? <String>[intent] : base.intents,
+        // The matchmaking query succeeded, so its answer is authoritative even
+        // when there is no row: no intent, no interests -- not the cache.
+        intents: intent.isNotEmpty ? <String>[intent] : const <String>[],
         moodTags: profile == null
             ? base.moodTags
             : User.vibeFromJson(Map<String, dynamic>.from(profile)),
-        interests: profileInterests.isNotEmpty
-            ? profileInterests
-            : base.interests,
-        socialPreference:
-            (profile?['social_preference']?.toString().trim().isNotEmpty ??
-                    false)
-                ? profile!['social_preference'].toString().trim()
-                : base.socialPreference,
-        expressionPromptAnswer:
-            (profile?['expression_prompt_answer']
-                        ?.toString()
-                        .trim()
-                        .isNotEmpty ??
-                    false)
-                ? profile!['expression_prompt_answer'].toString().trim()
-                : base.expressionPromptAnswer,
-        expressionVibeTag:
-            (profile?['expression_vibe_tag']?.toString().trim().isNotEmpty ??
-                    false)
-                ? profile!['expression_vibe_tag'].toString().trim()
-                : base.expressionVibeTag,
-        expressionShortPost:
-            (profile?['expression_short_post']
-                        ?.toString()
-                        .trim()
-                        .isNotEmpty ??
-                    false)
-                ? profile!['expression_short_post'].toString().trim()
-                : base.expressionShortPost,
+        interests: profileInterests,
         activeIdentityMode: TruIdentityModeX.tryParse(
               profile?['active_identity_mode']?.toString(),
             ) ??
@@ -501,6 +475,27 @@ class UserService {
             base.temperament,
         updatedAt: DateTime.now(),
       );
+      // Scored profile fields come from the fetched row, empty included. They
+      // used to fall back to the cache, so a value that never reached the
+      // server kept scoring as a saved answer -- a default counted as an
+      // answer. copyWith cannot clear a field (null keeps the old value),
+      // hence the JSON round trip, the same one the local cache relies on.
+      // No row fetched at all: keep the cache.
+      final user = profile == null
+          ? merged
+          : User.fromJson({
+              ...merged.toJson(),
+              'bio': _nullableTrimmed(profileBio),
+              'profileImage': _nullableTrimmed(profileAvatar),
+              'socialPreference':
+                  _nullableTrimmed(profile['social_preference']?.toString()),
+              'expressionPromptAnswer': _nullableTrimmed(
+                  profile['expression_prompt_answer']?.toString()),
+              'expressionVibeTag':
+                  _nullableTrimmed(profile['expression_vibe_tag']?.toString()),
+              'expressionShortPost': _nullableTrimmed(
+                  profile['expression_short_post']?.toString()),
+            });
       await _cacheCurrentUser(user);
       return user;
     } catch (e) {
@@ -592,19 +587,18 @@ class UserService {
       if (_supabaseReady) {
         final existing = await _client
             .from('matchmaking_profiles')
-            .select('intent, preferences')
+            .select('preferences')
             .eq('user_id', userId)
             .maybeSingle();
         final mergedPreferences = <String, dynamic>{
           ..._mapOrEmpty(existing?['preferences']),
           'interests': cleaned,
         };
+        // Interests only; intent is left as saved, or absent. This used to
+        // write 'Social' whenever no intent existed -- an interests save
+        // recording an intent the user never chose.
         final payload = <String, dynamic>{
           'active': true,
-          'intent':
-              existing?['intent']?.toString().trim().isNotEmpty == true
-                  ? existing!['intent'].toString().trim()
-                  : 'Social',
           'preferences': mergedPreferences,
         };
         final updated = await _client

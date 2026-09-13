@@ -461,8 +461,7 @@ class _HomeHubScreenState extends State<HomeHubScreen>
       debugPrint(
         'HomeHubScreen loaded profile: '
         'hasUsername=${(user?.username ?? '').isNotEmpty}, '
-        'bioChars=${(user?.bio ?? '').length}, '
-        'needsOnboarding=${app.needsOnboarding}',
+        'bioChars=${(user?.bio ?? '').length}',
       );
     }
     if (_promptStateUserId != userId && !_loadingPromptState) {
