@@ -1,3 +1,33 @@
+-- ============================================================================
+-- STATE AS OF 2026-09-14 -- READ THIS BEFORE RUNNING THE FILE
+-- ============================================================================
+--
+-- This file has never been run as a whole, but both of its structural changes
+-- are already live, applied by other means. The SQL below is unchanged.
+--
+--   SQL step 1, rename vibe_status -> temperament: applied as the separate
+--     migration 20260914030033 rename_profiles_vibe_status_to_temperament,
+--     which renamed the column and set a shorter column comment. The guarded
+--     DO block below will no-op.
+--
+--   SQL step 2, drop profiles.persona: applied 2026-09-14 by the Product Owner
+--     in the Supabase SQL editor, after a same-transaction check that every
+--     row was null. IRREVERSIBLE: the column is gone and cannot be restored by
+--     re-running anything. `drop column if exists persona` below will no-op.
+--     This drop is NOT in migration history; the SQL editor does not record
+--     one.
+--
+-- Running the file now would only re-run the 1b value updates (0 rows held
+-- 'reflective' or 'healing' as a temperament at 2026-09-14 22:12 UTC) and
+-- replace the temperament column comment with the fuller one below. Nothing
+-- destructive remains in it.
+--
+-- The "NOT YET APPLIED" line and the ORDER section below describe the plan as
+-- written on 2026-09-10. They are kept as the record of that plan.
+--
+-- Recorded in docs/TruLura_PO_Decision_Vibe_And_Temperament.md, Ruling 4.
+-- ============================================================================
+
 -- NOT YET APPLIED. Do not run this before the Dart in step 1 below has shipped.
 --
 -- Renames profiles.vibe_status -> profiles.temperament, and drops the dead

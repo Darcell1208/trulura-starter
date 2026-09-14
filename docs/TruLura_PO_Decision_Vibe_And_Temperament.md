@@ -3,7 +3,7 @@
 **Decision date:** 2026-09-10
 **Decided by:** Darcell (Product Owner)
 **Amended 2026-09-13:** three rulings confirmed or made, and the column rename now live — see *Addendum* at the end of this record. The text above the addendum is unchanged.
-**Amended 2026-09-14:** `profiles.persona` is dropped (not yet applied), Vibe is Aura, and Vibe is Layer 1 — see *Addendum — 2026-09-14*.
+**Amended 2026-09-14:** `profiles.persona` is dropped (applied 2026-09-14), Vibe is Aura, and Vibe is Layer 1 — see *Addendum — 2026-09-14*.
 **Classification: Product Owner Decision, 2026.** The Blueprint does not
 address any of this. It has no pseudonym concept, no vibe taxonomy, and does
 not distinguish expressive state from disposition. Everything below is authored
@@ -223,7 +223,7 @@ Neither is done, and neither should be guessed at.
 **Decided by:** Darcell (Product Owner), 2026-09-14
 **Classification: Product Owner Decisions, 2026 — Class D in the Product Owner's tracker.** Nothing above this addendum was rewritten.
 
-### Ruling 4 — `profiles.persona` is dropped — DECIDED, NOT YET APPLIED
+### Ruling 4 — `profiles.persona` is dropped — DECIDED, APPLIED 2026-09-14
 
 > "Drop it"
 
@@ -231,6 +231,10 @@ Neither is done, and neither should be guessed at.
 - **How:** apply the repo's own `supabase/migrations/20260910_rename_vibe_status_to_temperament.sql` unchanged. Its rename step is guarded and will no-op, its value step rewrites any temperament `reflective`/`healing` to `contemplative`/`mending`, and its step 2 drops `persona`.
 - **Irreversible.** The column must be verified all-null immediately before the file runs, not from an earlier check.
 - **Status, 2026-09-14 18:54 UTC:** verified immediately before the attempt — `persona` null in 3 of 3 rows; no view, function, policy, index or constraint depends on it; no temperament row holds `reflective` or `healing`. **The file was not applied:** the session's permission layer blocked the migration. `profiles.persona` still exists. That check is now a snapshot and must be repeated before the file runs.
+- **Applied, 2026-09-14, by the Product Owner in the Supabase SQL editor.** A guarded block raised an exception if any row held a non-null `persona`, and dropped the column in the same transaction; its verification query returned exactly `temperament` and `vibe`.
+- **Confirmed independently at 22:12:01 UTC:** of `persona`, `vibe_status`, `temperament` and `vibe`, `profiles` now has only `temperament` and `vibe`; 3 rows; temperament `grounded` ×1 and `oldSoul` ×2; 0 rows hold `reflective` or `healing`.
+- **Not by the method recorded above.** The repo file was not run. Its value updates (1b) had no rows to change, but its fuller `temperament` column comment was not applied. The drop is not in `supabase_migrations.schema_migrations`, because the SQL editor does not record one; the only related entry is `20260914030033 rename_profiles_vibe_status_to_temperament`.
+- **The migration file now says so** in a header above its original text: both of its structural steps are live, and its step 2 will no-op.
 - Settles *What this record does not decide*, first bullet.
 
 ### Ruling 5 — Vibe is Aura
