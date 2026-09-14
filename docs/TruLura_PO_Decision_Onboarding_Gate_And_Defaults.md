@@ -225,9 +225,11 @@ masked by the cache. That is intended: visibly missing beats silently wrong.
   **What deciding it needs.**
   - User metadata is client-controlled, so the trigger has to accept only the
     seven Vibe values and write NULL otherwise.
-  - The trigger currently sets `username` and `display_name` to the part of
-    the email before the @. That is a default counted as an answer, and it is
-    tracked separately below.
+  - When this was written, the trigger set `username` and `display_name` to
+    the part of the email before the @. That is a default counted as an
+    answer, and it is tracked separately below. Since 2026-09-14
+    (`20260914132443`) the trigger writes a NULL `username`; `display_name` is
+    still email-derived.
 - **Signup fails when two emails share a local part — a signup-failure bug, not
   a cosmetic default.**
   - **The cause:** `handle_new_user` writes the email's local part to
@@ -244,9 +246,22 @@ masked by the cache. That is intended: visibly missing beats silently wrong.
   - **So the failure is surfaced, not swallowed**, but it is uninformative, it
     is labelled "retryable" when a retry can never succeed, and the user cannot
     fix it, because signup does not ask for a username.
-  - **Status:** fix proposed, not applied. Option 1 (a NULL username) is held
-    on the `display_name` naming decision. When it lands, it ships as one
-    change with three parts:
+  - **Status — FIXED 2026-09-14.** Option 1 shipped with all three parts
+    below, at the Product Owner's direction; the hold on the `display_name`
+    naming decision was lifted for the username only.
+    - **Database:** live migration `20260914132443 handle_new_user_null_username`
+      (`supabase/migrations/20260914_handle_new_user_null_username.sql`).
+    - **Client, parts 2 and 3:** commit `bcc397b`.
+    - **Evidence:** reproduced before fixing (`23505` on
+      `profiles_username_key`). Verified after applying, against the live
+      function: two signups sharing a local part both succeed, with NULL
+      usernames (probe rolled back).
+    - **Still true:** `display_name` stays email-derived until the naming
+      decision, and clients built before `bcc397b` still write `''` for an empty
+      username until rebuilt.
+  - **Status as recorded 2026-09-13:** fix proposed, not applied. Option 1 (a
+    NULL username) is held on the `display_name` naming decision. When it
+    lands, it ships as one change with three parts:
     1. The trigger writes a NULL username. `display_name` stays email-derived
        until the naming decision.
     2. `user_service.dart:186` writes NULL, not `''`, for an empty username.
@@ -272,7 +287,21 @@ masked by the cache. That is intended: visibly missing beats silently wrong.
   - **Where:** Sync, Explore, feed authors and chat all render other users'
     `display_name` and `username`. The guard in `User.publicDisplayNameFrom`
     cannot fire for other users, because their loaded profiles carry no email.
-    `profiles_select_authenticated` is `USING (true)`.
+    `profiles_select_authenticated` is `USING (true)`. *(As recorded
+    2026-09-13 — see the update below.)*
+  - **Update 2026-09-14 — the open read is closed; the names are not.**
+    - **What changed:** `profiles_select_authenticated` was dropped by live
+      migration `20260914132439 profiles_scope_reads`
+      (`supabase/migrations/20260914_profiles_scope_reads.sql`, client commit
+      `8da2bf8`). A signed-in user now reads only their own row of
+      `profiles`. Other people come through `public.profiles_public`, an
+      owner-executed view with a ten-column allowlist, granted to
+      `authenticated` only. Verified by role against the applied change.
+    - **What did not change:** that allowlist includes `username` and
+      `display_name`, so the email-derived names on `350201ed` and `d56a61aa`
+      are still visible to every signed-in user until IC-4 clears them.
+    - **Not filtered at all:** the view does not honour a profile's privacy
+      setting, because no database column holds one.
   - **Snapshot:** before anything touches them, the current `username` and
     `display_name` of all three rows were saved to
     `private/profiles_name_snapshot_2026-09-13.json`. It is gitignored and

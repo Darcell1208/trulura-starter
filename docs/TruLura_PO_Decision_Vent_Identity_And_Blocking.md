@@ -122,7 +122,8 @@ assumption that comments do not exist at all:
   (`lib/widgets/feed_card.dart:624`) and writes nothing — the same
   no-write-confirmation class as the other stubs on the placeholder inventory.
 - `authenticated` holds both SELECT and INSERT on the table.
-- **`comments_select_authenticated` is `USING (true)`.** Any signed-in user can
+- **`comments_select_authenticated` is `USING (true)`** *(as of 2026-09-09 —
+  closed 2026-09-14, see the update at the end of this section)*. Any signed-in user can
   read every comment row, `user_id` and `post_id` included. There is no view
   nulling the author the way `vent_feed` does for posts.
 
@@ -142,6 +143,30 @@ Before comments ship, `comments` needs the same treatment posts already have: a
 view that nulls `user_id` for comments on anonymous posts, with the raw table
 kept out of the client's reach, exactly as `vent_feed` does. The derivation
 rule above is worthless without it.
+
+**Update 2026-09-14 — the open read is closed; the view is still owed.**
+
+- **What changed:** `comments_select_authenticated` was dropped and replaced
+  with `comments_select_own` (`user_id = auth.uid()`), and `anon` lost every
+  privilege on the table. Live migration
+  `20260914133748 comments_select_own_only`
+  (`supabase/migrations/20260914_comments_select_own_only.sql`). It was
+  applied while the table held 0 rows, so no comment was ever exposed.
+- **Verified by role against the applied change** (probe rows rolled back):
+  - an author reads, edits and deletes their own comment;
+  - another signed-in user reads 0 rows, including when filtering by the
+    author's `user_id`, and their update or delete by id affects 0 rows;
+  - an insert carrying someone else's `user_id` is rejected by RLS;
+  - `anon` is denied both read and insert.
+- **What this does not do:** it does not provide the read path described
+  above. Before comments ship, other people's comments still have to come
+  through a view that nulls `user_id` on anonymous posts.
+- **A conflict that view has to settle first:**
+  - **2a:** derives a commenter's name from post id + user id. If the view
+    nulls `user_id`, the client cannot derive it.
+  - **A plain hash of the two ids will not do:** every profile id is readable
+    through `profiles_public`, so the hash can be reversed by trying each one.
+  - **So:** the name, or a token for it, has to be produced server-side.
 
 ---
 

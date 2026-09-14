@@ -150,8 +150,27 @@ Top blockers, unchanged:
         identity mode.
       - **When Supabase is not ready:** the entire cached user.
     - **Status:** not fixed. Scoping the cache to the account is its own change.
-      The row-only username guard that ships with #16's option 1 covers one
-      field on one path and must not be read as addressing this.
+      The row-only username guard that shipped with #16's option 1 (commit
+      `bcc397b`, 2026-09-14) covers one field on one path and must not be read
+      as addressing this.
+- ~~**Any signed-in user could read every `profiles` row**
+  (`profiles_select_authenticated` was `USING (true)`).~~ — **fixed
+  2026-09-14.**
+  - **Fix:** live migration `20260914132439 profiles_scope_reads`, client
+    commit `8da2bf8`. The table is own-row only; other people are read through
+    `profiles_public` (a ten-column allowlist, authenticated only).
+  - **Still true:** no filter by a profile's privacy setting, because no
+    column holds one; email-derived names stay visible until IC-4.
+  - **Record:** `TruLura_PO_Decision_Onboarding_Gate_And_Defaults.md`.
+- ~~**Any signed-in user could read every `comments` row, which would identify
+  anonymous Vent authors**
+  (`comments_select_authenticated` was `USING (true)`).~~ — **fixed
+  2026-09-14,** while the table was empty.
+  - **Fix:** live migration `20260914133748 comments_select_own_only`. Own
+    rows only, and `anon` holds no privileges.
+  - **Still owed before comments ship:** the read view that nulls authors on
+    anonymous posts —
+    `TruLura_PO_Decision_Vent_Identity_And_Blocking.md` §2b.
 
 **Realtime**
 
@@ -214,8 +233,8 @@ Top blockers, unchanged:
         inherit a dismissal.
     - **Why it matters now:** the Home "Set your vibe" prompt is the only
       non-signup route to asking for a vibe. Not fixed.
-16. **A username collision at signup is reported as retryable, and the user
-    cannot fix it.** Logged 2026-09-13.
+16. ~~**A username collision at signup is reported as retryable, and the user
+    cannot fix it.**~~ — **fixed 2026-09-14.** Logged 2026-09-13.
     - **The cause:** `handle_new_user` writes the email's local part to
       `profiles.username`, which is `UNIQUE`. A second email with the same
       local part fails inside the trigger, and the whole signup rolls back.
@@ -228,8 +247,22 @@ Top blockers, unchanged:
       - Not self-fixable: signup takes no username.
     - **Evidence:** the constraint violation was confirmed by a rolled-back
       database probe. The client path was read from the code, not observed.
-    - **Status:** not fixed. The fix (option 1) is proposed and held on the
-      `display_name` naming decision. It ships as one change with three parts:
+    - **Status — FIXED 2026-09-14,** option 1 with all three parts, at the
+      Product Owner's direction.
+      - **Database:** live migration
+        `20260914132443 handle_new_user_null_username`
+        (`supabase/migrations/20260914_handle_new_user_null_username.sql`).
+      - **Client, parts 2 and 3:** commit `bcc397b`.
+      - **Verified after applying,** against the live function: two signups
+        sharing a local part both succeed, with NULL usernames (probe rolled
+        back). The collision was reproduced first (`23505` on
+        `profiles_username_key`).
+      - **Still true:** `display_name` stays email-derived (IC-4), and clients
+        built before `bcc397b` still write `''` for an empty username until
+        they are rebuilt.
+    - **Status as recorded 2026-09-13:** not fixed. The fix (option 1) is
+      proposed and held on the `display_name` naming decision. It ships as one
+      change with three parts:
       1. The trigger writes a NULL username.
       2. `user_service.dart:186` writes NULL, not `''`, for an empty username.
       3. A row-only guard at `user_service.dart:453-456`: when the profiles
@@ -271,9 +304,10 @@ into an ordinary cleanup list.
 - **Each is its own step.** Its checks are re-run at the moment it executes,
   not trusted from the measurements recorded below.
 - **None runs until the order of irreversible steps is agreed.**
-- **IC-4 also waits on a decision.** #16's option 1 (the trigger change) is
-  not destructive, but it too is held until the Product Owner names
-  `display_name`, and the row clear in IC-4 is blocked on the same decision.
+- **IC-4 also waits on a decision.** The row clear in IC-4 is blocked on the
+  Product Owner naming `display_name`. #16's option 1, the trigger change, was
+  held on the same decision until 2026-09-14, when it shipped for `username`
+  only (`20260914132443`).
 
 - **IC-1 — retire `handle_auth_user_upsert` and drop `public.users`, as one
   step.** Resolves #18.
