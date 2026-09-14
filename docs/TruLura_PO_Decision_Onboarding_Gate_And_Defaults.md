@@ -244,8 +244,30 @@ masked by the cache. That is intended: visibly missing beats silently wrong.
   - **So the failure is surfaced, not swallowed**, but it is uninformative, it
     is labelled "retryable" when a retry can never succeed, and the user cannot
     fix it, because signup does not ask for a username.
-  - **Status:** fix proposed, not applied. The fallback username needs a
-    Product Owner call.
+  - **Status:** fix proposed, not applied. Option 1 (a NULL username) is held
+    on the `display_name` naming decision. When it lands, it ships as one
+    change with three parts:
+    1. The trigger writes a NULL username. `display_name` stays email-derived
+       until the naming decision.
+    2. `user_service.dart:186` writes NULL, not `''`, for an empty username.
+       Otherwise the collision moves to the second account's first save, where
+       `saveUser` swallows it.
+    3. A row-only guard in `UserService.getCurrentUser`
+       (`user_service.dart:453-456`): when the profiles row was fetched, the
+       username comes from the row only.
+
+    **Part 3 is an unmask-preventer, not a cache fix.**
+    - **Why it is needed:** today a non-empty row username always wins, which
+      hides the fact that an empty one falls back to the device-global
+      `current_user` cache. Under option 1 the previous account's username
+      would appear, and be saved back, for a new account on a shared device.
+    - **What it does not do:** fix that cache. The cache leaks many other
+      fields and is its own item (Build Status #17).
+
+    **Not part of this fix:** `app_provider.dart:236-238` falls back to the auth
+    metadata username. That does not affect accounts created under option 1,
+    because signup writes no metadata username. It does matter for the separate
+    step of clearing existing rows, and is decided there.
 - **Email-derived names are visible to other users.**
   - **Where:** Sync, Explore, feed authors and chat all render other users'
     `display_name` and `username`. The guard in `User.publicDisplayNameFrom`

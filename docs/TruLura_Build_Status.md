@@ -117,6 +117,41 @@ Top blockers, unchanged:
 4. `conversations` and `conversation_members` are `replica identity d`, so
    DELETE events won't carry enough for RLS to evaluate. Inert until something
    deletes — fix alongside any future delete policy.
+17. **Privacy controls can carry over to the next account signed in on a
+    device.** This is a correctness bug in privacy controls, not a display
+    leak (failure class A: device-global where account-scoped was required).
+    Logged 2026-09-13 and ranked into Security / data the same day. Read from
+    the code, not observed.
+    - **What goes wrong:** an account can inherit the previous account's
+      `profileVisibility` and `allowScreenshots`, and also `messageAutoDelete`,
+      `showVerificationBadge` and `showTrustIndicator`. These are settings a
+      person relies on to limit who sees them and what can be captured. An
+      account can end up running on someone else's choice without ever having
+      made one.
+    - **Why:** `UserService` keeps a single `SharedPreferences` key,
+      `current_user`, for the whole device, and `_getCachedCurrentUser`
+      (`user_service.dart:656-666`) never checks whose record it is.
+      `_fromAuthUser` builds the signed-in user on top of that cache, and both
+      `UserService.getCurrentUser` and `AppProvider`'s hydrate take the privacy
+      toggles from it **even when the profiles row is fetched**.
+    - **When it is cleared:** only by the Settings sign-out button
+      (`settings_screen.dart:244-245` → `UserService.logout`,
+      `user_service.dart:650`). It is **not** cleared when:
+      - the session expires,
+      - `AuthService.signOut` throws (it rethrows, so `logout` never runs),
+      - sign-out goes through `SupabaseAuthManager.signOut`.
+    - **It persists.** Each load re-caches the inherited values under the new
+      account, and the next `saveUser` can write some of them (username,
+      temperament, identity mode) to the new account's server row.
+    - **Other fields inherited the same way:**
+      - **Even with a fetched row:** age, location, pronouns, languages,
+        verification level, trust score, risk level, and `createdAt`.
+      - **When the row's value is empty:** name, username, temperament and
+        identity mode.
+      - **When Supabase is not ready:** the entire cached user.
+    - **Status:** not fixed. Scoping the cache to the account is its own change.
+      The row-only username guard that ships with #16's option 1 covers one
+      field on one path and must not be read as addressing this.
 
 **Realtime**
 
@@ -161,6 +196,111 @@ Top blockers, unchanged:
     `docs/02-Product/TruLura_Product_Decision_Log.md`, and four
     `src/storage/*.js` stubs. The decision log in particular reads as
     authoritative from its name and contains nothing.
+
+**Account scoping**
+
+15. **Home prompt dismissals are device-scoped where account-scoped was
+    needed** (failure class A). Logged 2026-09-13.
+    - **Where:** `AppSettingsService.getDismissedHomePromptStatuses` /
+      `setDismissedHomePromptStatuses` store the "Set your vibe", "Choose your
+      intent" and profile prompt dismissals in `SharedPreferences`.
+    - **How it is keyed:** per user id, falling back to a device-global key
+      when the per-user key is absent (`app_settings_service.dart`, around
+      lines 635-642).
+    - **What breaks:**
+      - A `permanent` dismissal hides that prompt for good on that device only.
+      - The same account on a new device sees it again.
+      - Through the global fallback, another account on the same device can
+        inherit a dismissal.
+    - **Why it matters now:** the Home "Set your vibe" prompt is the only
+      non-signup route to asking for a vibe. Not fixed.
+16. **A username collision at signup is reported as retryable, and the user
+    cannot fix it.** Logged 2026-09-13.
+    - **The cause:** `handle_new_user` writes the email's local part to
+      `profiles.username`, which is `UNIQUE`. A second email with the same
+      local part fails inside the trigger, and the whole signup rolls back.
+    - **What reaches the client:** GoTrue returns 500 ("Database error saving
+      new user"). gotrue-dart raises any response of 500 or above as
+      `AuthRetryableFetchException`, and `sign_up_screen` shows its raw
+      response body.
+    - **Why the label is wrong:**
+      - Not retryable: the same email fails every time.
+      - Not self-fixable: signup takes no username.
+    - **Evidence:** the constraint violation was confirmed by a rolled-back
+      database probe. The client path was read from the code, not observed.
+    - **Status:** not fixed. The fix (option 1) is proposed and held on the
+      `display_name` naming decision. It ships as one change with three parts:
+      1. The trigger writes a NULL username.
+      2. `user_service.dart:186` writes NULL, not `''`, for an empty username.
+      3. A row-only guard at `user_service.dart:453-456`: when the profiles
+         row was fetched, the username comes from the row only.
+
+      Part 3 **prevents option 1 from unmasking #17. It does not fix #17.**
+**Naming / storage integrity**
+
+18. **`public.users` is a second identity table for one concept.** This is a
+    naming and storage-integrity violation. Logged 2026-09-13.
+    - **The live table is `profiles`.** Its rows are created by
+      `on_auth_user_created → handle_new_user`, and the app reads it
+      throughout.
+    - **`public.users` (measured 18:23 UTC):**
+      - Exists, with **0 rows**.
+      - Columns: id, email, phone, is_anonymous, created_at, updated_at.
+      - RLS on, with own-row read and update policies.
+    - **Its only writer is dead.** `handle_auth_user_upsert` is attached to no
+      trigger. It would upsert `public.users`, then insert a second, all-NULL
+      shape of `profiles` row, into a `current_vibe` column that `profiles`
+      does not have. Attached as written, it would fail every signup. Its NULL
+      username write does confirm that NULL was an intended state.
+    - **Nothing reads `public.users`:**
+      - The database search was validated against this function as a known
+        positive.
+      - The code search, across Flutter, Expo and migrations, was validated on
+        `from('profiles')`.
+      - No view matched, but no known positive view existed to validate that
+        pattern.
+    - **Resolution:** IC-1 below. It is not fixed piecemeal.
+
+---
+
+## Irreversible cleanup, deferred
+
+Every destructive step lives here and only here, so none of them gets folded
+into an ordinary cleanup list.
+
+- **Each is its own step.** Its checks are re-run at the moment it executes,
+  not trusted from the measurements recorded below.
+- **None runs until the order of irreversible steps is agreed.**
+- **IC-4 also waits on a decision.** #16's option 1 (the trigger change) is
+  not destructive, but it too is held until the Product Owner names
+  `display_name`, and the row clear in IC-4 is blocked on the same decision.
+
+- **IC-1 — retire `handle_auth_user_upsert` and drop `public.users`, as one
+  step.** Resolves #18.
+  - **State at 18:23 UTC:** the table had 0 rows and the function was
+    attached to no trigger.
+  - **The table has email and phone columns.**
+  - **At execution:** re-check the row count, triggers and references first.
+- **IC-2 — delete the Expo code tree.** Ruled safe by the Product Owner on
+  2026-09-13.
+  - **Evidence (measured 17:13 UTC):** `moods` does not exist in any schema,
+    and `glow_sessions`, `sparks` and `vents` exist with 0 rows each.
+  - **Why it is listed here:** git history keeps the code, but the step
+    removes a whole client, so it stays with the other destructive steps.
+  - **Scope:** the code only. The tables are IC-3.
+- **IC-3 — drop `glow_sessions`, `sparks` and `vents`.** Each had 0 rows at
+  17:13 UTC.
+  - **At execution:** check dependencies first — foreign keys, views,
+    policies, realtime publication.
+  - **Before anything Vent-named is dropped:** confirm which of `vents`,
+    `vent_posts` and `posts` is the canonical Vent storage.
+- **IC-4 — clear the email-derived `username` and `display_name` on the two
+  existing rows.** This is a data write.
+  - **Blocked** on the `display_name` naming decision.
+  - **Pre-change values** for all three rows are in the gitignored
+    `private/profiles_name_snapshot_2026-09-13.json`.
+  - **Also decided at this step:** the auth metadata username fallback at
+    `app_provider.dart:236-238`.
 
 ---
 
