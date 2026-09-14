@@ -2,6 +2,7 @@
 
 **Decision date:** 2026-09-09
 **Decided by:** Darcell (Product Owner)
+**Amended 2026-09-14:** requirement 2c — comment pseudonyms are generated server-side. The text above 2c is unchanged apart from dated updates.
 **Classification: mixed — see each entry.** Decisions 1 and 4 are *recorded
 restatements* of positions the Blueprint already commits to; they are written
 here only so nobody re-opens them. Decisions 2 and 3 are **Product Owner
@@ -161,12 +162,75 @@ rule above is worthless without it.
 - **What this does not do:** it does not provide the read path described
   above. Before comments ship, other people's comments still have to come
   through a view that nulls `user_id` on anonymous posts.
-- **A conflict that view has to settle first:**
+- **A conflict that view has to settle first** — now a requirement, see
+  **2c** below:
   - **2a:** derives a commenter's name from post id + user id. If the view
     nulls `user_id`, the client cannot derive it.
   - **A plain hash of the two ids will not do:** every profile id is readable
     through `profiles_public`, so the hash can be reversed by trying each one.
   - **So:** the name, or a token for it, has to be produced server-side.
+
+### 2c. Requirement, 2026-09-14 — comment pseudonyms are generated server-side
+
+**Decided by:** Darcell (Product Owner), 2026-09-14
+**Classification: Product Owner requirement, 2026.** It is a design
+constraint on the Vent comment system, found while closing comments RLS and
+recorded before any comment code exists. The Blueprint has no pseudonym
+concept (see the verification note), so nothing here is recovered from it.
+
+**The requirement.** A comment's per-thread name, which 2a derives from the
+post id and the commenter's user id, is produced by the database, never by the
+client. For a comment under an anonymous post, the client receives the
+finished name, or an opaque token it cannot reverse, and never the commenter's
+`user_id`.
+
+**Why, in order:**
+
+1. 2b requires other people's comments to be read through a view that nulls
+   `user_id` on anonymous posts.
+2. Once `user_id` is nulled, the client no longer has the input that 2a's
+   derivation needs.
+3. Giving the client a hash of post id + user id instead does not work.
+   Every profile id is readable through `profiles_public`
+   (`20260914132439`), so anyone can hash each known id with the post id and
+   compare, which reverses the name to a person.
+4. So the derivation has to run where `user_id` is already available and
+   does not leave: server-side.
+
+**What it constrains:**
+
+- **The comments read view (2b)** emits the name or token, not `user_id`,
+  for comments under anonymous posts.
+- **Any hash used for this** is keyed with a secret the client cannot read.
+  A plain or client-known hash is ruled out by point 3.
+- **Client code** does not reconstruct comment names from ids in anonymous
+  threads.
+- **Unaffected:** decision 2's post names, which this record derives from the
+  post id alone and so carry no user id.
+
+**What a secret-based scheme costs later — settle this at design time.** If
+names are computed from a secret each time they are read, the secret cannot
+be rotated quietly. Rotating it renames every commenter in every existing
+thread at once. Replies that answered "Quiet Harbor" then point at a name nobody
+carries, and a thread's history stops reading as a conversation. That cost
+grows with every comment written, so it is cheapest to face before the first
+one. A scheme that stores each name when the comment is written avoids the
+retroactive rename; it still has to decide what a commenter is called in a
+thread they already posted in, after a rotation.
+
+**What it does not decide:**
+
+- **The mechanism.** A name stored at insert, a function the view calls, or a
+  keyed hash (for example HMAC with a server-held secret) all satisfy it.
+- **Where the secret lives and how it rotates.** Rotating it renames every
+  commenter in every thread, so rotation is a product decision, not an
+  operational one.
+- **2a's open question:** whether the vent's author is visually distinguished
+  inside their own thread.
+
+**When it was found:** 2026-09-14, while closing the open comments read
+(`20260914133748`), before the comment feature was built. Recorded now so the
+feature is designed around it rather than retrofitted.
 
 ---
 
