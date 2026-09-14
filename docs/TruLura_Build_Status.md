@@ -210,11 +210,19 @@ Top blockers, unchanged:
     declined. Leave it NULL.
 12. No automated tests cover any of the above. Every verification recorded here
     was run by hand.
-13. Fourteen tracked files are zero bytes, including nine `README.md`
-    placeholders, `docs/DOCUMENTATION-STANDARDS.md`,
-    `docs/02-Product/TruLura_Product_Decision_Log.md`, and four
-    `src/storage/*.js` stubs. The decision log in particular reads as
-    authoritative from its name and contains nothing.
+13. Thirteen tracked files are zero bytes *(re-measured 2026-09-14 against the
+    committed tree; fourteen when first logged)*:
+    - **Eight folder `README.md` placeholders,** `docs/01-Constitution` to
+      `docs/08-Business`. `05-TruLura_Documentation_Constitution.md` cites a
+      rule "stated independently" in several folder READMEs, and those READMEs
+      are empty.
+    - **`docs/02-Product/TruLura_Product_Decision_Log.md`.** It reads as
+      authoritative from its name and contains nothing. The Product Owner
+      decision records are the top-level `docs/TruLura_PO_Decision_*.md` files.
+    - **Four `src/storage/*.js` stubs** in the legacy Expo app, including
+      `ventStore.js`, which reads as Vent storage and is not.
+    - **No longer empty:** `docs/DOCUMENTATION-STANDARDS.md`, written
+      2026-09-14 in `dd9c450`.
 
 **Account scoping**
 
@@ -294,6 +302,72 @@ Top blockers, unchanged:
         pattern.
     - **Resolution:** IC-1 below. It is not fixed piecemeal.
 
+20. **Vent membership is stored twice on `posts`, and the two fields
+    disagree.** Logged 2026-09-14. **Not fixed:** the Product Owner rules on
+    which field is authoritative. Class: one concept in two storage locations,
+    which the 2026-09-14 decision record calls a duplicate implementation.
+    - **The two fields:**
+      - `category`: text, NOT NULL, default `'ForYou'`, CHECK in `ForYou`,
+        `Vent`, `Mood`.
+      - `experience_mode`: text, nullable, no default, no CHECK.
+    - **They disagree on 5 of 12 rows** (measured 2026-09-14, 22:12 UTC). All
+      five are private and anonymous:
+
+      | id | owner | category | experience_mode | In Vent Sanctuary? |
+      |---|---|---|---|---|
+      | `8878ec08` | d9fa2f57 | Vent | social | yes, for its owner |
+      | `86dc30a6` | d9fa2f57 | Vent | social | yes, for its owner |
+      | `cb79e7cf` | 350201ed | Vent | social | yes, for its owner |
+      | `0179941c` | 350201ed | Vent | social | yes, for its owner |
+      | `7c20080f` | 350201ed | ForYou | vent | no (see 22 under *Added 2026-09-09*) |
+
+    - **One writer sets both, from different sources.** The only Flutter write
+      path is `CreatePostScreen._createPost` → `PostService.savePost` → insert
+      into `posts`.
+      - `category` is `'Vent'` when the composer's post-type selector is Vent,
+        otherwise `'ForYou'` (`create_post_screen.dart:214`). The selector
+        defaults to Vent when the active mode is Vent (`:113-117`), and the
+        user can change it.
+      - `experience_mode` is the app-wide active experience mode,
+        `ctx.activeMode.name`, whenever it is set
+        (`create_post_screen.dart:222`, `post_service.dart:110-111`).
+      - So the two diverge whenever the post type and the app mode differ:
+        Vent chosen while the mode was social (the four rows, written before
+        `a9db98f` made entering the Sanctuary set Vent mode), or another type
+        chosen while Vent mode was still on (`7c20080f`).
+      - On a `PGRST204` naming either column, `savePost` retries without it
+        (`post_service.dart:553-566`). If `category` were the one dropped, the
+        database default would write `'ForYou'`.
+      - No database function, trigger or policy writes or filters on either
+        field, and the legacy Expo app does not write `posts`.
+    - **Readers: the server decides Vent by `category`, the client by
+      `experience_mode`.**
+      - `category`: `vent_feed` (`= 'vent'`) and `posts_feed` (`<> 'vent'`).
+        This is the containment boundary.
+      - `experience_mode`: both views return it; it is mapped to
+        `Post.experienceMode` and read through `Post.inferredExperienceMode()`,
+        which returns the stored value when present and otherwise guesses from
+        anonymity, privacy and mood. That inferred value drives client-side
+        Vent handling:
+        - `VisibilityService`: in a protected emotional space, only posts
+          inferred as `vent` pass (`visibility_service.dart:37, 80`).
+        - Home feed's Vent kind, selected whenever the active mode is Vent
+          (`home_feed_screen.dart:158-160`), keeps posts inferred as `vent` or
+          anonymous (`:879-883`).
+        - `FeedDistributionEngine` ranks `vent` down in For You and up in Vent
+          (`feed_distribution_engine.dart:158, 175`).
+        - `EmotionalGovernanceService.assessPost` treats `vent` as support
+          content (`emotional_governance_service.dart:80`).
+      - **Consequence:** Home only ever receives `posts_feed` rows, which
+        exclude category Vent. So its Vent kind can only match posts whose
+        category is not Vent but whose mode, stored or guessed, is, such as
+        `7c20080f`, and never the posts Vent Sanctuary shows. Whether such a
+        post is then displayed also depends on `VisibilityService`, which denies
+        private posts; that path was not traced end to end.
+    - Measured against the working tree. `home_feed_screen.dart` and
+      `post_service.dart` have uncommitted changes; the other files named here
+      are as committed.
+
 ---
 
 ## Irreversible cleanup, deferred
@@ -328,6 +402,23 @@ into an ordinary cleanup list.
     policies, realtime publication.
   - **Before anything Vent-named is dropped:** confirm which of `vents`,
     `vent_posts` and `posts` is the canonical Vent storage.
+    - **Answered 2026-09-14, settled by observation (22:12 UTC):** `posts` is
+      the Vent storage. The Flutter app reads Vent through the `vent_feed`
+      view, which keeps rows where `lower(btrim(category)) = 'vent'`;
+      `posts_feed` excludes the same rows. `vents` and `vent_posts` hold 0 rows
+      each, and nothing in `lib/` reads or writes either.
+    - **Not yet safe to call them dead:** the legacy Expo app, still tracked
+      under `src/` with `expo/AppEntry` as its entry point, reads `vents`
+      (`src/screens/CreatorScreen.js`, `src/screens/ExploreScreen.js`,
+      `src/hooks/useRealtimeCounts.js`) and reads and inserts `vent_posts`
+      (`src/screens/VentScreen.js`). Retire or confirm that app before dropping
+      either table.
+    - **Why `vent_feed` can look empty:** its predicate includes
+      `user_id = auth.uid()`, and every Vent post is private. From the SQL
+      editor, with no signed-in user, it returns 0 rows. By role, `d9fa2f57`
+      sees 3 and `350201ed` sees 5.
+    - **A second Vent field exists on the same rows** and disagrees with
+      `category` on five of them: see known issue 20.
 - **IC-4 — clear the email-derived `username` and `display_name` on the two
   existing rows.** This is a data write.
   - **Blocked** on the `display_name` naming decision.
