@@ -183,7 +183,10 @@ class UserService {
     final photoUrl = _nullableTrimmed(user.profileImage);
     final safePayload = <String, dynamic>{
       'id': user.id,
-      'username': user.username.trim(),
+      // NULL, not '', for an empty username. profiles.username is UNIQUE and
+      // allows many NULLs but only one ''; see
+      // 20260914_handle_new_user_null_username.sql.
+      'username': _nullableTrimmed(user.username),
       'display_name': user.name.trim(),
       'bio': _nullableTrimmed(user.bio),
       'about_me': _nullableTrimmed(user.bio),
@@ -455,10 +458,15 @@ class UserService {
             (profile?['display_name']?.toString().trim().isNotEmpty ?? false)
                 ? profile!['display_name'].toString().trim()
                 : base.name,
-        username:
-            (profile?['username']?.toString().trim().isNotEmpty ?? false)
-                ? profile!['username'].toString().trim()
-                : base.username,
+        // A fetched row is authoritative for username, empty included. The
+        // fallback used to be base.username, which comes from the device-global
+        // current_user cache, so a new account on a shared device inherited the
+        // previous account's username and saveUser wrote it back -- the same
+        // unique collision by another route. The cache stands in only when no
+        // row was fetched.
+        username: profile == null
+            ? base.username
+            : (profile['username']?.toString().trim() ?? ''),
         // The matchmaking query succeeded, so its answer is authoritative even
         // when there is no row: no intent, no interests -- not the cache.
         intents: intent.isNotEmpty ? <String>[intent] : const <String>[],
