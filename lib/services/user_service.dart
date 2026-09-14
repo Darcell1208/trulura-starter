@@ -335,10 +335,13 @@ class UserService {
   /// profile sheet and a chat overflow menu and there was nobody to open
   /// either against.
   ///
-  /// No migration was needed: `profiles_select_authenticated` on
-  /// public.profiles is `USING (true)` for the authenticated role, verified
-  /// against the live database, so a signed-in client could always read these
-  /// rows. Only the Dart was stubbed.
+  /// Reads `public.profiles_public`, not `public.profiles`. Since
+  /// 20260914_profiles_scope_reads.sql a signed-in user can read only their own
+  /// row of the table; other people come through the view, which is
+  /// owner-executed, carries a ten-column allowlist, and is granted to
+  /// `authenticated` only -- the same pattern as posts_feed and vent_feed.
+  /// It does not filter by a profile's privacy setting, because no database
+  /// column holds one.
   ///
   /// Results are written to the local user cache so [getUserById] can still
   /// resolve names offline.
@@ -346,7 +349,8 @@ class UserService {
     try {
       if (!_supabaseReady) return _getCachedUsers();
 
-      final rows = await _client.from('profiles').select().limit(_discoveryLimit);
+      final rows =
+          await _client.from('profiles_public').select().limit(_discoveryLimit);
       final users = (rows as List)
           .whereType<Map<String, dynamic>>()
           .map(_userFromProfileRow)
@@ -371,8 +375,9 @@ class UserService {
     if (wanted.isEmpty) return null;
     try {
       if (_supabaseReady) {
+        // Usually someone else, so the allowlist view; see getAllUsers.
         final row = await _client
-            .from('profiles')
+            .from('profiles_public')
             .select()
             .eq('id', wanted)
             .maybeSingle();

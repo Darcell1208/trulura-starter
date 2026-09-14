@@ -289,8 +289,10 @@ class ChatService {
     if (unique.isEmpty || !_supabaseReady) return <String, User>{};
 
     try {
+      // Other people, so the allowlist view: public.profiles is own-row only
+      // (20260914_profiles_scope_reads.sql).
       final rows = await DatabaseService.instance.client
-          .from('profiles')
+          .from('profiles_public')
           .select(
               'id, username, display_name, bio, about_me, profile_photo_url, avatar_url, created_at, updated_at')
           .inFilter('id', unique);
@@ -696,8 +698,10 @@ class ChatService {
     }
 
     try {
+      // Other people, so the allowlist view: public.profiles is own-row only
+      // (20260914_profiles_scope_reads.sql).
       final rows = await client
-          .from('profiles')
+          .from('profiles_public')
           .select(
               'id, username, display_name, bio, about_me, profile_photo_url, avatar_url, created_at, updated_at')
           .neq('id', me)
