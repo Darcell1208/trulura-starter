@@ -31,6 +31,10 @@ yarn-error.*
 *.pem
 
 # local env files
+# .env is untracked as of 2026-09-14. It only ever held the Supabase anon key,
+# which is public by design, but a tracked .env is the wrong pattern for the
+# next value that is not. It remains in history from 12c1992; that is accepted.
+.env
 .env*.local
 
 # typescript
