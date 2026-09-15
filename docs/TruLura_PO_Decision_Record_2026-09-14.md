@@ -96,7 +96,7 @@ Mood.social     => 0xFFFFB457
 Mood.healing    => 0xFF7BC47F
 ```
 
-Only `healing` matched the grep; the other four are hues that appear nowhere else. So the palette change has **two** maps to update, not one, and they currently disagree with each other. Classification corrected per Product Owner: this is a **duplicate implementation** of one map (one concept, two storage locations), not Class F — Class F is several *words* naming one concept.
+Only `healing` matched the grep; the other four are hues that appear nowhere else. So the palette change has **two** maps to update, not one, and they currently disagree with each other. Classification corrected per Product Owner: this is a **duplicate implementation** of one map (one concept, two storage locations), not several words naming one concept, which is a different failure class.
 
 ### Finding that bears on DR-1, not just DR-2
 
@@ -107,11 +107,11 @@ Only `healing` matched the grep; the other four are hues that appear nowhere els
 - `lib/screens/home/home_feed_screen.dart:800, :816`
 - `lib/screens/ai/ai_companion_screen.dart` — eight sites
 
-In the current build, **the avatar ring colour is the Mood colour.** That is the pattern DR-1 prohibits, and it is **failure class G — one concept reading another concept's storage** (Aura presentation reading Mood). Reported here; not changed. Whether the fix is "Aura gets its own colour source" or "the ring stops varying" is implementation, but it is required by DR-1 regardless of which palette values land.
+In the current build, **the avatar ring colour is the Mood colour.** That is the pattern DR-1 prohibits, and it is **failure class: one concept reading another concept's storage** (Aura presentation reading Mood). Reported here; not changed. Whether the fix is "Aura gets its own colour source" or "the ring stops varying" is implementation, but it is required by DR-1 regardless of which palette values land.
 
 ### Third "mood" vocabulary in `lib/theme/mood_colors.dart`
 
-`cheerful / energetic / calm / romantic / focused / creative` — six string-keyed cases, none of which (except `calm`) is a DR-3 mood. Imported by `lib/core/theme/app_theme.dart`, `lib/screens/home/home_feed_screen.dart`, `lib/widgets/trulura_event_carousel_row.dart`, `lib/widgets/feed_card.dart`. This is **failure class E — one word (mood) on two concepts**; whatever this file colours, it is not the DR-3 Mood. Out of scope for the palette change; flagged so it isn't mistaken for a third place to apply DR-2.
+`cheerful / energetic / calm / romantic / focused / creative` — six string-keyed cases, none of which (except `calm`) is a DR-3 mood. Imported by `lib/core/theme/app_theme.dart`, `lib/screens/home/home_feed_screen.dart`, `lib/widgets/trulura_event_carousel_row.dart`, `lib/widgets/feed_card.dart`. This is **failure class: one word naming several concepts** (here, "mood" on two); whatever this file colours, it is not the DR-3 Mood. Out of scope for the palette change; flagged so it isn't mistaken for a third place to apply DR-2.
 
 ### Not found
 
@@ -126,7 +126,7 @@ No hardcoded mood hues in `lib/theme/trulura_theme.dart`, `lib/core/theme/app_th
 - The compiled bundle served by `localhost:8123` earlier today contains `enum TruTemperament { oldSoul, mending, contemplative, radiant, grounded, mysterious }` and a `_persistTemperament` probe over `["temperament","vibe_status"]`.
 - `origin/main` has **no `TruTemperament`**. `lib/models/user.dart` at HEAD has `enum TruVibeLabel { oldSoul, healing, reflective, radiant, grounded, mysterious }`, and no temperament probe.
 
-So the Dart half of the `vibe_status → temperament` rename (and the `TruVibeLabel → TruTemperament` enum rename that went with it) exists only in an uncommitted or unpushed working tree. **Consequence for the Code session:** if it works from `origin/main` it will find neither the probe it was told to delete nor the `temperament` field the migration now expects — and the migration applied today would break `origin/main`'s reads of `vibe_status` (the read-side fallback `?? json['vibe_status']` would return null → default `oldSoul`, i.e. Class D default-as-answer). The uncommitted work must be committed and pushed before anyone else touches this area.
+So the Dart half of the `vibe_status → temperament` rename (and the `TruVibeLabel → TruTemperament` enum rename that went with it) exists only in an uncommitted or unpushed working tree. **Consequence for the Code session:** if it works from `origin/main` it will find neither the probe it was told to delete nor the `temperament` field the migration now expects — and the migration applied today would break `origin/main`'s reads of `vibe_status` (the read-side fallback `?? json['vibe_status']` would return null → default `oldSoul`, i.e. failure class: default counted as an answer). The uncommitted work must be committed and pushed before anyone else touches this area.
 
 ---
 
@@ -134,7 +134,7 @@ So the Dart half of the `vibe_status → temperament` rename (and the `TruVibeLa
 
 **State as of this record:** Supabase `profiles.temperament` exists (renamed from `vibe_status` today). `origin/main` @ `051b27f0` still reads `vibe_status` and has no `TruTemperament`. The code that matches the schema is in an unpushed working tree on the Product Owner's machine.
 
-**Exposure:** any build from `origin/main` against the migrated database reads `temperament ?? vibeLabel ?? vibe_status` → all three null → `TruVibeLabel.oldSoul` for every user, silently, with no error. Class D (default counted as an answer), at scale.
+**Exposure:** any build from `origin/main` against the migrated database reads `temperament ?? vibeLabel ?? vibe_status` → all three null → `TruVibeLabel.oldSoul` for every user, silently, with no error. Failure class: default counted as an answer, at scale.
 
 **How it happened:** the Dart rename was reported as done; the migration was applied on that basis; nobody — including Claude, who applied it — checked that "done" meant "pushed." Claude had only seen the rename in the compiled dev bundle, which is not evidence of repository state. Cross-session assumption, textbook form. Claude's part: applying a schema change after verifying the *database* side thoroughly and the *repository* side not at all.
 
@@ -172,7 +172,7 @@ Recommendation (PROPOSED), conditional on that answer:
 
 **Pattern, for prevention — second occurrence in two days:** the compiled bundle shows what the code *does*, not *why*. Intent — the three-step plan, the "NOT YET APPLIED" marker, the documented vocabularies — lives in the repo, in migration headers and `docs/`. Diagnosing from compiled output without reading the repo produced "half-finished rename" here and "missing-column error, fields never persisted" earlier the same day; both withdrawn. Rule going forward: a diagnosis from a bundle is INFERRED until the corresponding source and its comments have been read; the repo, not the bundle, is where "why" is checked.
 
-**Also surfaced by the migration file:** the repo's documented *vibe* vocabulary is `Reflective, Dreamy, Calm, Flirty, Healing, Energetic, Creative` (per `docs/TruLura_PO_Decision_Vibe_And_Temperament.md`, in the repo, not in this project). Two consequences: `Creative` is a **Vibe** value, which makes Vibe the leading candidate concept for the undeclared person-descriptor chip in Study 04 (D-1) — the Product Owner still has to say so; and this vibe vocabulary shares `Reflective`, `Calm`, `Flirty`, `Healing` with the Mood vocabulary (DR-3), which is a Class E overlap between two concepts the canonical rules say must be disjoint. Logged as Class C: whether the Vibe vocabulary changes, the Mood vocabulary changes, or the overlap is accepted for two concepts that never share storage.
+**Also surfaced by the migration file:** the repo's documented *vibe* vocabulary is `Reflective, Dreamy, Calm, Flirty, Healing, Energetic, Creative` (per `docs/TruLura_PO_Decision_Vibe_And_Temperament.md`, in the repo, not in this project). Two consequences: `Creative` is a **Vibe** value, which makes Vibe the leading candidate concept for the undeclared person-descriptor chip in Study 04 (D-1) — the Product Owner still has to say so; and this vibe vocabulary shares `Reflective`, `Calm`, `Flirty`, `Healing` with the Mood vocabulary (DR-3), which is an overlap of the failure class *one word naming several concepts*, between two concepts the canonical rules say must be disjoint. Logged as Class C: whether the Vibe vocabulary changes, the Mood vocabulary changes, or the overlap is accepted for two concepts that never share storage.
 
 ---
 
@@ -230,7 +230,7 @@ All 60 enums in `lib/` were listed; the ones that name an emotional, energetic, 
 
 Findings, by class:
 
-- **Class E (one word, several concepts):** `social` is a Mood (#1), an Intent (#7), an IdentityMode (#8), a ProfileType (#9), and an app Mode (#10) — five concepts. `reflective` is a Mood (#1), a VibeLabel at HEAD (#4), and an EmotionalPresenceKind (#5). `healing` is a Mood (#1), a VibeLabel at HEAD (#4), and an Intent (#7). `calm` is a Mood (#1) and a post-mood (#2, #3). Under the naming rule ("vocabularies for distinct concepts must be disjoint, so a value in the wrong column is detectable by inspection"), every one of these is a place where a misfiled value is undetectable.
-- **Class F (several words, one concept):** #8 / #9 / #10 are three enums for what the drawer calls Modes; #2 / #3 are two lists for the post-composer mood, differing in one value. Whether #2/#3 are the same concept as #1 (Mood) or a separate "post tone" is a Class C question — they share only `calm`, so by meaning they look like a different thing wearing the word "mood".
-- **Class G (one concept reading another's storage):** `AuraStateController.colorForMood → auraColor → avatar ring` (above). Also, at HEAD, `User.fromJson` reads `temperament ?? vibeLabel ?? vibe_status` — three keys for one field, two of them from other concepts' names.
+- **One word naming several concepts:** `social` is a Mood (#1), an Intent (#7), an IdentityMode (#8), a ProfileType (#9), and an app Mode (#10) — five concepts. `reflective` is a Mood (#1), a VibeLabel at HEAD (#4), and an EmotionalPresenceKind (#5). `healing` is a Mood (#1), a VibeLabel at HEAD (#4), and an Intent (#7). `calm` is a Mood (#1) and a post-mood (#2, #3). Under the naming rule ("vocabularies for distinct concepts must be disjoint, so a value in the wrong column is detectable by inspection"), every one of these is a place where a misfiled value is undetectable.
+- **Several words naming one concept:** #8 / #9 / #10 are three enums for what the drawer calls Modes; #2 / #3 are two lists for the post-composer mood, differing in one value. Whether #2/#3 are the same concept as #1 (Mood) or a separate "post tone" is a Class C question — they share only `calm`, so by meaning they look like a different thing wearing the word "mood".
+- **One concept reading another's storage:** `AuraStateController.colorForMood → auraColor → avatar ring` (above). Also, at HEAD, `User.fromJson` reads `temperament ?? vibeLabel ?? vibe_status` — three keys for one field, two of them from other concepts' names.
 - **Not a violation, but note:** #5 `TruEmotionalPresenceKind.lowEnergy` and DR-3's "Energized and Low Energy belong to an energy dimension" point at the same idea; #6 `EnergyLevel` is that dimension in code today. Whether #5 is a presentation layer over #1+#6 or a fourth concept is not decided.

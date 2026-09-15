@@ -4,26 +4,10 @@ Standards for how decisions and project state are written down in this
 repository. Each one says who set it and why, so it can be read, questioned
 and changed in the open.
 
-The first two were set on 2026-09-14. They were briefly kept only in an AI
+Standards 1 and 2 were set on 2026-09-14. They were briefly kept only in an AI
 session's private memory, and moved here on the Product Owner's instruction:
 
 > "Session memory isn't auditable and doesn't survive. Put them where anyone can read and disagree with them."
-
-> **Not yet in this file: the class definitions.** The decision records and the
-> build status page use lettered classes, but no document in this repository
-> defines them. The letters are also used for two different things:
->
-> - **How settled something is** — for example "Class C — design material,
->   not decided product" and "Class D — fresh Product Owner decisions"
->   (`TruLura_PO_Decision_Record_2026-09-14.md`, line 3).
-> - **The shape of a bug** — for example "failure class A: device-global where
->   account-scoped was required" (`TruLura_Build_Status.md`) and
->   "Class D (default counted as an answer)" in the same decision record.
->
-> So "Class D" currently means a fresh decision in one sentence and a default
-> counted as an answer in another. The definitions belong here, next to these
-> standards, once the Product Owner supplies them; they are not reconstructed
-> from usage.
 
 ---
 
@@ -71,3 +55,67 @@ becomes the truth." That is the failure behind two Blueprints and two decision
 records. On 2026-09-14 a new `docs/design/` folder was created beside the
 existing `docs/06-Design/`. The Product Owner chose `docs/06-Design/`, and the
 folders were merged "while it's two files rather than twenty."
+
+---
+
+## 3. Decision state is lettered; failure classes are named
+
+**Set by:** Darcell (Product Owner), 2026-09-14.
+
+**The standard.** Two classification schemes are in use, and they share no
+symbol.
+
+- **Decision state, how settled a decision is, keeps its letters, A to D.**
+  - **C:** open; needs the Product Owner's ruling.
+  - **D:** a fresh Product Owner decision, recorded with a verbatim quote.
+  - **A and B** are used as already defined in the Product Owner's tracker.
+    They are not defined in this repository, and are not reconstructed from
+    usage.
+- **Failure classes, the shape of a bug, have no letters.** Use the name:
+  - device-global state where account-scoped was required
+  - swallowed write reporting success
+  - default counted as an answer
+  - one word naming several concepts
+  - several words naming one concept
+  - one concept reading another's storage
+  - duplicate implementation
+  - invented number
+  - verification producing false confidence
+
+**Why.** The two scales shared one alphabet, so a letter from the wrong scale
+could not be detected by inspection. The 2026-09-14 decision record used
+"Class D" both for a fresh decision and for a default counted as an answer.
+That is the failure the disjoint-vocabulary rule
+(`TruLura_PO_Decision_Vibe_And_Temperament.md`, Ruling 2 of 2026-09-13) exists
+to prevent, applied to the project's own metadata.
+
+**Sweep, 2026-09-14.** Lettered failure classes in the records were replaced
+by their names. One use was left as written because its meaning cannot be
+determined from context: "Class-B-adjacent" in
+`TruLura_PO_Decision_Record_2026-09-14.md`.
+
+---
+
+## 4. Decisions live in the decision records; open questions live in the register
+
+**Set by:** Darcell (Product Owner), 2026-09-14. Ruling: "the PO decision
+records win."
+
+**The standard.**
+
+- **Decisions that have been made** are recorded in
+  `docs/TruLura_PO_Decision_*.md`, including the dated
+  `docs/TruLura_PO_Decision_Record_2026-09-14.md`. That is the canonical
+  location.
+- **Open product questions** live in the Product Decisions Register,
+  `docs/02-Product/TruLura_Product-Decisions.md`, until the Product Owner
+  rules. The ruling is then recorded in a decision record, and the register
+  entry points at it rather than restating it.
+
+**The stated reason was corrected the same day.** The ruling was first given
+on the premise that the `02-Product` register had never held anything. It
+holds 21 live open product questions, PD-01 to PD-21; what it has never held is
+a decision. The empty file was `TruLura_Product_Decision_Log.md`, which is not
+the register. With the premise corrected, the Product Owner kept the ruling in
+the split form above. The Documentation Constitution and Guiding Principles #10
+were corrected to match in `3e19271`.

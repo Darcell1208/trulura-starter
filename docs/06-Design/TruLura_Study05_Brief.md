@@ -39,7 +39,7 @@ What P-1 predicted and 04 confirmed: every detail that could be corrected inside
 
 - **D-1 Undeclared person-descriptor chips.** `Creative` / `Mindful` (091723, 091709), `Creative Soul` / `Mindful Explorer` (083815) under the two people. No concept behind them — not Mood (DR-3), not temperament, not an archive micro-tag. `Creative` already exists in the post-composer's mood list (`create_post_screen._moods`). **Live risk, not a documentation gap:** drawing an unnamed chip a third time is how it becomes real. Study 05 either declares what that slot is or leaves it empty.
 - **D-2 Ring colours undeterminable.** Three people, three ring colours (gold, magenta, orange). DR-1 permits per-person Aura colour only when the source is Aura. From a static render the source cannot be established — Aura, Mood, or an image generator choosing pleasing hues, the last being most likely. **Record as: not a violation, not a pass, undeterminable.** Study 04 must not be cited as evidence that the DR-1 rule works.
-- **D-3 `Your Aura — Balanced`.** `Balanced` as an Aura reading sits one word from `Balanced energy`, an existing social-preference option in code. Unlabelled word; potential Class E.
+- **D-3 `Your Aura — Balanced`.** `Balanced` as an Aura reading sits one word from `Balanced energy`, an existing social-preference option in code. Unlabelled word; potentially one word naming several concepts.
 - **D-4 Brand mark drift.** One variant invented a wordmark; one rendered the ∞ concept; one used the placeholder correctly. Only the placeholder is compliant.
 - **D-5 Watermark omitted** on 083815.
 

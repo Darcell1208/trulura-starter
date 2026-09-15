@@ -119,7 +119,7 @@ Top blockers, unchanged:
    deletes — fix alongside any future delete policy.
 17. **Privacy controls can carry over to the next account signed in on a
     device.** This is a correctness bug in privacy controls, not a display
-    leak (failure class A: device-global where account-scoped was required).
+    leak (failure class: device-global state where account-scoped was required).
     Logged 2026-09-13 and ranked into Security / data the same day. Read from
     the code, not observed.
     - **What goes wrong:** an account can inherit the previous account's
@@ -231,7 +231,8 @@ Top blockers, unchanged:
 **Account scoping**
 
 15. **Home prompt dismissals are device-scoped where account-scoped was
-    needed** (failure class A). Logged 2026-09-13.
+    needed** (failure class: device-global state where account-scoped was required).
+    Logged 2026-09-13.
     - **Where:** `AppSettingsService.getDismissedHomePromptStatuses` /
       `setDismissedHomePromptStatuses` store the "Set your vibe", "Choose your
       intent" and profile prompt dismissals in `SharedPreferences`.
