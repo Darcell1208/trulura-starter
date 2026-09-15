@@ -210,19 +210,22 @@ Top blockers, unchanged:
     declined. Leave it NULL.
 12. No automated tests cover any of the above. Every verification recorded here
     was run by hand.
-13. Thirteen tracked files are zero bytes *(re-measured 2026-09-14 against the
-    committed tree; fourteen when first logged)*:
-    - **Eight folder `README.md` placeholders,** `docs/01-Constitution` to
-      `docs/08-Business`. `05-TruLura_Documentation_Constitution.md` cites a
-      rule "stated independently" in several folder READMEs, and those READMEs
-      are empty.
-    - **`docs/02-Product/TruLura_Product_Decision_Log.md`.** It reads as
-      authoritative from its name and contains nothing. The Product Owner
-      decision records are the top-level `docs/TruLura_PO_Decision_*.md` files.
-    - **Four `src/storage/*.js` stubs** in the legacy Expo app, including
-      `ventStore.js`, which reads as Vent storage and is not.
-    - **No longer empty:** `docs/DOCUMENTATION-STANDARDS.md`, written
-      2026-09-14 in `dd9c450`.
+13. Four tracked files are zero bytes *(re-measured 2026-09-14; fourteen when
+    first logged)*: the `src/storage/*.js` stubs in the legacy Expo app,
+    including `ventStore.js`, which reads as Vent storage and is not.
+    - **No longer empty, 2026-09-14:**
+      - `docs/DOCUMENTATION-STANDARDS.md`, written in `dd9c450`.
+      - The eight folder READMEs, `docs/01-Constitution` to `docs/08-Business`,
+        and `docs/02-Product/TruLura_Product_Decision_Log.md`. Each now has a
+        header: committed empty on 2026-08-23 (`f45fbf9`), never held content,
+        and where the real content lives. They were given headers rather than
+        deleted because other documents cite them.
+    - **Still open, for the Product Owner:**
+      `05-TruLura_Documentation_Constitution.md` quotes three of those READMEs
+      and names `02-Product`'s register as the one place product decisions are
+      logged. None of that text ever existed in this repository, and decisions
+      are actually recorded in `docs/TruLura_PO_Decision_*.md`. Which location
+      is canonical is not settled.
 
 **Account scoping**
 
