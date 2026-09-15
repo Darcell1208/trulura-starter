@@ -1,6 +1,6 @@
 # TruLura Product Constitution
 
-*Extracted from the Blueprint (`docs/02-Product/TruLura_Blueprint.md.md`). Every principle below is a direct statement or close paraphrase of Blueprint text, cited by section. No feature specifications, implementation details, workflows, or phase planning are included — those live in the Blueprint itself and the Implementation Roadmap. Nothing here has been invented; where the Blueprint doesn't state a principle, it isn't listed.*
+*Extracted from the Blueprint (`docs/02-Product/TruLura_Blueprint.md`). Every principle below is a direct statement or close paraphrase of Blueprint text, cited by section. No feature specifications, implementation details, workflows, or phase planning are included — those live in the Blueprint itself and the Implementation Roadmap. Nothing here has been invented; where the Blueprint doesn't state a principle, it isn't listed.*
 
 ## Mission
 
@@ -65,4 +65,4 @@ Section 19.1.1 establishes a strict hierarchy for resolving conflicts between sy
 
 ## Provenance
 
-This document was compiled by reading the Blueprint's `philosophy`, `Core Principle`, and `must never` passages directly (grep-verified against `docs/02-Product/TruLura_Blueprint.md.md`), not by inference from feature descriptions. Section citations are provided so any statement here can be checked against the source. If the Blueprint is amended, this document should be re-derived from it, not edited independently — per the Product Knowledge System's own rule that `02-Product` is authoritative and downstream documents inherit from it, not the reverse.
+This document was compiled by reading the Blueprint's `philosophy`, `Core Principle`, and `must never` passages directly (grep-verified against `docs/02-Product/TruLura_Blueprint.md`), not by inference from feature descriptions. Section citations are provided so any statement here can be checked against the source. If the Blueprint is amended, this document should be re-derived from it, not edited independently — per the Product Knowledge System's own rule that `02-Product` is authoritative and downstream documents inherit from it, not the reverse.

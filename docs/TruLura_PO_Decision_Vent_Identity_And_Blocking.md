@@ -15,7 +15,7 @@ Aura architecture record — do not let it blur.
 ## Verification note (2026-09-09)
 
 Every Blueprint citation below was read directly from
-`docs/02-Product/TruLura_Blueprint.md.md` at the line numbers given, not
+`docs/02-Product/TruLura_Blueprint.md` at the line numbers given, not
 recalled. Two negative findings were established by exhaustive search of the
 20,344-line document and of `docs/` as a whole, and they are what make
 decisions 2 and 3 decisions rather than recoveries:

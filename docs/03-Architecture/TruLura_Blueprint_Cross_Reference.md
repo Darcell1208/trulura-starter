@@ -1,6 +1,6 @@
 # TruLura Blueprint Cross-Reference Index
 
-*The canonical, exhaustive index of what every section and subsection of the TruLura Blueprint (`docs/02-Product/TruLura_Blueprint.md.md`, 20,254 lines, 26 sections) owns, consumes, is depended on by, cross-references, and is tagged with (Product Decision, Engineering Gap, Phase). Built by reading the entire Blueprint in five parallel, line-range-complete passes (1–4937, 4937–10135, 10135–13563, 13563–16694, 16694–end), cross-checked against the full text of the Product Decisions Register, Engineering Gap Register, and Beta Readiness Checklist. Every relationship below is either a direct quote, a close paraphrase of a stated sentence, or an explicit "Section N" citation found in the source text — nothing is inferred. Where the Blueprint names a system by function ("the AI system," "Trust and Safety") without a section number, that is recorded as "named, not numbered," which is a distinct and weaker claim than an explicit numbered cross-reference. "None found" means the field was checked and the text does not state a relationship — it is not a placeholder.*
+*The canonical, exhaustive index of what every section and subsection of the TruLura Blueprint (`docs/02-Product/TruLura_Blueprint.md`, 20,254 lines, 26 sections) owns, consumes, is depended on by, cross-references, and is tagged with (Product Decision, Engineering Gap, Phase). Built by reading the entire Blueprint in five parallel, line-range-complete passes (1–4937, 4937–10135, 10135–13563, 13563–16694, 16694–end), cross-checked against the full text of the Product Decisions Register, Engineering Gap Register, and Beta Readiness Checklist. Every relationship below is either a direct quote, a close paraphrase of a stated sentence, or an explicit "Section N" citation found in the source text — nothing is inferred. Where the Blueprint names a system by function ("the AI system," "Trust and Safety") without a section number, that is recorded as "named, not numbered," which is a distinct and weaker claim than an explicit numbered cross-reference. "None found" means the field was checked and the text does not state a relationship — it is not a placeholder.*
 
 ## How to read this document
 
@@ -9,10 +9,10 @@ Each subsection row uses this shorthand:
 - **Consumes** — what the text explicitly says this subsection reads, is influenced by, or depends on.
 - **Depended on by** — only populated when the text explicitly states another section consumes or is influenced by *this* subsection (this direction is stated far less often than Consumes — see Cross-Cutting Findings §1).
 - **Cross-refs** — every explicit "Section N" / "§N" citation in the subsection's own text, with what is being cited. Named-but-unnumbered system references (e.g. "the Mood System" without "(Section 12)") are called out separately, not counted here.
-- **PD / EG** — Product Decision / Engineering Gap register IDs whose subject matter the subsection's text bears on, per `TruLura_Product-Decisions.md.md` and `TruLura_Engineering-Gap-Register.md.md`.
+- **PD / EG** — Product Decision / Engineering Gap register IDs whose subject matter the subsection's text bears on, per `TruLura_Product-Decisions.md` and `TruLura_Engineering-Gap-Register.md.md`.
 - **Phase** — Core Beta / Phase 2 / Split / Unclear, per `TruLura_Beta-Readiness-Checklist.md.md` cross-referenced against the Blueprint's own Section 26.16 Phased Rollout text.
 
-Line numbers cite `docs/02-Product/TruLura_Blueprint.md.md`. This document does not restate every quoted sentence from the source — for full verbatim quotations, the per-section extraction notes underlying this index are available on request; this index gives citations sufficient for independent verification.
+Line numbers cite `docs/02-Product/TruLura_Blueprint.md`. This document does not restate every quoted sentence from the source — for full verbatim quotations, the per-section extraction notes underlying this index are available on request; this index gives citations sufficient for independent verification.
 
 ---
 
@@ -818,7 +818,7 @@ This index does not resolve, invent, or assign a side to any of the following �
 
 ## Cross-References
 
-`docs/02-Product/TruLura_Blueprint.md.md` (sole primary source) · `docs/02-Product/TruLura_Product-Decisions.md.md` · `docs/02-Product/TruLura_Engineering-Gap-Register.md.md` · `docs/02-Product/TruLura_Beta-Readiness-Checklist.md.md` · `docs/02-Product/TruLura_Dependency-Graph.md.md` · `docs/03-Architecture/TruLura_Dependency_Heat_Map.md` (section-level ranking this index adds subsection granularity to) · `docs/03-Architecture/TruLura_Domain_Model.md` · `docs/03-Architecture/TruLura_Blueprint-to-Code-Matrix.md` · `docs/03-Architecture/TruLura_UI_Inventory.md` · `docs/02-Product/Glossary.md`, `docs/03-Architecture/TruLura_Event_Catalog.md`, `docs/03-Architecture/TruLura_Permission_Matrix.md`, `docs/03-Architecture/TruLura_State_Machines.md` (derived from this index's flagged-list data, per the current documentation task).
+`docs/02-Product/TruLura_Blueprint.md` (sole primary source) · `docs/02-Product/TruLura_Product-Decisions.md` · `docs/02-Product/TruLura_Engineering-Gap-Register.md.md` · `docs/02-Product/TruLura_Beta-Readiness-Checklist.md.md` · `docs/02-Product/TruLura_Dependency-Graph.md.md` · `docs/03-Architecture/TruLura_Dependency_Heat_Map.md` (section-level ranking this index adds subsection granularity to) · `docs/03-Architecture/TruLura_Domain_Model.md` · `docs/03-Architecture/TruLura_Blueprint-to-Code-Matrix.md` · `docs/03-Architecture/TruLura_UI_Inventory.md` · `docs/02-Product/Glossary.md`, `docs/03-Architecture/TruLura_Event_Catalog.md`, `docs/03-Architecture/TruLura_Permission_Matrix.md`, `docs/03-Architecture/TruLura_State_Machines.md` (derived from this index's flagged-list data, per the current documentation task).
 
 
 

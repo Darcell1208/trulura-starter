@@ -117,4 +117,4 @@ Whether Chat, Notifications, Quiz, and Live Hub are meant to have dedicated Blue
 
 ## Cross-References
 
-`docs/03-Architecture/TruLura_Architecture-Map.md` §10 (Screens) · `docs/03-Architecture/TruLura_Domain_Model.md` (Cluster 5, Messaging/Notifications) · `docs/03-Architecture/TruLura_Blueprint-to-Code-Matrix.md` (per-section code status) · `docs/02-Product/TruLura_Blueprint.md.md`.
+`docs/03-Architecture/TruLura_Architecture-Map.md` §10 (Screens) · `docs/03-Architecture/TruLura_Domain_Model.md` (Cluster 5, Messaging/Notifications) · `docs/03-Architecture/TruLura_Blueprint-to-Code-Matrix.md` (per-section code status) · `docs/02-Product/TruLura_Blueprint.md`.

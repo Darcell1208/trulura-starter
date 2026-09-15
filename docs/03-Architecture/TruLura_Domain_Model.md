@@ -1,6 +1,6 @@
 # TruLura Domain Model — v1
 
-*The canonical description of TruLura's core business entities and their relationships. Every statement is grounded in the Blueprint (`docs/02-Product/TruLura_Blueprint.md.md`, cited by section), the Product Decisions Register, the Engineering Gap Register, the Dependency Graph, the Constitution set, or the current Flutter repository. Nothing below is an invented feature. Where information does not exist in any source, this document says "Not Yet Defined" rather than filling the gap. Terminology is preserved exactly as the Blueprint uses it, including two internally inconsistent names (Spark/Sync, per PD-08) that this document does not resolve on Product's behalf.*
+*The canonical description of TruLura's core business entities and their relationships. Every statement is grounded in the Blueprint (`docs/02-Product/TruLura_Blueprint.md`, cited by section), the Product Decisions Register, the Engineering Gap Register, the Dependency Graph, the Constitution set, or the current Flutter repository. Nothing below is an invented feature. Where information does not exist in any source, this document says "Not Yet Defined" rather than filling the gap. Terminology is preserved exactly as the Blueprint uses it, including two internally inconsistent names (Spark/Sync, per PD-08) that this document does not resolve on Product's behalf.*
 
 ## How to Read This Document
 
@@ -411,7 +411,7 @@ classDiagram
 - **Purpose:** Referenced in Section 10.13 as a navigation/UI concern; no dedicated ownership section exists.
 - **Owner:** Section 10.13 (Notification System), within Platform Navigation & UI System.
 - **Responsibilities:** Not Yet Defined beyond a types list.
-- **Data it owns:** Notification type taxonomy (types are listed in §10.13.1, not reproduced here since the full list wasn't part of this document's verified reads — cite `docs/02-Product/TruLura_Blueprint.md.md` line 12569 directly for the exact list).
+- **Data it owns:** Notification type taxonomy (types are listed in §10.13.1, not reproduced here since the full list wasn't part of this document's verified reads — cite `docs/02-Product/TruLura_Blueprint.md` line 12569 directly for the exact list).
 - **Data it consumes:** Not Yet Defined.
 - **Relationships:** Not Yet Defined.
 - **Lifecycle, Permissions, AI interactions, Events:** Not Yet Defined.
@@ -519,7 +519,7 @@ classDiagram
 
 ## Cross-References
 
-Every citation above traces to `docs/02-Product/TruLura_Blueprint.md.md` (section numbers), `docs/02-Product/TruLura_Product-Decisions.md.md` (PD-xx), `docs/02-Product/TruLura_Engineering-Gap-Register.md.md` (EG-xx), `docs/02-Product/TruLura_Dependency-Graph.md.md`, `docs/01-Constitution/` (Product Constitution, AI Constitution, Guiding Principles), `docs/03-Architecture/TruLura_Blueprint-to-Code-Matrix.md`, `docs/03-Architecture/TruLura_Architecture-Map.md`, and `docs/04-Engineering/TruLura_Systems_And_Debt_Review.md` (TD-xx) / `TruLura_Engineering-Governance.md` (EQ-xx). This document does not duplicate their content — it synthesizes the domain-object view across all of them.
+Every citation above traces to `docs/02-Product/TruLura_Blueprint.md` (section numbers), `docs/02-Product/TruLura_Product-Decisions.md` (PD-xx), `docs/02-Product/TruLura_Engineering-Gap-Register.md.md` (EG-xx), `docs/02-Product/TruLura_Dependency-Graph.md.md`, `docs/01-Constitution/` (Product Constitution, AI Constitution, Guiding Principles), `docs/03-Architecture/TruLura_Blueprint-to-Code-Matrix.md`, `docs/03-Architecture/TruLura_Architecture-Map.md`, and `docs/04-Engineering/TruLura_Systems_And_Debt_Review.md` (TD-xx) / `TruLura_Engineering-Governance.md` (EQ-xx). This document does not duplicate their content — it synthesizes the domain-object view across all of them.
 
 ## Not Yet Defined — Summary
 

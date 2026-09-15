@@ -32,4 +32,4 @@
 
 ## Provenance
 
-Every entry above cites the Blueprint section that defines it and was verified by direct search of `docs/02-Product/TruLura_Blueprint.md.md`. Terms not yet clearly defined in the Blueprint (e.g., a precise scope for "Glow" beyond §6.13's interaction-signal description) are not included rather than guessed.
+Every entry above cites the Blueprint section that defines it and was verified by direct search of `docs/02-Product/TruLura_Blueprint.md`. Terms not yet clearly defined in the Blueprint (e.g., a precise scope for "Glow" beyond §6.13's interaction-signal description) are not included rather than guessed.

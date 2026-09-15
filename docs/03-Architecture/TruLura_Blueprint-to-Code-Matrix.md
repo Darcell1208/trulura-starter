@@ -9,7 +9,7 @@ Synchronization Pass · Read-only · No code modified
 Blueprint-to-Code Matrix
 Every one of the Blueprint's 26 sections, checked against what actually exists in the Flutter repository — the first pass since the Product Knowledge System landed in docs/02-Product.
 
-Blueprint source TruLura_Blueprint.md.md (v2, 26 sections)
+Blueprint source TruLura_Blueprint.md (v2, 26 sections)
 Registers used Product Decisions, Engineering Gaps, Dependency Graph, Roadmap, Beta Readiness
 7
 Exists

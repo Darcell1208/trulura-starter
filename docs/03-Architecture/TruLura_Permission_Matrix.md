@@ -166,4 +166,4 @@ Stated once, in general terms, and implicitly governing every row in this matrix
 
 ## Cross-References
 
-`docs/03-Architecture/TruLura_Blueprint_Cross_Reference.md` (source of every citation) · `docs/02-Product/Glossary.md` (Trust Score, Safety Score, Verification Levels entries) · `docs/02-Product/TruLura_Product-Decisions.md.md` (PD-01, PD-13, PD-15, PD-17, PD-18) · `docs/02-Product/TruLura_Engineering-Gap-Register.md.md` (EG-01, EG-07, EG-23).
+`docs/03-Architecture/TruLura_Blueprint_Cross_Reference.md` (source of every citation) · `docs/02-Product/Glossary.md` (Trust Score, Safety Score, Verification Levels entries) · `docs/02-Product/TruLura_Product-Decisions.md` (PD-01, PD-13, PD-15, PD-17, PD-18) · `docs/02-Product/TruLura_Engineering-Gap-Register.md.md` (EG-01, EG-07, EG-23).

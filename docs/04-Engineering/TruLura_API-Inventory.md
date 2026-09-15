@@ -13,8 +13,8 @@ That is the complete set. No other external API call exists anywhere in `lib/`.
 
 ## Named in the Blueprint but Not Yet Selected — Not Yet Defined
 
-The Blueprint (§21, Integrations) requires a payment processor and an identity-verification vendor, and Product Decision **PD-19** (`docs/02-Product/TruLura_Product-Decisions.md.md`) is explicitly open on which vendors. No vendor name, SDK, or endpoint is invented here — this section exists only to record that the Blueprint anticipates these integrations, not to specify them.
+The Blueprint (§21, Integrations) requires a payment processor and an identity-verification vendor, and Product Decision **PD-19** (`docs/02-Product/TruLura_Product-Decisions.md`) is explicitly open on which vendors. No vendor name, SDK, or endpoint is invented here — this section exists only to record that the Blueprint anticipates these integrations, not to specify them.
 
 ## Cross-References
 
-`docs/04-Engineering/TruLura_Systems_And_Debt_Review.md` §06, §07 (Supabase Inventory) · `docs/02-Product/TruLura_Product-Decisions.md.md` PD-19 · `docs/02-Product/TruLura_Engineering-Gap-Register.md.md` EG-27 (vendor selection precedes any artifact) · `docs/04-Engineering/TruLura_Engineering-Backlog.md` ENG-016.
+`docs/04-Engineering/TruLura_Systems_And_Debt_Review.md` §06, §07 (Supabase Inventory) · `docs/02-Product/TruLura_Product-Decisions.md` PD-19 · `docs/02-Product/TruLura_Engineering-Gap-Register.md.md` EG-27 (vendor selection precedes any artifact) · `docs/04-Engineering/TruLura_Engineering-Backlog.md` ENG-016.

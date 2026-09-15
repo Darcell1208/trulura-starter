@@ -2,7 +2,7 @@
 
 ## 2026-08-25 — Blueprint v2.1
 
-`TruLura_Blueprint.md.md` supersedes v2 as of this date. Prior version archived at `docs/09-Archive/TruLura_Blueprint_v2_pre-2.1_ARCHIVED.md`.
+`TruLura_Blueprint.md` supersedes v2 as of this date. Prior version archived at `docs/09-Archive/TruLura_Blueprint_v2_pre-2.1_ARCHIVED.md`.
 
 **8 additive changes, 0 deletions, 0 modifications to Sections 1–26**, added as a new terminal Section 27 (see the Blueprint's own "What changed in v2.1" note for why the changes are appended rather than interleaved — line-number citations in the Cross-Reference index, Engineering Gap Register, and Domain Model depend on Sections 1–26 staying untouched).
 

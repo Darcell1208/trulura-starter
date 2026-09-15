@@ -44,7 +44,7 @@ problems.
 
 ### What it rests on
 
-Read from `docs/02-Product/TruLura_Blueprint.md.md`:
+Read from `docs/02-Product/TruLura_Blueprint.md`:
 
 - **§1.2 Verification Layers System:** "Verification is optional at onboarding
   but required for key features." The gate is attached to features, not entry.

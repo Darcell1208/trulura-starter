@@ -337,4 +337,4 @@ Detect inactivity → Reduce pressure → Offer gentle re-entry points
 
 ## Cross-References
 
-`docs/03-Architecture/TruLura_Blueprint_Cross_Reference.md` (source of every citation above) · `docs/02-Product/Glossary.md` (term definitions for every named state) · `docs/02-Product/TruLura_Engineering-Gap-Register.md.md` (EG-02, EG-06, EG-09, EG-10, EG-11, EG-13, EG-30) · `docs/02-Product/TruLura_Product-Decisions.md.md` (PD-01, PD-10, PD-12, PD-15, PD-21) · `docs/03-Architecture/TruLura_Domain_Model.md`.
+`docs/03-Architecture/TruLura_Blueprint_Cross_Reference.md` (source of every citation above) · `docs/02-Product/Glossary.md` (term definitions for every named state) · `docs/02-Product/TruLura_Engineering-Gap-Register.md.md` (EG-02, EG-06, EG-09, EG-10, EG-11, EG-13, EG-30) · `docs/02-Product/TruLura_Product-Decisions.md` (PD-01, PD-10, PD-12, PD-15, PD-21) · `docs/03-Architecture/TruLura_Domain_Model.md`.

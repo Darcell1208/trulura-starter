@@ -5,7 +5,7 @@
 claims an authority it does not have.
 
 It is not the Product Decisions Register either. That is
-`TruLura_Product-Decisions.md.md`, in this folder. *(Corrected 2026-09-14: the
+`TruLura_Product-Decisions.md`, in this folder. *(Corrected 2026-09-14: the
 first version of this header said the register was meant to be this file. It
 was not.)*
 
@@ -19,6 +19,6 @@ Settled 2026-09-14 by Product Owner ruling, and written into
   `docs/TruLura_PO_Decision_Record_2026-09-14.md`. This is the canonical
   location.
 - **Open product questions:** the Product Decisions Register,
-  `docs/02-Product/TruLura_Product-Decisions.md.md`, until the Product Owner
+  `docs/02-Product/TruLura_Product-Decisions.md`, until the Product Owner
   rules. The ruling then goes in a decision record, and the register entry
   points at it.

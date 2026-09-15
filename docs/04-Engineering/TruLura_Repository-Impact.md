@@ -37,4 +37,4 @@ Exact field-level schemas for any table listed as "Not Yet Defined" above. Wheth
 
 ## Cross-References
 
-`docs/03-Architecture/TruLura_Blueprint-to-Code-Matrix.md` (source for every row above) · `docs/02-Product/TruLura_Product-Decisions.md.md` · `docs/02-Product/TruLura_Engineering-Gap-Register.md.md` · `docs/04-Engineering/TruLura_Engineering-Backlog.md` · `docs/03-Architecture/ADR/` (ADR-001 through ADR-005).
+`docs/03-Architecture/TruLura_Blueprint-to-Code-Matrix.md` (source for every row above) · `docs/02-Product/TruLura_Product-Decisions.md` · `docs/02-Product/TruLura_Engineering-Gap-Register.md.md` · `docs/04-Engineering/TruLura_Engineering-Backlog.md` · `docs/03-Architecture/ADR/` (ADR-001 through ADR-005).

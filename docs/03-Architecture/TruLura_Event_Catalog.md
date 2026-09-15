@@ -157,4 +157,4 @@ Across every trigger cataloged above, the Blueprint states the **trigger conditi
 
 ## Cross-References
 
-`docs/03-Architecture/TruLura_Blueprint_Cross_Reference.md` (source of every citation above) · `docs/02-Product/TruLura_Engineering-Gap-Register.md.md` (EG-01, EG-06, EG-09, EG-10, EG-14, EG-30) · `docs/02-Product/TruLura_Product-Decisions.md.md` (PD-12) · `docs/02-Product/Glossary.md`.
+`docs/03-Architecture/TruLura_Blueprint_Cross_Reference.md` (source of every citation above) · `docs/02-Product/TruLura_Engineering-Gap-Register.md.md` (EG-01, EG-06, EG-09, EG-10, EG-14, EG-30) · `docs/02-Product/TruLura_Product-Decisions.md` (PD-12) · `docs/02-Product/Glossary.md`.

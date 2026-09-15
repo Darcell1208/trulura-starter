@@ -83,7 +83,7 @@ with the tables themselves in `20260907_moodsync_foundation`.)
 
 ## Open Product Owner decisions
 
-Full register: [`02-Product/TruLura_Product-Decisions.md.md`](02-Product/TruLura_Product-Decisions.md.md).
+Full register: [`02-Product/TruLura_Product-Decisions.md`](02-Product/TruLura_Product-Decisions.md).
 Top blockers, unchanged:
 
 | ID | Blocks | Question |
@@ -223,7 +223,7 @@ Top blockers, unchanged:
     - **Settled 2026-09-14 by Product Owner ruling:** decisions that have
       been made live in `docs/TruLura_PO_Decision_*.md`; open product questions
       live in the Product Decisions Register,
-      `docs/02-Product/TruLura_Product-Decisions.md.md`, until ruled. The
+      `docs/02-Product/TruLura_Product-Decisions.md`, until ruled. The
       Documentation Constitution and Guiding Principles #10 were corrected to
       say so, and the Constitution's claim that three READMEs state the rule
       "independently" was removed.

@@ -147,7 +147,7 @@ None of these was rewritten. Each is listed so a reader who finds it knows which
 
 | Where | What it says | Status |
 |---|---|---|
-| Blueprint §5, `02-Product/TruLura_Blueprint.md.md:5485-5500` ("Aura & Visual Emotional Representation") | Profile tones shift with emotional state; glow and pulse reflect mood | **Superseded for the ring.** Mood on a person is the chip. Profile atmosphere away from the ring is not decided here. |
+| Blueprint §5, `02-Product/TruLura_Blueprint.md:5485-5500` ("Aura & Visual Emotional Representation") | Profile tones shift with emotional state; glow and pulse reflect mood | **Superseded for the ring.** Mood on a person is the chip. Profile atmosphere away from the ring is not decided here. |
 | Blueprint §4.17, `:4369-4381` ("Integration with Profile & Identity Expression") | Mood shown through "colors, animations, aura effects" | **Superseded for aura effects on the ring.** The mood colour indicator is the chip's dot. |
 | Blueprint §3, `:3523-3533` ("Dynamic Aura & Particle Effects") | Aura glows "surrounding interface elements or profiles" act as "emotional and contextual indicators" | **Superseded where the glow is a person's ring.** Environment and particle effects are unaffected. |
 | Blueprint §20.13.1, `:17846` | "Mood-based color shifts" under Atmosphere Rendering | **Retained.** Atmosphere, not the ring. |

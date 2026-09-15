@@ -194,4 +194,4 @@ These terms are used throughout the Blueprint as if their meaning is already est
 
 ## Cross-References
 
-`docs/02-Product/TruLura_Blueprint.md.md` (sole source) · `docs/02-Product/TruLura_Product-Decisions.md.md` (PD-01, PD-08, PD-09, PD-10, PD-15 — the naming conflicts this glossary flags but does not resolve) · `docs/02-Product/TruLura_Engineering-Gap-Register.md.md` (EG-02, EG-04, EG-05, EG-09, EG-10, EG-19, EG-23, EG-25) · `docs/03-Architecture/TruLura_Blueprint_Cross_Reference.md` (source of the underlying per-subsection extraction) · `docs/03-Architecture/TruLura_Domain_Model.md`.
+`docs/02-Product/TruLura_Blueprint.md` (sole source) · `docs/02-Product/TruLura_Product-Decisions.md` (PD-01, PD-08, PD-09, PD-10, PD-15 — the naming conflicts this glossary flags but does not resolve) · `docs/02-Product/TruLura_Engineering-Gap-Register.md.md` (EG-02, EG-04, EG-05, EG-09, EG-10, EG-19, EG-23, EG-25) · `docs/03-Architecture/TruLura_Blueprint_Cross_Reference.md` (source of the underlying per-subsection extraction) · `docs/03-Architecture/TruLura_Domain_Model.md`.

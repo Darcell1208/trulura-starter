@@ -20,7 +20,7 @@ Stated in the top-level `docs/README.md`:
 **Corrected 2026-09-14 by Product Owner ruling:** "the PO decision records win." This section used to say the rule was "stated independently" in three folder READMEs (`04-Engineering`, `06-Design`, `08-Business`) and that product decisions are logged in `02-Product`'s Product Decisions Register. Those READMEs never contained that text in this repository, and the register has never held a decision. The claim is removed rather than made true; nothing was backfilled.
 
 - **Decisions that have been made live in the Product Owner decision records**, the canonical location: `docs/TruLura_PO_Decision_*.md`, including the dated `docs/TruLura_PO_Decision_Record_2026-09-14.md`. They carry the Product Owner's words verbatim.
-- **Open product questions live in the Product Decisions Register**, `docs/02-Product/TruLura_Product-Decisions.md.md` (PD-01 onward), until the Product Owner rules. The ruling is then recorded in a Product Owner decision record, and the register entry points at it rather than restating it.
+- **Open product questions live in the Product Decisions Register**, `docs/02-Product/TruLura_Product-Decisions.md` (PD-01 onward), until the Product Owner rules. The ruling is then recorded in a Product Owner decision record, and the register entry points at it rather than restating it.
 - **Everywhere else**, a gap that needs a product decision is logged as an open question in the register and referenced from where it was found — never answered locally by inference, and never recorded as decided anywhere but a Product Owner decision record. This applies to every downstream folder equally, including engineering.
 
 ## Never Invent — Log Instead
