@@ -234,3 +234,36 @@ Findings, by class:
 - **Several words naming one concept:** #8 / #9 / #10 are three enums for what the drawer calls Modes; #2 / #3 are two lists for the post-composer mood, differing in one value. Whether #2/#3 are the same concept as #1 (Mood) or a separate "post tone" is a Class C question — they share only `calm`, so by meaning they look like a different thing wearing the word "mood".
 - **One concept reading another's storage:** `AuraStateController.colorForMood → auraColor → avatar ring` (above). Also, at HEAD, `User.fromJson` reads `temperament ?? vibeLabel ?? vibe_status` — three keys for one field, two of them from other concepts' names.
 - **Not a violation, but note:** #5 `TruEmotionalPresenceKind.lowEnergy` and DR-3's "Energized and Low Energy belong to an energy dimension" point at the same idea; #6 `EnergyLevel` is that dimension in code today. Whether #5 is a presentation layer over #1+#6 or a fourth concept is not decided.
+
+---
+
+## DR-5 — The Documentation Constitution becomes historical; a short current Constitution replaces it
+
+*Recorded 2026-09-14. Decision state D.*
+
+**Product Owner, verbatim:**
+
+> "Preserve the existing TruLura Constitution as a historical/provenance artifact. Do not patch its six contradicted claims into apparent continuity. Create a new, short current Constitution containing only presently confirmed governing principles."
+
+**Product Owner, the reason to record with it, verbatim:**
+
+> "patching would falsely imply continuity of authority. Once six substantive claims have been contradicted or superseded, the document's governing basis has materially changed. Keeping the historical version intact makes that change inspectable instead of disguising it through edits."
+
+**Product Owner, on grounding, verbatim:**
+
+> "If a claim can't be verified, leave it out rather than softening it."
+
+**Product Owner, on scope, verbatim:**
+
+> "the new Constitution holds durable governing principles only — PO authority, the evidence/decision distinction, product/build separation, semantic integrity, verification discipline, accessibility equivalence. Not current bugs, not implementation state, not feature specs, not temporary HOLDs. The failure mode is accretion into a second Blueprint."
+
+**Product Owner, on accessibility equivalence, verbatim:**
+
+> "TruLura's identity must survive reduced motion and reduced effects, not degrade with them. Study 05 Frame C failed exactly this on 2026-09-14 — the reduced-effects frame preserved function but read as the default with the life turned off."
+
+*Notes (Claude):*
+
+- **Where things went.** The historical text is at `docs/09-Archive/TruLura_Documentation_Constitution_pre-2026-09-14_HISTORICAL.md`. The current Constitution is `docs/01-Constitution/05-TruLura_Constitution.md`.
+- **The archived text is the original of 2026-08-23 (`f45fbf9`).** A correction to its register section was committed earlier the same day (`3e19271`). That edit was the kind of patch this ruling rejects, so it is not carried into the archived copy. The rule it recorded is in `docs/DOCUMENTATION-STANDARDS.md`, standard 4.
+- **The count.** The ruling says six contradicted claims. The audit behind it found 17 checkable claims about where things live or where its rules came from: 8 verified, 8 contradicted, 1 unverifiable. The archived copy's header lists them.
+- **Frame C.** The repository holds the Study 05 brief, which names this failure mode in advance (section 4, Frame C) and the test that detects it (section 6, test 3). It holds no Study 05 frames and no study record, so the result above is recorded as the Product Owner's report.
