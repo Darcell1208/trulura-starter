@@ -330,10 +330,14 @@ Top blockers, unchanged:
       `allowScreenshots`, `messageAutoDelete`, `verificationLevel`) have no
       profiles column at all and live only in the device cache — see #17.
 
-20. **Vent membership is stored twice on `posts`, and the two fields
-    disagree.** Logged 2026-09-14. **Not fixed:** the Product Owner rules on
-    which field is authoritative. Class: one concept in two storage locations,
-    which the 2026-09-14 decision record calls a duplicate implementation.
+20. **The client decides Vent by `experience_mode`; the server decides it by
+    `category`.** Logged 2026-09-14. **Ruled 2026-09-14:** `category` is
+    authoritative for Vent, and `experience_mode` stays and is not a Vent field
+    (`TruLura_PO_Decision_Vent_Identity_And_Blocking.md`, decision 5). They are
+    two concepts, not one, so the class first recorded here, a duplicate
+    implementation, was wrong. **Still not fixed:** the client reads
+    `experience_mode` as a Vent signal in the places under *Readers* below.
+    Failure class: one concept reading another's storage.
     - **The two fields:**
       - `category`: text, NOT NULL, default `'ForYou'`, CHECK in `ForYou`,
         `Vent`, `Mood`.
@@ -395,6 +399,39 @@ Top blockers, unchanged:
     - Measured against the working tree. `home_feed_screen.dart` and
       `post_service.dart` have uncommitted changes; the other files named here
       are as committed.
+
+21. **`Post.inferredExperienceMode()` guesses `social` for adult-intent posts
+    that have no stored mode, and Youth mode relies on it for safety.** Logged
+    2026-09-14. **Not fixed.** Failure class: default counted as an answer.
+    - **Product Owner, verbatim:** "A fallback that silently misclassifies
+      adult-intent posts as social is the defect, not the missing field."
+    - **The fallback** (`lib/models/post.dart`, `inferredExperienceMode`). With
+      no stored `experienceMode` it returns `vent` for anything anonymous,
+      private, or with a sad, anxious or grief mood tag; `creator` only if the
+      category contains "creator", which the `posts.category` CHECK (`ForYou`,
+      `Vent`, `Mood`) never allows; and `social` for everything else. It can
+      never return `dating`, `luxe`, `altIntimate`, `friendship` or `youth`.
+    - **What depends on it for safety** (`lib/services/visibility_service.dart`,
+      `canViewPost`):
+      - In Youth mode, a post is hidden as adult-intent only if its inferred
+        mode is dating, luxe or altIntimate (line 33).
+      - Outside Youth, the 18+ and verification gates apply only to those same
+        inferred modes (lines 51-61).
+      - A dating or luxe post that reaches the fallback is inferred `social`
+        and passes both.
+    - **When the fallback runs today:** only when `experienceMode` is null.
+      - All 12 `posts` rows store a mode (7 `vent`, 5 `social`, measured
+        2026-09-14), none of them adult-intent, and the composer always writes
+        the active mode.
+      - Posts built in code without a mode reach it now:
+        `FeedDemoContentService` builds its profile posts with no
+        `experienceMode`.
+      - Rows written without the column would reach it:
+        `PostService.savePost` drops `experience_mode` and retries on a
+        `PGRST204` naming it. So would cached posts missing the key.
+    - **Where it runs:** Home only. `HomeFeedScreen._rankedForKind` passes
+      posts through `VisibilityService.filterPosts` and
+      `FeedDistributionEngine.rank`; Vent Sanctuary uses neither.
 
 ---
 

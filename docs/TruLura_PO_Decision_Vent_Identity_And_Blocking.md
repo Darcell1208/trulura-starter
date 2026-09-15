@@ -3,6 +3,7 @@
 **Decision date:** 2026-09-09
 **Decided by:** Darcell (Product Owner)
 **Amended 2026-09-14:** requirement 2c — comment pseudonyms are generated server-side. The text above 2c is unchanged apart from dated updates.
+**Amended 2026-09-14:** decision 5 — Vent membership is decided by `category`; `experience_mode` is not a Vent field.
 **Classification: mixed — see each entry.** Decisions 1 and 4 are *recorded
 restatements* of positions the Blueprint already commits to; they are written
 here only so nobody re-opens them. Decisions 2 and 3 are **Product Owner
@@ -278,6 +279,24 @@ cost that scoping would have introduced.
 main feed, so in principle a blocker can learn who vented by noticing who
 disappeared. Whether that is actually observable is open item A, and it was the
 sole argument for scoping.
+
+---
+
+## 5. Vent membership is decided by `category`; `experience_mode` is not a Vent field
+
+**Decided by:** Darcell (Product Owner), 2026-09-14
+**Classification: Product Owner Decision, 2026 (decision state D).**
+
+> "category is authoritative for Vent. experience_mode stays and is not a Vent field."
+
+> "They're two concepts, not one. category is what kind of post this is. experience_mode is which mode the app was in, and it routes Spark, Luxe, alt-intimate, creator and Youth filtering."
+
+> "The defect is the client reading experience_mode as a Vent signal in four places when the server decides Vent by category."
+
+- **Consequence:** `posts.category` = `Vent` is the only Vent membership field. The server already enforces it: `vent_feed` keeps category Vent and `posts_feed` excludes it.
+- **Unchanged:** `posts.experience_mode` stays, written by the composer from the active experience mode.
+- **Not yet changed:** the client code that reads `experience_mode` as a Vent signal. It is logged in `TruLura_Build_Status.md`, known issue 20.
+- **Settles:** which field is authoritative, the question known issue 20 was waiting on.
 
 ---
 
