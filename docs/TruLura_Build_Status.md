@@ -220,12 +220,13 @@ Top blockers, unchanged:
         header: committed empty on 2026-08-23 (`f45fbf9`), never held content,
         and where the real content lives. They were given headers rather than
         deleted because other documents cite them.
-    - **Still open, for the Product Owner:**
-      `05-TruLura_Documentation_Constitution.md` quotes three of those READMEs
-      and names `02-Product`'s register as the one place product decisions are
-      logged. None of that text ever existed in this repository, and decisions
-      are actually recorded in `docs/TruLura_PO_Decision_*.md`. Which location
-      is canonical is not settled.
+    - **Settled 2026-09-14 by Product Owner ruling:** decisions that have
+      been made live in `docs/TruLura_PO_Decision_*.md`; open product questions
+      live in the Product Decisions Register,
+      `docs/02-Product/TruLura_Product-Decisions.md.md`, until ruled. The
+      Documentation Constitution and Guiding Principles #10 were corrected to
+      say so, and the Constitution's claim that three READMEs state the rule
+      "independently" was removed.
 
 **Account scoping**
 
