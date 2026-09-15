@@ -6,6 +6,10 @@ Source: live capture against `localhost:8123` (DDC dev build) with a fetch/XHR i
 
 Confirmed call site in the compiled bundle. A write inside `build` runs on every rebuild. **Decision:** move it to an explicit user action — the handler of the control that changes the fields that screen owns (`showVerificationBadge`, `showTrustIndicator`, `profileVisibility`, `allowScreenshots`, `messageAutoDelete`), or a Save button. `build` reads only.
 
+> **Correction, 2026-09-14 — not reproduced in source; no code change.** `_SafetyVerificationScreenState.build` does not call `saveUser` when it runs. The screen's one `saveUser` (`lib/screens/settings/safety_verification_screen.dart:167`) is inside the `onPressed` of the "Advance level (stub)" button: a closure that `build` defines, and that runs only when the button is tapped. `_load()` runs from `initState`, and the visibility switches write through `IdentityService` from their `onChanged` handlers.
+>
+> A search of every `saveUser` call and every `IdentityService` setter call in `lib/` found none that executes during a `build`. Each runs from an `onChanged`, `onToggle`, `onSelected` or `onPressed` handler, a named save method, or `dispose`. The compiled bundle shows where a closure is defined, not when it runs, so a closure defined inside `build` read as a call from `build`. The decision above, that writes happen only on an explicit user action and `build` reads only, is already how the code behaves.
+
 ## 2. `saveUser` persists the whole cached `User`, and `User()` seeds defaults
 
 `User()` constructor defaults: `temperament = oldSoul`, `activeIdentityMode = social`, `trustScore = 70`, `riskLevel = low`, `profileVisibility = public`, `showVerificationBadge = true`, `showTrustIndicator = true`, `allowScreenshots = true`, `verificationLevel = level0`. `fromJson` substitutes the same defaults on read (`temperament ?? oldSoul`, `vibe_status ?? oldSoul`). So "not answered" and "answered with the default" are the same object, both when the user is fresh and when it has been hydrated from a row with nulls.
@@ -86,7 +90,7 @@ Product Owner, 2026-09-14: "Not a missed write — no link at all. `intent` come
 Not yet done — needs the Claude Code session with repo access:
 1. Delete the dead probe in `_persistTemperament` (the `["temperament","vibe_status"]` list and the "neither column exists" branch). Unreachable since the migration.
 2. B plus A on `saveUser` (dirty-field payloads; refuse to save an unhydrated user).
-3. Move the `saveUser` call out of `_SafetyVerificationScreenState.build` to an explicit user action.
+3. ~~Move the `saveUser` call out of `_SafetyVerificationScreenState.build` to an explicit user action.~~ Not needed: `build` does not call it (see the correction under section 1).
 4. Three `debugPrint`s for the Aura blank: `HomeFeedScreen.initState`, `HomeFeedScreen.dispose`, top of `HomeHubScreen.build`.
 
 Done in this session (database only): the `vibe_status → temperament` rename migration.
