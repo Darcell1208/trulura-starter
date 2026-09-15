@@ -223,10 +223,10 @@ Top blockers, unchanged:
     - **Settled 2026-09-14 by Product Owner ruling:** decisions that have
       been made live in `docs/TruLura_PO_Decision_*.md`; open product questions
       live in the Product Decisions Register,
-      `docs/02-Product/TruLura_Product-Decisions.md`, until ruled. The
-      Documentation Constitution and Guiding Principles #10 were corrected to
-      say so, and the Constitution's claim that three READMEs state the rule
-      "independently" was removed.
+      `docs/02-Product/TruLura_Product-Decisions.md`, until ruled. Guiding
+      Principles #10 was corrected to say so. The Documentation Constitution
+      was archived the same day as a historical record (DR-5) and replaced by
+      `docs/01-Constitution/05-TruLura_Constitution.md`.
 
 **Account scoping**
 

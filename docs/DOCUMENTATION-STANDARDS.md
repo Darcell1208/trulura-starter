@@ -117,5 +117,8 @@ on the premise that the `02-Product` register had never held anything. It
 holds 21 live open product questions, PD-01 to PD-21; what it has never held is
 a decision. The empty file was `TruLura_Product_Decision_Log.md`, which is not
 the register. With the premise corrected, the Product Owner kept the ruling in
-the split form above. The Documentation Constitution and Guiding Principles #10
-were corrected to match in `3e19271`.
+the split form above. Guiding Principles #10 was corrected to match in `3e19271`. The Documentation
+Constitution was corrected in the same commit, then archived later that day
+from its original text (DR-5); the current Constitution,
+`docs/01-Constitution/05-TruLura_Constitution.md`, states the rule in
+section 1.

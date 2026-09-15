@@ -12,7 +12,7 @@ was not.)*
 ## Where to look instead
 
 Settled 2026-09-14 by Product Owner ruling, and written into
-`docs/01-Constitution/05-TruLura_Documentation_Constitution.md`:
+`docs/DOCUMENTATION-STANDARDS.md`, standard 4:
 
 - **Decisions that have been made:** the Product Owner decision records,
   `docs/TruLura_PO_Decision_*.md`, including the dated
