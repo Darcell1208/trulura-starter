@@ -1,3 +1,4 @@
+import 'package:trulura/core/diagnostics/log_redaction.dart';
 import 'dart:convert';
 import 'package:flutter/foundation.dart';
 import 'package:shared_preferences/shared_preferences.dart';
@@ -393,12 +394,26 @@ class PostService {
   /// Writes still target `posts`; reads should not bypass this view.
   /// Reads the Vent environment. Separate view, same shape, same privacy rules.
   Future<List<Map<String, dynamic>>> fetchVentFeed() async {
-    if (!_supabaseReady) return [];
-    final rows = await DatabaseService.instance.client
+    if (!_supabaseReady) throw StateError('Vent feed is not initialized.');
+    final client = DatabaseService.instance.client;
+    final account = client.auth.currentUser?.id;
+    if (account == null) throw StateError('Sign in to load Vent.');
+    if (kDebugMode) {
+      debugPrint('VentFeed: request account=${redactedId(account)}');
+    }
+    final rows = await client
         .from(_ventFeedView)
         .select()
         .order('created_at', ascending: false);
-    return List<Map<String, dynamic>>.from(rows as List);
+    if (client.auth.currentUser?.id != account) {
+      throw StateError('Account changed while loading Vent.');
+    }
+    final result = List<Map<String, dynamic>>.from(rows as List);
+    if (kDebugMode) {
+      debugPrint(
+          'VentFeed: response account=${redactedId(account)} rows=${result.length}');
+    }
+    return result;
   }
 
   Future<List<Map<String, dynamic>>> fetchAuraFeed() async {
@@ -489,12 +504,13 @@ class PostService {
   /// getAllPosts as the main feed's fallback, and letting Vent rows into it
   /// would reintroduce the leak through the back door on the next offline read.
   Future<List<Post>> getPostsByCategory(String category) async {
+    // A failed protected-feed read is not a successfully loaded empty feed.
+    // Let the Sanctuary show its retry state; never substitute the main cache.
+    if (category == 'Vent') {
+      final rows = await fetchVentFeed();
+      return rows.map(fromAuraRow).toList(growable: false);
+    }
     try {
-      if (category == 'Vent') {
-        if (!_supabaseReady) return <Post>[];
-        final rows = await fetchVentFeed();
-        return rows.map(fromAuraRow).toList(growable: false);
-      }
       final posts = await getAllPosts();
       if (category == 'ForYou') return posts;
       return posts.where((p) => p.category == category).toList();
@@ -576,7 +592,7 @@ class PostService {
       final list = (jsonDecode(data) as List).cast<Map<String, dynamic>>();
       return list.map(Post.fromJson).toList();
     } catch (e) {
-      debugPrint('Failed to read cached posts: $e');
+      debugPrint('Failed to read cached posts: ${safeError(e)}');
       return [];
     }
   }

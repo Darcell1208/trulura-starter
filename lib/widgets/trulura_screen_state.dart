@@ -76,67 +76,70 @@ class TruStatePanel extends StatelessWidget {
     return Center(
       child: ConstrainedBox(
         constraints: const BoxConstraints(maxWidth: 520),
-        child: TruLuraGlassCard(
-          tone: tone,
-          radius: 26,
-          depth: true,
-          padding: padding,
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Container(
-                width: 74,
-                height: 74,
-                decoration: BoxDecoration(
-                  shape: BoxShape.circle,
-                  gradient: LinearGradient(colors: [
-                    cs.primary.withValues(alpha: 0.22),
-                    cs.secondary.withValues(alpha: 0.16)
-                  ]),
-                  border: Border.all(
-                      color: Colors.white.withValues(alpha: 0.12),
-                      width: TruLuraSurfaces.hairline),
-                  boxShadow: [
-                    BoxShadow(
-                      color: cs.primary.withValues(alpha: 0.18),
-                      blurRadius: 32,
-                      spreadRadius: -14,
-                    ),
-                  ],
+        child: SingleChildScrollView(
+          child: TruLuraGlassCard(
+            tone: tone,
+            radius: 26,
+            depth: true,
+            padding: padding,
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Container(
+                  width: 74,
+                  height: 74,
+                  decoration: BoxDecoration(
+                    shape: BoxShape.circle,
+                    gradient: LinearGradient(colors: [
+                      cs.primary.withValues(alpha: 0.22),
+                      cs.secondary.withValues(alpha: 0.16)
+                    ]),
+                    border: Border.all(
+                        color: Colors.white.withValues(alpha: 0.12),
+                        width: TruLuraSurfaces.hairline),
+                    boxShadow: [
+                      BoxShadow(
+                        color: cs.primary.withValues(alpha: 0.18),
+                        blurRadius: 32,
+                        spreadRadius: -14,
+                      ),
+                    ],
+                  ),
+                  child: Center(
+                      child: TruLuraIcon(
+                          glyph: glyph,
+                          size: 30,
+                          active: true,
+                          color: cs.onSurface.withValues(alpha: 0.90))),
                 ),
-                child: Center(
-                    child: TruLuraIcon(
-                        glyph: glyph,
-                        size: 30,
-                        active: true,
-                        color: cs.onSurface.withValues(alpha: 0.90))),
-              ),
-              const SizedBox(height: 14),
-              Text(title,
+                const SizedBox(height: 14),
+                Text(title,
+                    textAlign: TextAlign.center,
+                    style: Theme.of(context)
+                        .textTheme
+                        .titleMedium
+                        ?.copyWith(fontWeight: FontWeight.w900)),
+                const SizedBox(height: 8),
+                Text(
+                  message,
                   textAlign: TextAlign.center,
-                  style: Theme.of(context)
-                      .textTheme
-                      .titleMedium
-                      ?.copyWith(fontWeight: FontWeight.w900)),
-              const SizedBox(height: 8),
-              Text(
-                message,
-                textAlign: TextAlign.center,
-                style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                    color: cs.onSurface.withValues(alpha: 0.72), height: 1.45),
-              ),
-              if (actions.isNotEmpty) ...[
-                const SizedBox(height: 16),
-                Wrap(
-                  spacing: 10,
-                  runSpacing: 10,
-                  alignment: WrapAlignment.center,
-                  children: actions
-                      .map((a) => _TruStateActionButton(action: a))
-                      .toList(),
+                  style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                      color: cs.onSurface.withValues(alpha: 0.72),
+                      height: 1.45),
                 ),
+                if (actions.isNotEmpty) ...[
+                  const SizedBox(height: 16),
+                  Wrap(
+                    spacing: 10,
+                    runSpacing: 10,
+                    alignment: WrapAlignment.center,
+                    children: actions
+                        .map((a) => _TruStateActionButton(action: a))
+                        .toList(),
+                  ),
+                ],
               ],
-            ],
+            ),
           ),
         ),
       ),
@@ -193,11 +196,15 @@ class _TruStateActionButtonState extends State<_TruStateActionButton> {
                         active: true,
                         color: Colors.white),
                     const SizedBox(width: 10),
-                    Text(a.label,
-                        style: Theme.of(context).textTheme.labelLarge?.copyWith(
-                            color: Colors.white,
-                            fontWeight: FontWeight.w900,
-                            letterSpacing: 0.2)),
+                    Flexible(
+                        child: Text(a.label,
+                            style: Theme.of(context)
+                                .textTheme
+                                .labelLarge
+                                ?.copyWith(
+                                    color: Colors.white,
+                                    fontWeight: FontWeight.w900,
+                                    letterSpacing: 0.2))),
                   ],
                 ),
               )
@@ -215,12 +222,16 @@ class _TruStateActionButtonState extends State<_TruStateActionButton> {
                         color: cs.onSurface
                             .withValues(alpha: enabled ? 0.90 : 0.45)),
                     const SizedBox(width: 10),
-                    Text(a.label,
-                        style: Theme.of(context).textTheme.labelLarge?.copyWith(
-                            color: cs.onSurface
-                                .withValues(alpha: enabled ? 0.90 : 0.45),
-                            fontWeight: FontWeight.w900,
-                            letterSpacing: 0.2)),
+                    Flexible(
+                        child: Text(a.label,
+                            style: Theme.of(context)
+                                .textTheme
+                                .labelLarge
+                                ?.copyWith(
+                                    color: cs.onSurface.withValues(
+                                        alpha: enabled ? 0.90 : 0.45),
+                                    fontWeight: FontWeight.w900,
+                                    letterSpacing: 0.2))),
                   ],
                 ),
               ),

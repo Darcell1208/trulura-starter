@@ -144,6 +144,7 @@ class _VentScreenState extends State<VentScreen> {
     setState(() => _isLoading = true);
     try {
       final posts = await _postService.getPostsByCategory('Vent');
+      if (!mounted) return;
       setState(() {
         _ventPosts = posts;
         _hasError = false;
@@ -151,7 +152,9 @@ class _VentScreenState extends State<VentScreen> {
       });
     } catch (e) {
       truLogStateError('Vent._loadVentPosts', e);
+      if (!mounted) return;
       setState(() {
+        _ventPosts = [];
         _hasError = true;
         _isLoading = false;
       });
@@ -193,8 +196,10 @@ class _VentScreenState extends State<VentScreen> {
     final app = context.watch<AppProvider>();
     final soft = app.softModeEnabled;
     return Scaffold(
-      extendBodyBehindAppBar: true,
+      extendBodyBehindAppBar: false,
       appBar: AppBar(
+        backgroundColor: kTruLuraPalettes[TruLuraMode.vent]!.bg0,
+        surfaceTintColor: Colors.transparent,
         leading: IconButton(
           icon: const TruLuraIcon(glyph: TruLuraGlyph.back, size: 22),
           onPressed: () => TruNavigation.goBackOrReturn(context),
@@ -222,11 +227,12 @@ class _VentScreenState extends State<VentScreen> {
           // One scroll view for the page, so one scroll position and one
           // refresh gesture. The feed list inside shrink-wraps.
           child: CustomScrollView(
+            physics: const AlwaysScrollableScrollPhysics(),
             slivers: [
               SliverToBoxAdapter(
                 child: Column(
                   children: [
-                    const SizedBox(height: 92),
+                    const SizedBox(height: 20),
                     TruluraContentLane(
                       maxWidth: kTruluraDesktopContentMaxWidth,
                       padding: const EdgeInsets.fromLTRB(16, 0, 16, 12),
@@ -358,106 +364,108 @@ class _VentScreenState extends State<VentScreen> {
                   ],
                 ),
               ),
-              // hasScrollBody: false so the child is given the remaining
-              // viewport as a MINIMUM and may exceed it, scrolling with the page
-              // instead of being clipped. With hasScrollBody: true the child was
-              // capped at the leftover height, which is what produced the 96px
-              // overflow once the header no longer left much behind it.
-              SliverFillRemaining(
-                hasScrollBody: false,
-                child: ui == TruUiState.loading
-                    ? const _VentSkeleton()
-                    : ui == TruUiState.empty
-                        ? TruStatePanel(
-                            glyph: TruLuraGlyph.shield,
-                            title: 'This is your protected space',
-                            message:
-                                'Vent anonymously, join a support circle, or browse gentle topics. You’re safe here.',
-                            actions: [
-                              TruStateAction(
-                                  label: 'Write a vent',
-                                  glyph: TruLuraGlyph.edit,
-                                  onTap: _openComposer,
-                                  primary: true),
-                              TruStateAction(
-                                  label: 'Join support circle',
-                                  glyph: TruLuraGlyph.groups,
-                                  onTap: () =>
-                                      setState(() => _circle = 'Healing')),
-                            ],
-                          )
-                        : ui == TruUiState.action
-                            ? TruStatePanel(
-                                glyph: TruLuraGlyph.shield,
-                                title: 'Your vent is under review',
-                                message:
-                                    'To keep Vent Space emotionally safe, some posts are briefly held for moderation. You’ll see it here once approved.',
-                                actions: [
-                                  TruStateAction(
-                                      label: 'Browse circles',
-                                      glyph: TruLuraGlyph.groups,
-                                      onTap: () =>
-                                          setState(() => _circle = 'All'),
-                                      primary: true),
-                                  TruStateAction(
-                                      label: 'Write another vent',
-                                      glyph: TruLuraGlyph.edit,
-                                      onTap: _openComposer),
-                                ],
-                              )
-                            : _isLoading
-                                ? const _VentSkeleton()
-                                : _hasError
-                                    ? TruStatePanel(
-                                        glyph: TruLuraGlyph.info,
-                                        title: 'Vent Space couldn’t load',
-                                        message:
-                                            'We couldn’t load this protected space right now. Try again.',
-                                        actions: [
-                                          TruStateAction(
-                                              label: 'Retry',
-                                              glyph: TruLuraGlyph.spark,
-                                              onTap: _loadVentPosts,
-                                              primary: true)
-                                        ],
-                                      )
-                                    : _ventPosts.isEmpty
-                                        ? TruStatePanel(
-                                            glyph: TruLuraGlyph.shield,
-                                            title: 'Vent Space is quiet',
-                                            message:
-                                                'Start a protected reflection when you are ready.',
-                                            padding: const EdgeInsets.fromLTRB(
-                                                14, 14, 14, 14),
-                                          )
-                                        : _filtered.isEmpty
-                                            ? TruStatePanel(
-                                                glyph: TruLuraGlyph.groups,
-                                                title:
-                                                    'No posts in this support circle',
-                                                message:
-                                                    'Try a different circle, or check back soon.',
-                                                actions: [
-                                                  TruStateAction(
-                                                      label: 'Show all',
-                                                      glyph: TruLuraGlyph.spark,
-                                                      onTap: () => setState(
-                                                          () =>
-                                                              _circle = 'All'),
-                                                      primary: true)
-                                                ],
-                                              )
-                                            : _buildVentFeedList(
-                                                _filtered
-                                                    .map(
-                                                      (post) => TruPostFeedItem(
-                                                        post: post.copyWith(
-                                                          isAnonymous: true,
+              SliverPadding(
+                padding: EdgeInsets.only(
+                  bottom: 96 + MediaQuery.paddingOf(context).bottom,
+                ),
+                sliver: SliverToBoxAdapter(
+                  child: ui == TruUiState.loading
+                      ? const _VentSkeleton()
+                      : ui == TruUiState.empty
+                          ? TruStatePanel(
+                              glyph: TruLuraGlyph.shield,
+                              title: 'This is your protected space',
+                              message:
+                                  'Vent anonymously, join a support circle, or browse gentle topics. You’re safe here.',
+                              actions: [
+                                TruStateAction(
+                                    label: 'Write a vent',
+                                    glyph: TruLuraGlyph.edit,
+                                    onTap: _openComposer,
+                                    primary: true),
+                                TruStateAction(
+                                    label: 'Join support circle',
+                                    glyph: TruLuraGlyph.groups,
+                                    onTap: () =>
+                                        setState(() => _circle = 'Healing')),
+                              ],
+                            )
+                          : ui == TruUiState.action
+                              ? TruStatePanel(
+                                  glyph: TruLuraGlyph.shield,
+                                  title: 'Your vent is under review',
+                                  message:
+                                      'To keep Vent Space emotionally safe, some posts are briefly held for moderation. You’ll see it here once approved.',
+                                  actions: [
+                                    TruStateAction(
+                                        label: 'Browse circles',
+                                        glyph: TruLuraGlyph.groups,
+                                        onTap: () =>
+                                            setState(() => _circle = 'All'),
+                                        primary: true),
+                                    TruStateAction(
+                                        label: 'Write another vent',
+                                        glyph: TruLuraGlyph.edit,
+                                        onTap: _openComposer),
+                                  ],
+                                )
+                              : _isLoading
+                                  ? const _VentSkeleton()
+                                  : _hasError
+                                      ? TruStatePanel(
+                                          glyph: TruLuraGlyph.info,
+                                          title: 'Vent Space couldn’t load',
+                                          message:
+                                              'We couldn’t load this protected space right now. Try again.',
+                                          actions: [
+                                            TruStateAction(
+                                                label: 'Retry',
+                                                glyph: TruLuraGlyph.spark,
+                                                onTap: _loadVentPosts,
+                                                primary: true)
+                                          ],
+                                        )
+                                      : _ventPosts.isEmpty
+                                          ? TruStatePanel(
+                                              glyph: TruLuraGlyph.shield,
+                                              title: 'Vent Space is quiet',
+                                              message:
+                                                  'Start a protected reflection when you are ready.',
+                                              padding:
+                                                  const EdgeInsets.fromLTRB(
+                                                      14, 14, 14, 14),
+                                            )
+                                          : _filtered.isEmpty
+                                              ? TruStatePanel(
+                                                  glyph: TruLuraGlyph.groups,
+                                                  title:
+                                                      'No posts in this support circle',
+                                                  message:
+                                                      'Try a different circle, or check back soon.',
+                                                  actions: [
+                                                    TruStateAction(
+                                                        label: 'Show all',
+                                                        glyph:
+                                                            TruLuraGlyph.spark,
+                                                        onTap: () => setState(
+                                                            () => _circle =
+                                                                'All'),
+                                                        primary: true)
+                                                  ],
+                                                )
+                                              : _buildVentFeedList(
+                                                  _filtered
+                                                      .map(
+                                                        (post) =>
+                                                            TruPostFeedItem(
+                                                          post: post.copyWith(
+                                                            isAnonymous: true,
+                                                          ),
                                                         ),
-                                                      ),
-                                                    )
-                                                    .toList(growable: false),
-                                              ),
+                                                      )
+                                                      .toList(growable: false),
+                                                ),
+                ),
               ),
             ],
           ),
@@ -483,6 +491,8 @@ class _VentSkeleton extends StatelessWidget {
   Widget build(BuildContext context) {
     return TruShimmer(
       child: ListView.separated(
+        shrinkWrap: true,
+        physics: const NeverScrollableScrollPhysics(),
         padding: AppSpacing.paddingMd,
         itemCount: 4,
         separatorBuilder: (_, __) => const SizedBox(height: 16),
