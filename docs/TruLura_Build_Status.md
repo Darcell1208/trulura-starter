@@ -395,7 +395,8 @@ Top blockers, unchanged:
         category is not Vent but whose mode, stored or guessed, is, such as
         `7c20080f`, and never the posts Vent Sanctuary shows. Whether such a
         post is then displayed also depends on `VisibilityService`, which denies
-        private posts; that path was not traced end to end.
+        private posts; that path was not traced end to end. *(Promoted to a
+        named finding, known issue 22.)*
     - Measured against the working tree. `home_feed_screen.dart` and
       `post_service.dart` have uncommitted changes; the other files named here
       are as committed.
@@ -432,6 +433,39 @@ Top blockers, unchanged:
     - **Where it runs:** Home only. `HomeFeedScreen._rankedForKind` passes
       posts through `VisibilityService.filterPosts` and
       `FeedDistributionEngine.rank`; Vent Sanctuary uses neither.
+
+22. **Home's Vent mode is inert: Home never receives a Vent post, so its Vent
+    handling has nothing to act on.** Logged 2026-09-14. **Not fixed; no code
+    changed.** Promoted from a consequence under known issue 20.
+    - **Why:** Home's posts come from `PostService.getAllPosts()`, which reads
+      `posts_feed`, and `posts_feed` excludes every post whose category is
+      Vent (verified by role, 2026-09-14). Vent posts reach only Vent
+      Sanctuary, through `vent_feed`.
+    - **The mechanism that has nothing to act on.** When the active mode is
+      Vent, Home switches to its Vent kind (`home_feed_screen.dart:158-160`) and
+      applies four Vent-specific behaviours:
+      - `VisibilityService.canViewPost` lets through only posts it treats as
+        Vent (lines 37, 80);
+      - the Vent kind's filter keeps only posts it treats as Vent, or anonymous
+        (`home_feed_screen.dart:879-883`);
+      - `FeedDistributionEngine` ranks Vent posts down in For You and up in the
+        Vent kind (lines 158, 175);
+      - `EmotionalGovernanceService.assessPost` boosts Vent posts as support
+        content (line 80).
+    - **What they act on today:** only non-Vent posts that the client guesses
+      are Vent from `experience_mode`, anonymity or privacy (known issue 21),
+      such as `7c20080f`. Under the 2026-09-14 ruling that `category` decides
+      Vent, all four would match nothing on Home: in Vent mode Home would show
+      only the viewer's own posts (authors always see their own) and anonymous
+      posts in the Vent kind.
+    - **Open question this bears on, not decided here:** *Added 2026-09-09*,
+      item 20, "Two Vent surfaces, and the one in the Aura feed cannot show
+      Vent" — whether Home should have a Vent tab at all, or read `vent_feed`
+      too, which containment deliberately stopped. That item found the tab's
+      filter could match only non-Vent anonymous posts. This finding extends it
+      from the tab filter to Home's whole Vent mode.
+    - **Numbering note:** that 2026-09-09 item and known issue 20 are two
+      different items that both carry the number 20.
 
 ---
 
