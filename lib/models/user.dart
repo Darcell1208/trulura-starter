@@ -1,3 +1,5 @@
+import 'dart:convert';
+
 class User {
   final String id;
   final String name;
@@ -43,6 +45,12 @@ class User {
   final DateTime createdAt;
   final DateTime updatedAt;
 
+  /// The field values as read from a profiles row, or null if this User was
+  /// never hydrated from one. User() seeds non-null defaults, so without this
+  /// "not answered" and "answered with the default" are the same object.
+  /// Not serialised: a User restored from the local cache is not hydrated.
+  final Map<String, dynamic>? hydratedSnapshot;
+
   User({
     required this.id,
     required this.name,
@@ -77,6 +85,7 @@ class User {
 
     required this.createdAt,
     required this.updatedAt,
+    this.hydratedSnapshot,
   });
 
   Map<String, dynamic> toJson() => {
@@ -311,7 +320,72 @@ class User {
 
     createdAt: createdAt ?? this.createdAt,
     updatedAt: updatedAt ?? this.updatedAt,
+    hydratedSnapshot: hydratedSnapshot,
   );
+
+  /// True only for a User read back from a profiles row (or a copy of one).
+  bool get isHydrated => hydratedSnapshot != null;
+
+  /// A copy that records the current values as what was read. Call only where
+  /// a profiles row was actually fetched.
+  ///
+  /// Copies fields verbatim. Not via fromJson: that turns a null bio or photo
+  /// into '', so the copy would differ from its own snapshot and every save
+  /// would blank those two fields.
+  User markHydrated() => copyWithSnapshot(toJson());
+
+  /// [copyWith] cannot set the snapshot, on purpose: a caller editing fields
+  /// must not be able to move the baseline they are diffed against.
+  User copyWithSnapshot(Map<String, dynamic> snapshot) => User(
+        id: id,
+        name: name,
+        username: username,
+        email: email,
+        bio: bio,
+        profileImage: profileImage,
+        age: age,
+        location: location,
+        pronouns: pronouns,
+        languages: languages,
+        intents: intents,
+        moodTags: moodTags,
+        interests: interests,
+        socialPreference: socialPreference,
+        expressionPromptAnswer: expressionPromptAnswer,
+        expressionVibeTag: expressionVibeTag,
+        expressionShortPost: expressionShortPost,
+        activeIdentityMode: activeIdentityMode,
+        anonymousOverlayEnabled: anonymousOverlayEnabled,
+        temperament: temperament,
+        verificationLevel: verificationLevel,
+        trustScore: trustScore,
+        riskLevel: riskLevel,
+        trustLastUpdated: trustLastUpdated,
+        showVerificationBadge: showVerificationBadge,
+        showTrustIndicator: showTrustIndicator,
+        allowScreenshots: allowScreenshots,
+        messageAutoDelete: messageAutoDelete,
+        profileVisibility: profileVisibility,
+        createdAt: createdAt,
+        updatedAt: updatedAt,
+        hydratedSnapshot: Map<String, dynamic>.unmodifiable(snapshot),
+      );
+
+  /// toJson keys whose values differ from [hydratedSnapshot]. Timestamps are
+  /// bookkeeping, not answers, and are never dirty. Empty when unhydrated --
+  /// callers must check [isHydrated] first rather than read that as "clean".
+  Set<String> dirtyFields() {
+    final snapshot = hydratedSnapshot;
+    if (snapshot == null) return const <String>{};
+    final current = toJson();
+    return {
+      for (final key in current.keys)
+        if (key != 'createdAt' &&
+            key != 'updatedAt' &&
+            jsonEncode(current[key]) != jsonEncode(snapshot[key]))
+          key,
+    };
+  }
 
   static bool _looksLikeEmail(String? value) {
     final trimmed = value?.trim() ?? '';

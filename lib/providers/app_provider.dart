@@ -353,7 +353,10 @@ class AppProvider with ChangeNotifier {
                 '',
           )?.toIso8601String() ??
           DateTime.now().toIso8601String();
-      _currentUser = model.User.fromJson(normalizedProfile);
+      final loaded = model.User.fromJson(normalizedProfile);
+      // Hydrated only when a profiles row was actually read. Without one this
+      // object is defaults and cache, and UserService.saveUser refuses it.
+      _currentUser = profile == null ? loaded : loaded.markHydrated();
       // Redacted deliberately. This used to print the account id, username and
       // full bio on every profile load, which put a person's identity and
       // their own words into the console -- and into any log, screenshot or

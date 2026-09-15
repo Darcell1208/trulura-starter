@@ -306,6 +306,29 @@ Top blockers, unchanged:
       - No view matched, but no known positive view existed to validate that
         pattern.
     - **Resolution:** IC-1 below. It is not fixed piecemeal.
+19. **Known-deferred: `User.fromJson` still invents answers on read.** Logged
+    2026-09-13 alongside the write-side fix. Class: a default counted as an
+    answer.
+    - **What was fixed:** `UserService.saveUser` now refuses a User that was
+      never hydrated from a profiles row, and writes only the fields that
+      changed since hydration (`User.dirtyFields`). Before this, any save wrote
+      the whole cached User, so a one-field change also persisted the defaults
+      `User()` seeds — temperament `oldSoul`, identity mode `social`,
+      `trustScore` 70, `profileVisibility` public, `showVerificationBadge`
+      true — as if chosen.
+    - **What was not fixed:** `User.fromJson` and `User()` substitute those same
+      defaults when a value is missing, so the app still *believes* invented
+      values even though it no longer *writes* them. Anything that reads
+      `temperament`, `activeIdentityMode` or the privacy toggles cannot tell
+      "unanswered" from "answered with the default".
+    - **End state:** those fields nullable on `User`, with the UI supplying
+      display defaults. Not started. Decided 2026-09-14 as the deferred end
+      state, with the write-side fix shipped now — see *Decision — 2026-09-14*
+      at the end of `TruLura_PO_Decision_Onboarding_Gate_And_Defaults.md`.
+    - **Also still true:** several of those fields (`trustScore`,
+      `profileVisibility`, `showVerificationBadge`, `showTrustIndicator`,
+      `allowScreenshots`, `messageAutoDelete`, `verificationLevel`) have no
+      profiles column at all and live only in the device cache — see #17.
 
 20. **Vent membership is stored twice on `posts`, and the two fields
     disagree.** Logged 2026-09-14. **Not fixed:** the Product Owner rules on

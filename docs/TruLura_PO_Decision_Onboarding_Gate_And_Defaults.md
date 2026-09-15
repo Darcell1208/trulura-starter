@@ -2,6 +2,7 @@
 
 **Decision date:** 2026-09-12
 **Decided by:** Darcell (Product Owner)
+**Amended 2026-09-14:** `saveUser` writes only dirty fields and refuses an unhydrated user; nullable fields are the deferred end state — see *Decision — 2026-09-14* at the end of this record. The text above it is unchanged.
 **Classification: Product Owner Decision, 2026 — NOT a Recovered Historical Decision.**
 The Blueprint places gates on features and restricted modes, and describes
 intent selection as something that happens during onboarding. It does not say
@@ -309,3 +310,20 @@ masked by the cache. That is intended: visibly missing beats silently wrong.
   - **Which rows:** `d9fa2f57` has a hand-set username and display name;
     `350201ed` and `d56a61aa` have both email-derived.
   - **Clearing** any row is a data write, blocked on the naming decision.
+
+---
+
+## Decision — 2026-09-14: `saveUser` writes only what changed; nullable fields as the deferred end state
+
+**Decided by:** Darcell (Product Owner), 2026-09-14. Recorded as a proposal on 2026-09-13.
+**Classification: Product Owner Decision, 2026 (decision state D).** It addresses an instance of Decision 2's class.
+
+> "The plan is B+A from the write audit: write only dirty fields, and no-op on an unhydrated user. Record C — nullable model fields with the UI supplying display defaults — as the deferred end state. B and A stop the write, C stops the belief."
+
+The letters are the options in `TruLura_Write_Audit_2026-09-14.md`, section 2: B writes only dirty fields, A refuses a user that was never hydrated, C makes the defaulted fields nullable.
+
+- **Now (B and A), implemented:** dirty-field tracking, so a save writes only the fields that changed since the User was read, plus a hydrated flag, so a User that was never read back from a `profiles` row cannot be saved at all.
+- **Deferred end state (C):** the defaulted fields on `User` become nullable, and the UI supplies display defaults. Not started.
+- **Why:** dirty-field tracking and the hydrated flag stop the write; nullable fields stop the belief. `User()` and `User.fromJson` substitute `oldSoul`, `social`, `trustScore` 70 and `profileVisibility` public for missing values, so the app treats them as answers even once it no longer saves them.
+- **Evidence it is needed:** between 02:08:03 and 02:08:13 UTC on 2026-09-14, four overlapping `saveUser` runs each rewrote every column `saveUser` writes, from the cached User (API edge logs). A whole-row write is how a seeded default reaches the database.
+- **Implemented** in the same commit as this decision: `User.markHydrated` and `User.dirtyFields`, the `UserService.saveUser` guard, dirty-only writes to `profiles`, `matchmaking_profiles`, `profiles.vibe` and auth metadata, and `test/user_dirty_fields_test.dart`. The end state is not started; `TruLura_Build_Status.md` #19 tracks it.

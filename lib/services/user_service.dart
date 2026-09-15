@@ -61,13 +61,18 @@ class UserService {
         (msg.contains('pgrst204') && msg.contains(needle));
   }
 
-  Future<void> _persistMatchmakingProfile(User user) async {
-    final intent = _firstNonEmpty(user.intents);
-    final interests = user.interests
-        .map((e) => e.trim())
-        .where((e) => e.isNotEmpty)
-        .toSet()
-        .toList(growable: false);
+  Future<void> _persistMatchmakingProfile(User user, Set<String> dirty) async {
+    final intentDirty = dirty.contains('intents');
+    final interestsDirty = dirty.contains('interests');
+    if (!intentDirty && !interestsDirty) return;
+    final intent = intentDirty ? _firstNonEmpty(user.intents) : null;
+    final interests = !interestsDirty
+        ? const <String>[]
+        : user.interests
+            .map((e) => e.trim())
+            .where((e) => e.isNotEmpty)
+            .toSet()
+            .toList(growable: false);
 
     if (intent == null && interests.isEmpty) return;
 
@@ -179,22 +184,36 @@ class UserService {
     );
   }
 
-  Future<void> _persistProfile(User user) async {
+  /// Writes only the profile columns whose fields are in [dirty].
+  ///
+  /// It used to write every column from the whole cached User, so a save that
+  /// changed one field also persisted whatever defaults User() had seeded into
+  /// the rest -- temperament oldSoul, identity mode social -- as if chosen.
+  Future<void> _persistProfile(User user, Set<String> dirty) async {
     final photoUrl = _nullableTrimmed(user.profileImage);
-    final safePayload = <String, dynamic>{
-      'id': user.id,
+    final basePayload = <String, dynamic>{
       // NULL, not '', for an empty username. profiles.username is UNIQUE and
       // allows many NULLs but only one ''; see
       // 20260914_handle_new_user_null_username.sql.
-      'username': _nullableTrimmed(user.username),
-      'display_name': user.name.trim(),
-      'bio': _nullableTrimmed(user.bio),
-      'about_me': _nullableTrimmed(user.bio),
-      'profile_photo_url': photoUrl,
-      'avatar_url': photoUrl,
-      'updated_at': DateTime.now().toIso8601String(),
+      if (dirty.contains('username'))
+        'username': _nullableTrimmed(user.username),
+      if (dirty.contains('name')) 'display_name': user.name.trim(),
+      if (dirty.contains('bio')) ...{
+        'bio': _nullableTrimmed(user.bio),
+        'about_me': _nullableTrimmed(user.bio),
+      },
+      if (dirty.contains('profileImage')) ...{
+        'profile_photo_url': photoUrl,
+        'avatar_url': photoUrl,
+      },
     };
-    await _client.from('profiles').upsert(safePayload);
+    if (basePayload.isNotEmpty) {
+      await _client.from('profiles').upsert(<String, dynamic>{
+        'id': user.id,
+        ...basePayload,
+        'updated_at': DateTime.now().toIso8601String(),
+      });
+    }
 
     // Temperament is written separately, and tolerantly, on purpose.
     //
@@ -210,41 +229,52 @@ class UserService {
     // time with no window where a write targets a column that is not there.
     // Once the migration is applied everywhere, delete the fallback -- that is
     // step 3, and it is safe to defer.
-    await _persistTemperament(user.id, user.temperament.name);
+    if (dirty.contains('temperament')) {
+      await _persistTemperament(user.id, user.temperament.name);
+    }
 
     final optionalPayload = <String, dynamic>{
-      'social_preference': _nullableTrimmed(user.socialPreference),
-      'expression_prompt_answer': _nullableTrimmed(user.expressionPromptAnswer),
-      'expression_vibe_tag': _nullableTrimmed(user.expressionVibeTag),
-      'expression_short_post': _nullableTrimmed(user.expressionShortPost),
-      'active_identity_mode': user.activeIdentityMode.name,
-      'anonymous_overlay_enabled': user.anonymousOverlayEnabled,
+      if (dirty.contains('socialPreference'))
+        'social_preference': _nullableTrimmed(user.socialPreference),
+      if (dirty.contains('expressionPromptAnswer'))
+        'expression_prompt_answer':
+            _nullableTrimmed(user.expressionPromptAnswer),
+      if (dirty.contains('expressionVibeTag'))
+        'expression_vibe_tag': _nullableTrimmed(user.expressionVibeTag),
+      if (dirty.contains('expressionShortPost'))
+        'expression_short_post': _nullableTrimmed(user.expressionShortPost),
+      if (dirty.contains('activeIdentityMode'))
+        'active_identity_mode': user.activeIdentityMode.name,
+      if (dirty.contains('anonymousOverlayEnabled'))
+        'anonymous_overlay_enabled': user.anonymousOverlayEnabled,
     };
-    try {
-      await _client
-          .from('profiles')
-          .update(optionalPayload)
-          .eq('id', user.id)
-          .select('id');
-    } catch (e) {
-      if (!_isMissingColumnError(e, 'social_preference') &&
-          !_isMissingColumnError(e, 'expression_prompt_answer') &&
-          !_isMissingColumnError(e, 'expression_vibe_tag') &&
-          !_isMissingColumnError(e, 'expression_short_post') &&
-          !_isMissingColumnError(e, 'active_identity_mode') &&
-          !_isMissingColumnError(e, 'anonymous_overlay_enabled')) {
-        rethrow;
+    if (optionalPayload.isNotEmpty) {
+      try {
+        await _client
+            .from('profiles')
+            .update(optionalPayload)
+            .eq('id', user.id)
+            .select('id');
+      } catch (e) {
+        if (!_isMissingColumnError(e, 'social_preference') &&
+            !_isMissingColumnError(e, 'expression_prompt_answer') &&
+            !_isMissingColumnError(e, 'expression_vibe_tag') &&
+            !_isMissingColumnError(e, 'expression_short_post') &&
+            !_isMissingColumnError(e, 'active_identity_mode') &&
+            !_isMissingColumnError(e, 'anonymous_overlay_enabled')) {
+          rethrow;
+        }
+        debugPrint(
+          'UserService._persistProfile optional profile columns unavailable yet; saved base profile only.',
+        );
       }
-      debugPrint(
-        'UserService._persistProfile optional profile columns unavailable yet; saved base profile only.',
-      );
     }
     // Keys only, never values: safePayload carries display_name, bio, avatar
     // url and whatever else the profile holds, and printing it wrote the user's
     // own profile content to the console on every save.
     debugPrint(
-      'UserService._persistProfile saved base profile columns: '
-      '${safePayload.keys.toList()..sort()}',
+      'UserService._persistProfile wrote columns: '
+      '${[...basePayload.keys, ...optionalPayload.keys]..sort()}',
     );
   }
 
@@ -510,8 +540,10 @@ class UserService {
               'expressionShortPost': _nullableTrimmed(
                   profile['expression_short_post']?.toString()),
             });
-      await _cacheCurrentUser(user);
-      return user;
+      // Hydrated only when a profiles row was actually read; see saveUser.
+      final loaded = profile == null ? user : user.markHydrated();
+      await _cacheCurrentUser(loaded);
+      return loaded;
     } catch (e) {
       debugPrint('Failed to get current user: $e');
       return null;
@@ -549,7 +581,31 @@ class UserService {
     await _cacheCurrentUser(user);
   }
 
+  /// Saves the fields that changed since [user] was hydrated, and nothing else.
+  ///
+  /// User() seeds non-null defaults -- temperament oldSoul, identity mode
+  /// social, trustScore 70, profileVisibility public -- so "not answered" and
+  /// "answered with the default" are the same object. Two rules follow:
+  ///
+  /// - An unhydrated user (never read back from a profiles row) is refused.
+  ///   Its fields cannot be told apart from defaults, so any write would
+  ///   persist defaults as chosen.
+  /// - A hydrated user writes only its dirty fields: those that differ from
+  ///   the snapshot taken when it was read. Untouched fields may still hold a
+  ///   default the reader substituted, and are left alone.
+  ///
+  /// Known-deferred, and not fixed here: User.fromJson substitutes the same
+  /// defaults on read, so the app still believes invented values even though
+  /// it no longer writes them. The end state is nullable fields with the UI
+  /// supplying display defaults.
   Future<void> saveUser(User user) async {
+    if (!user.isHydrated) {
+      debugPrint(
+          'UserService.saveUser skipped: user was not hydrated from profiles');
+      return;
+    }
+    final dirty = user.dirtyFields();
+    if (dirty.isEmpty) return;
     try {
       // Auth-only setup: persist to local cache so onboarding can work,
       // without requiring any public mirror table.
@@ -562,39 +618,43 @@ class UserService {
         final authUser = AuthService.instance.currentAuthUser;
         if (authUser != null && authUser.id == user.id) {
           try {
-            await _persistProfile(user);
+            await _persistProfile(user, dirty);
           } catch (e) {
             debugPrint(
               'UserService.saveUser persist profile failed (non-fatal): $e',
             );
           }
           try {
-            await _persistMatchmakingProfile(user);
+            await _persistMatchmakingProfile(user, dirty);
           } catch (e) {
             debugPrint(
               'UserService.saveUser persist matchmaking profile failed (non-fatal): $e',
             );
           }
-          try {
-            await _persistVibe(user.id, user.moodTags);
-          } catch (e) {
-            debugPrint(
-              'UserService.saveUser persist vibe failed (non-fatal): $e',
-            );
+          if (dirty.contains('moodTags')) {
+            try {
+              await _persistVibe(user.id, user.moodTags);
+            } catch (e) {
+              debugPrint(
+                'UserService.saveUser persist vibe failed (non-fatal): $e',
+              );
+            }
           }
-          try {
-            await _client.auth.updateUser(
-              sb.UserAttributes(
-                data: {
-                  'name': user.name,
-                  'username': user.username,
-                },
-              ),
-            );
-          } catch (e) {
-            debugPrint(
-              'UserService.saveUser updateUser metadata failed (non-fatal): $e',
-            );
+          if (dirty.contains('name') || dirty.contains('username')) {
+            try {
+              await _client.auth.updateUser(
+                sb.UserAttributes(
+                  data: {
+                    'name': user.name,
+                    'username': user.username,
+                  },
+                ),
+              );
+            } catch (e) {
+              debugPrint(
+                'UserService.saveUser updateUser metadata failed (non-fatal): $e',
+              );
+            }
           }
         }
       }
