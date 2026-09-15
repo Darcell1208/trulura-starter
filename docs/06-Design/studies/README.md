@@ -14,6 +14,8 @@ lost it is recorded here by name.
 | `TruLura_Study02_Home_LaunchState.png` | 02 | Footer: "VISUAL STUDY 02 · NONCANONICAL" | Noncanonical study frame |
 | `TruLura_Study03_Home_LaunchState.png` | 03 | Footer: "VISUAL STUDY 03 · TRUE LAUNCH STATE · NONCANONICAL" | Noncanonical study frame |
 | `TruLura_Home_Variant_PhoneCapture_NoStudyLabel.jpg` | Unknown | **None** — the footer is cropped off | **UNCLASSIFIED and NONCANONICAL** |
+| `TruLura_Study05_Home_ABC.png` | 05 | Footer: "VISUAL STUDY 05 · NONCANONICAL" | Noncanonical study frame |
+| `TruLura_Study05_IdentityBeyondEffects_NoNoncanonicalMark.png` | 05 | Footer: "VISUAL STUDY 05 · ACCESSIBLE IDENTITY" — **no NONCANONICAL mark** | **NONCANONICAL** (recorded here; the frame does not say so) |
 
 ## The unlabelled frame
 
@@ -27,6 +29,27 @@ noncanonical. It is not an approved TruLura render.**
   failing as predicted: the label did not survive the crop.
 - Do not cite it as evidence of a design decision, and do not infer which study
   it belongs to from how it looks.
+
+## Study 05 frames
+
+Both files show Home in three states: A (Mood: Calm), B (Mood: Healing) and C
+(Reduced Motion). Frame C is the reduced-motion, static-Aura, minimal-effects
+version that the Study 05 brief (`../TruLura_Study05_Brief.md`, sections 4 and 6)
+exists to test.
+
+- **Verdict: Frame C failed.** The Product Owner reported on 2026-09-14 that it
+  "preserved function but read as the default with the life turned off"
+  (DR-5 in `../../TruLura_PO_Decision_Record_2026-09-14.md`). That verdict is
+  the Product Owner's; it is not derived from these files.
+- **`TruLura_Study05_IdentityBeyondEffects_NoNoncanonicalMark.png` is missing
+  its NONCANONICAL mark.** Its footer reads "ACCESSIBLE IDENTITY" instead, so
+  the study artefact rule failed on this frame. It is noncanonical because this
+  record says so, not because the frame does.
+- **Its captions are claims, not findings.** "Identity Beyond Effects",
+  "Accessible. Still TruLura." and the "Identity Carriers (Work Without
+  Effects)" panel are text inside a render. They do not record a test result,
+  and the Product Owner's verdict above contradicts them.
+- **No study record in the brief's section 5 form exists** for Study 05.
 
 ## Not yet in this folder
 

@@ -60,7 +60,9 @@ It does not hold current bugs, implementation state, feature specifications or t
 
 **The test.** Show someone who knows the product a screen at its default, then the same screen at reduced motion, static Aura and minimal effects, and ask whether it is the same product. "Yes, quieter" passes. "It's the same but with everything turned off" fails. Keeping every function does not pass the test on its own. (`docs/06-Design/TruLura_Study05_Brief.md`, section 6, test 3.)
 
-**Worked example: Study 05 Frame C, 2026-09-14.** Frame C was Home at reduced motion, static Aura and minimal effects, and the brief named this failure mode in advance (section 4). The Product Owner reported that it failed the test: "the reduced-effects frame preserved function but read as the default with the life turned off." No Study 05 frame or study record is in this repository; the result is recorded as the Product Owner's report in DR-5.
+**Worked example: Study 05 Frame C, 2026-09-14.** Frame C was Home at reduced motion, static Aura and minimal effects, and the brief named this failure mode in advance (section 4). The Product Owner reported that it failed the test: "the reduced-effects frame preserved function but read as the default with the life turned off." The frames are `docs/06-Design/studies/TruLura_Study05_Home_ABC.png` and `docs/06-Design/studies/TruLura_Study05_IdentityBeyondEffects_NoNoncanonicalMark.png`. No study record in the brief's form exists, so the result is recorded as the Product Owner's report in DR-5.
+
+**This worked example is a failure, and it stays one until a redesign earns a pass.** (DR-5.)
 
 ## Changing this document
 
