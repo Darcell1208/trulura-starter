@@ -73,3 +73,15 @@ doctor.txt
 # Local-only data snapshots. Never committed: they can hold personal data, and
 # this repository is public.
 /private/
+
+# Flutter golden-test failure output, written on every failing golden run.
+# Ignored rather than committed for a specific reason: the dot_*/ring_* diff
+# images it produces look like the baselines in test/goldens/compact_feed and
+# would be easy to mistake for them. The baselines are the reviewed artifact;
+# these are transient debug output and are stale as soon as a test reruns.
+test/failures/
+
+# Generated web build output. web/ is tracked only for the hand-written shell
+# (index.html, manifest.json, favicon, icons); flutter.js and its source map
+# are produced by `flutter build web`.
+web/flutter.js.map

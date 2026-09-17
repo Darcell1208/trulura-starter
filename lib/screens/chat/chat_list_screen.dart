@@ -1,3 +1,4 @@
+import 'package:trulura/widgets/trulura_safe_avatar.dart';
 import 'dart:async';
 import 'dart:ui';
 
@@ -452,13 +453,9 @@ class _ChatListScreenState extends State<ChatListScreen> {
                                                             name: name,
                                                             subtitle: subtitle,
                                                             status: chat.status,
-                                                            avatar: otherUser
-                                                                        ?.profileImage !=
-                                                                    null
-                                                                ? AssetImage(
-                                                                    otherUser!
-                                                                        .profileImage!)
-                                                                : null,
+                                                            avatar: profileImageProvider(
+                                                                otherUser
+                                                                    ?.profileImage),
                                                             pinned: isPinned,
                                                             onTap: () =>
                                                                 context.push(

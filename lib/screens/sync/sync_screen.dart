@@ -1,3 +1,4 @@
+import 'package:trulura/widgets/trulura_safe_avatar.dart';
 import 'dart:math' as math;
 import 'dart:async';
 
@@ -100,6 +101,7 @@ class _SyncScreenState extends State<SyncScreen>
           ? await _syncService.getActiveMatches(userId: me.id)
           : const <TruActiveMatch>[];
 
+      if (!mounted) return;
       setState(() {
         _currentUser = me;
         _users = users;
@@ -123,6 +125,7 @@ class _SyncScreenState extends State<SyncScreen>
       });
     } catch (e) {
       truLogStateError('Sync._load', e);
+      if (!mounted) return;
       setState(() {
         _hasError = true;
         _isLoading = false;
@@ -770,9 +773,8 @@ class _SyncScreenState extends State<SyncScreen>
           onSearchChanged: (_) => setState(() {}),
           profiles: cards.take(12).map((c) {
             final u = c.user;
-            final avatar = u.profileImage != null
-                ? AssetImage(u.profileImage!)
-                : const AssetImage(
+            final avatar = profileImageProvider(u.profileImage) ??
+                const AssetImage(
                     'assets/images/portrait_young_woman_smiling_null_1772162274859.jpg');
             final descriptor = (c.reasons.isNotEmpty)
                 ? 'Energy: ${c.reasons.first}'

@@ -1,3 +1,4 @@
+import 'package:trulura/widgets/compact_feed_card_presentation.dart';
 import 'dart:async';
 
 import 'package:flutter/material.dart';
@@ -27,6 +28,7 @@ import 'package:trulura/theme/mood_colors.dart';
 import 'package:trulura/widgets/trulura_event_carousel_row.dart';
 import 'package:trulura/widgets/trulura_feed_components.dart';
 import 'package:trulura/widgets/trulura_feed_item_renderer.dart';
+import 'package:trulura/widgets/feed_card_visual_spec.dart';
 import 'package:trulura/widgets/trulura_glass_card.dart';
 import 'package:trulura/widgets/trulura_glow_pill.dart';
 import 'package:trulura/widgets/trulura_icon.dart';
@@ -105,6 +107,9 @@ class _HomeFeedScreenState extends State<HomeFeedScreen>
   @override
   void initState() {
     super.initState();
+    // Aura-blank diagnosis: a fresh state on return means the screen was
+    // rebuilt from scratch; no line means the old state was kept.
+    debugPrint('HomeFeedScreen.initState state=${identityHashCode(this)}');
     // Mode-shaped feed tabs.
     _tabController = TabController(length: 5, vsync: this);
     _pulse = AnimationController(
@@ -200,8 +205,25 @@ class _HomeFeedScreenState extends State<HomeFeedScreen>
     _loadBehavior();
   }
 
+  _AuraFeedKind _lastInlineKind = _AuraFeedKind.aura;
+  bool _openingVent = false;
+
   void _onFeedTabChanged() {
-    if (mounted) setState(() {});
+    if (!mounted) return;
+    if (_activeKind() == _AuraFeedKind.vent) {
+      if (_openingVent) return;
+      _openingVent = true;
+      WidgetsBinding.instance.addPostFrameCallback((_) async {
+        if (!mounted) return;
+        final previous = _tabOrder.indexOf(_lastInlineKind);
+        _tabController.index = previous < 0 ? 0 : previous;
+        await TruNavigation.pushWithReturnTo(context, AppRoutes.vent);
+        if (mounted) setState(() => _openingVent = false);
+      });
+      return;
+    }
+    _lastInlineKind = _activeKind();
+    setState(() {});
   }
 
   @override
@@ -230,7 +252,7 @@ class _HomeFeedScreenState extends State<HomeFeedScreen>
         context.read<ExperienceModeController>().participationContext;
 
     final preferred = switch (participation.activeMode) {
-      TruExperienceMode.vent => _AuraFeedKind.vent,
+      TruExperienceMode.vent => _AuraFeedKind.aura,
       TruExperienceMode.dating ||
       TruExperienceMode.luxe ||
       TruExperienceMode.altIntimate =>
@@ -274,6 +296,7 @@ class _HomeFeedScreenState extends State<HomeFeedScreen>
 
   @override
   void dispose() {
+    debugPrint('HomeFeedScreen.dispose state=${identityHashCode(this)}');
     try {
       _postsChannel?.unsubscribe();
       _reactionsChannel?.unsubscribe();
@@ -759,26 +782,29 @@ class _HomeFeedScreenState extends State<HomeFeedScreen>
 
       final resolvedFeedTabs = <Widget>[
         for (final kind in _tabOrder)
-          _FeedTabView(
-            kind: kind,
-            ctx: participation,
-            personalization: _quizPersonalization,
-            ranked: _rankedForKind(kind, participation),
-            controller: _scrollControllers[kind]!,
-            onRefresh: _refreshFeed,
-            glowCounts: _glowCounts,
-            glowedPostIds: _glowedPostIds,
-            header: _AuraScrollHeader(
-              participation: participation,
-              personalizedSubtitle: _personalizedHeadingSubtitle(
-                participation,
+          if (kind == _AuraFeedKind.vent)
+            const SizedBox.shrink()
+          else
+            _FeedTabView(
+              kind: kind,
+              ctx: participation,
+              personalization: _quizPersonalization,
+              ranked: _rankedForKind(kind, participation),
+              controller: _scrollControllers[kind]!,
+              onRefresh: _refreshFeed,
+              glowCounts: _glowCounts,
+              glowedPostIds: _glowedPostIds,
+              header: _AuraScrollHeader(
+                participation: participation,
+                personalizedSubtitle: _personalizedHeadingSubtitle(
+                  participation,
+                ),
+                tabController: _tabController,
+                pulse: _pulse,
+                tabOrder: _tabOrder,
+                children: headerChildren,
               ),
-              tabController: _tabController,
-              pulse: _pulse,
-              tabOrder: _tabOrder,
-              children: headerChildren,
             ),
-          ),
       ];
 
       if (resolvedFeedTabs.isEmpty) {
@@ -2299,6 +2325,17 @@ class _FeedTabViewState extends State<_FeedTabView>
             _FeedLiveRowItem() => const _LiveInFeedCard(),
             _FeedPostItem(:final post, :final boostedSlot, :final why) =>
               TruluraFeedItemRenderer(
+                visualSpec: FeedCardVisualSpec.fromPost(
+                  post,
+                  context.watch<TruLuraModeController>().mode,
+                // Ring is aura glow, never mood; the chip carries mood. Passed
+                // explicitly because fromPost's accentB varies by mood branch.
+                // Same tone Vent and Profile paint (TruLuraHaloAvatar, aura);
+                // the compact ring is one colour, so it takes the tone's first.
+                ).withPresentation(const CompactFeedCardPresentation(),
+                    accentB: TruLuraModeTone.aura
+                        .resolve(Theme.of(context).colorScheme)
+                        .$1),
                 item: TruPostFeedItem(
                   post: post,
                   boosted: boostedSlot,

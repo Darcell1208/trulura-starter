@@ -430,6 +430,7 @@ class _HomeHubScreenState extends State<HomeHubScreen>
 
   @override
   Widget build(BuildContext context) {
+    debugPrint('HomeHubScreen.build tab=${_tabController.index}');
     final cs = Theme.of(context).colorScheme;
     final viewportWidth = MediaQuery.sizeOf(context).width;
     final sectionMaxWidth = _sectionMaxWidth(viewportWidth);
