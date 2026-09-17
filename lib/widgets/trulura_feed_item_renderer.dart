@@ -4,17 +4,22 @@ import 'package:trulura/core/navigation/app_router.dart';
 import 'package:trulura/core/navigation/tru_navigation.dart';
 import 'package:trulura/models/feed_item.dart';
 import 'package:trulura/widgets/feed_card.dart';
+import 'package:trulura/widgets/feed_card_visual_spec.dart';
 import 'package:trulura/widgets/trulura_boosted_post_card.dart';
 import 'package:trulura/widgets/trulura_feed_components.dart';
 
 class TruluraFeedItemRenderer extends StatelessWidget {
   final TruFeedItem item;
+
+  /// Card appearance supplied by the caller; null preserves legacy defaults.
+  final FeedCardVisualSpec? visualSpec;
   final EdgeInsetsGeometry padding;
   final bool constrainWidth;
 
   const TruluraFeedItemRenderer({
     super.key,
     required this.item,
+    this.visualSpec,
     this.padding = EdgeInsets.zero,
     this.constrainWidth = false,
   });
@@ -41,12 +46,14 @@ class TruluraFeedItemRenderer extends StatelessWidget {
         boosted
             ? TruluraBoostedPostCard(
                 post: post,
+                visualSpec: visualSpec,
                 initialGlowCount: counts.glow,
                 initiallyGlowed: counts.glowedByViewer,
                 why: why ?? '',
               )
             : FeedCard(
                 post: post,
+                visualSpec: visualSpec,
                 initialGlowCount: counts.glow,
                 initiallyGlowed: counts.glowedByViewer,
                 whyAmISeeingThis: why,

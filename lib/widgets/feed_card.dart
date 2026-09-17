@@ -1,4 +1,7 @@
+import 'package:trulura/widgets/feed_card_presentation.dart';
 import 'dart:math' as math;
+
+import 'package:trulura/widgets/feed_card_visual_spec.dart';
 
 import 'package:flutter/material.dart';
 import 'package:trulura/compat/provider_compat.dart';
@@ -28,6 +31,9 @@ import 'package:trulura/services/feed_behavior_service.dart';
 
 class FeedCard extends StatefulWidget {
   final Post post;
+
+  /// Omit to retain the existing post- and mode-derived appearance.
+  final FeedCardVisualSpec? visualSpec;
   final int initialGlowCount;
   final bool initiallyGlowed;
   final String? whyAmISeeingThis;
@@ -35,6 +41,7 @@ class FeedCard extends StatefulWidget {
   const FeedCard(
       {super.key,
       required this.post,
+      this.visualSpec,
       this.initialGlowCount = 0,
       this.initiallyGlowed = false,
       this.whyAmISeeingThis});
@@ -678,7 +685,8 @@ class _FeedCardState extends State<FeedCard>
 
     final moodGlow =
         MoodColors.glow(post.moodTag ?? '').withValues(alpha: 0.35);
-    final visualSpec = _FeedCardVisualSpec.fromPost(post, mode);
+    final visualSpec =
+        widget.visualSpec ?? FeedCardVisualSpec.fromPost(post, mode);
 
     final rawName = _resolvedName ?? post.user?.name;
     final displayName = post.isAnonymous
@@ -704,6 +712,39 @@ class _FeedCardState extends State<FeedCard>
     final timestampLabel = post.category.trim().toLowerCase() == 'vent'
         ? relativeTimeAgo(post.createdAt)
         : null;
+
+    final presentation = visualSpec.presentation;
+    if (presentation != null) {
+      final actions = _ActionSpec.forContext(participation);
+      return presentation.build(context, FeedCardPresentationData(
+        name: displayName, vibe: post.isAnonymous ? 'Anonymous' : (post.moodTag ?? vibeLabel),
+        text: post.content.trim().isNotEmpty ? post.content : (post.caption ?? ''),
+        auraColor: visualSpec.accentB,
+        // Mood rides on the header chip, not the ring. Palette is still
+        // MoodColors.glow pending the retune; untagged and anonymous get no dot.
+        moodColor: !post.isAnonymous && (post.moodTag?.trim().isNotEmpty ?? false)
+            ? MoodColors.glow(post.moodTag!) : null,
+        avatar: _imageProviderFor(profileImage),
+        onProfile: post.isAnonymous ? null : () => _openUserProfile(context),
+        onMore: () => _openMoreSheet(context),
+        actions: [
+          FeedCardAction(icon: Icons.auto_awesome_outlined, label: actions.primaryLabel,
+            count: _glowCount, selected: _hasGlowed, onTap: _toggleGlow),
+          FeedCardAction(icon: Icons.favorite_border, label: actions.secondaryLabel,
+            count: _reactCount, selected: _reacted, onTap: actions.showSecondary ? () async {
+              final selected = await _openReactionsSheet(context);
+              if (!context.mounted || selected == null) return;
+              if (selected == 'glow') { await _toggleGlow(); return; }
+              await _handleReactionSelection(selected);
+            } : null),
+          FeedCardAction(icon: Icons.chat_bubble_outline, label: actions.tertiaryLabel,
+            count: post.commentCount, onTap: actions.showTertiary ? () => _openComments(context) : null),
+          FeedCardAction(icon: Icons.ios_share_outlined, label: _sharing ? 'Sharing' : 'Share',
+            count: post.shareCount, onTap: participation.effectivePermissions.suppressVirality || _sharing
+              ? null : () => _handleShare(participation)),
+        ],
+      ));
+    }
 
     final auraBackground = _PostAuraBackground(
       mode: mode,
@@ -1022,278 +1063,6 @@ class _FeedCardState extends State<FeedCard>
         ),
       ),
     );
-  }
-}
-
-@immutable
-class _FeedCardVisualSpec {
-  final String label;
-  final TruLuraGlyph glyph;
-  final Color accentA;
-  final Color accentB;
-  final double radius;
-  final double leftInset;
-  final double topLift;
-  final double bottomBreath;
-  final int seed;
-  final double emotionalWeight;
-  final double motionTempo;
-  final double floatRange;
-  final double compression;
-  final double gravity;
-
-  const _FeedCardVisualSpec({
-    required this.label,
-    required this.glyph,
-    required this.accentA,
-    required this.accentB,
-    required this.radius,
-    required this.leftInset,
-    required this.topLift,
-    required this.bottomBreath,
-    required this.seed,
-    required this.emotionalWeight,
-    required this.motionTempo,
-    required this.floatRange,
-    required this.compression,
-    this.gravity = 0.34,
-  });
-
-  bool get hasTypeLabel => label.isNotEmpty;
-
-  static _FeedCardVisualSpec fromPost(Post post, TruLuraMode mode) {
-    final p = kTruLuraPalettes[mode]!;
-    final category = post.category.toLowerCase();
-    final type = post.type.toLowerCase();
-    final mood = (post.moodTag ?? '').toLowerCase();
-    final seed = '${post.id}|${post.userId}|${post.content}'.hashCode.abs();
-    final gravity = _gravityFor(post);
-
-    if (mood.contains('flirt') ||
-        mood.contains('romance') ||
-        mood.contains('spark') ||
-        mood.contains('crush')) {
-      return _FeedCardVisualSpec(
-        label: 'Warm signal',
-        glyph: TruLuraGlyph.heartOutline,
-        accentA: TruLuraTokens.auraPink,
-        accentB: TruLuraBrandColors.syncRose,
-        radius: 30,
-        leftInset: seed.isEven ? 2 : 5,
-        topLift: 1,
-        bottomBreath: 9,
-        seed: seed,
-        emotionalWeight: 0.68,
-        motionTempo: 1.12,
-        floatRange: 1.2,
-        compression: 0.84,
-        gravity: gravity,
-      );
-    }
-    if (mood.contains('reflect') ||
-        mood.contains('ground') ||
-        mood.contains('old soul') ||
-        mood.contains('quiet')) {
-      return _FeedCardVisualSpec(
-        label: 'Reflective note',
-        glyph: TruLuraGlyph.moon,
-        accentA: TruLuraTokens.auraViolet,
-        accentB: TruLuraBrandColors.neonBlue,
-        radius: 29,
-        leftInset: seed.isEven ? 0 : 4,
-        topLift: 5,
-        bottomBreath: 10,
-        seed: seed,
-        emotionalWeight: 0.82,
-        motionTempo: 0.62,
-        floatRange: 0.7,
-        compression: 1.06,
-        gravity: gravity,
-      );
-    }
-    if (mood.contains('social') ||
-        mood.contains('radiant') ||
-        mood.contains('party') ||
-        mood.contains('community')) {
-      return _FeedCardVisualSpec(
-        label: 'Social wave',
-        glyph: TruLuraGlyph.groups,
-        accentA: TruLuraTokens.auraCyan,
-        accentB: TruLuraTokens.auraPink,
-        radius: 28,
-        leftInset: seed.isEven ? 6 : 1,
-        topLift: 0,
-        bottomBreath: 8,
-        seed: seed,
-        emotionalWeight: 0.58,
-        motionTempo: 1.18,
-        floatRange: 1.5,
-        compression: 0.76,
-        gravity: gravity,
-      );
-    }
-    if (post.contentType == TruPostContentType.support ||
-        post.isAnonymous ||
-        mood.contains('heal') ||
-        mood.contains('calm') ||
-        category.contains('support') ||
-        category.contains('vent')) {
-      return _FeedCardVisualSpec(
-        label: post.isAnonymous ? 'Soft check-in' : 'Support note',
-        glyph: TruLuraGlyph.moon,
-        accentA: TruLuraTokens.auraCyan,
-        accentB: TruLuraBrandColors.neonPurple,
-        radius: 30,
-        leftInset: 2,
-        topLift: 6,
-        bottomBreath: 10,
-        seed: seed,
-        emotionalWeight: 0.92,
-        motionTempo: 0.48,
-        floatRange: 0.5,
-        compression: category.contains('vent') ? 1.34 : 1.10,
-        gravity: gravity,
-      );
-    }
-    if (post.contentType == TruPostContentType.creator ||
-        post.isCreatorContent ||
-        category.contains('creator') ||
-        category.contains('luxe') ||
-        type == 'image' ||
-        type == 'video') {
-      return _FeedCardVisualSpec(
-        label: category.contains('luxe')
-            ? 'Luxe signal'
-            : type == 'video'
-                ? 'Creator drop'
-                : 'Visual aura',
-        glyph: type == 'video' ? TruLuraGlyph.video : TruLuraGlyph.image,
-        accentA: category.contains('luxe')
-            ? TruLuraBrandColors.glowGold
-            : TruLuraTokens.auraPink,
-        accentB: TruLuraTokens.auraCyan,
-        radius: 30,
-        leftInset: seed.isEven ? 0 : 3,
-        topLift: 0,
-        bottomBreath: 8,
-        seed: seed,
-        emotionalWeight: category.contains('luxe') ? 0.72 : 0.60,
-        motionTempo: category.contains('luxe') ? 0.58 : 1.05,
-        floatRange: category.contains('luxe') ? 0.6 : 1.3,
-        compression: category.contains('luxe') ? 0.92 : 0.78,
-        gravity: gravity,
-      );
-    }
-    if (category.contains('quiz') ||
-        category.contains('prompt') ||
-        category.contains('compat')) {
-      return _FeedCardVisualSpec(
-        label: 'Aura prompt',
-        glyph: TruLuraGlyph.insights,
-        accentA: TruLuraBrandColors.glowGold,
-        accentB: p.glowB,
-        radius: 26,
-        leftInset: 4,
-        topLift: 4,
-        bottomBreath: 7,
-        seed: seed,
-        emotionalWeight: 0.70,
-        motionTempo: 0.82,
-        floatRange: 0.9,
-        compression: 0.96,
-        gravity: gravity,
-      );
-    }
-    if (category.contains('community') || category.contains('discussion')) {
-      return _FeedCardVisualSpec(
-        label: 'Conversation starter',
-        glyph: TruLuraGlyph.groups,
-        accentA: TruLuraTokens.auraCyan,
-        accentB: p.glowA,
-        radius: 27,
-        leftInset: 0,
-        topLift: 2,
-        bottomBreath: 6,
-        seed: seed,
-        emotionalWeight: 0.52,
-        motionTempo: 1.10,
-        floatRange: 1.1,
-        compression: 0.82,
-        gravity: gravity,
-      );
-    }
-    if (category.contains('repost') || category.contains('thread')) {
-      return _FeedCardVisualSpec(
-        label: category.contains('thread') ? 'Threaded reply' : 'Repost aura',
-        glyph: category.contains('thread')
-            ? TruLuraGlyph.messages
-            : TruLuraGlyph.share,
-        accentA: TruLuraTokens.auraCyan,
-        accentB: TruLuraTokens.auraViolet,
-        radius: 26,
-        leftInset: 5,
-        topLift: 5,
-        bottomBreath: 9,
-        seed: seed,
-        emotionalWeight: 0.76,
-        motionTempo: 0.72,
-        floatRange: 0.8,
-        compression: 1.02,
-        gravity: gravity,
-      );
-    }
-    if (category.contains('music') || category.contains('audio')) {
-      return _FeedCardVisualSpec(
-        label: category.contains('audio') ? 'Audio mood' : 'Music-linked',
-        glyph: TruLuraGlyph.tv,
-        accentA: TruLuraTokens.auraPink,
-        accentB: TruLuraBrandColors.glowGold,
-        radius: 30,
-        leftInset: 1,
-        topLift: 2,
-        bottomBreath: 8,
-        seed: seed,
-        emotionalWeight: 0.64,
-        motionTempo: 1.0,
-        floatRange: 1.1,
-        compression: 0.88,
-        gravity: gravity,
-      );
-    }
-    return _FeedCardVisualSpec(
-      label: mood.isEmpty ? 'Aura note' : 'Mood post',
-      glyph: TruLuraGlyph.spark,
-      accentA: p.glowA,
-      accentB: p.glowB,
-      radius: 28,
-      leftInset: seed.isEven ? 0 : 2,
-      topLift: seed % 3 == 0 ? 4 : 0,
-      bottomBreath: 6,
-      seed: seed,
-      emotionalWeight: 0.58,
-      motionTempo: 0.86,
-      floatRange: 0.8,
-      compression: 0.90,
-      gravity: gravity,
-    );
-  }
-
-  static double _gravityFor(Post post) {
-    final text =
-        '${post.category} ${post.moodTag ?? ''} ${post.content}'.toLowerCase();
-    var gravity = post.emotionalIntensityScore.clamp(0, 100) / 100.0 * 0.72;
-    if (text.contains('confess') ||
-        text.contains('vulnerable') ||
-        text.contains('healing') ||
-        text.contains('milestone') ||
-        text.contains('memory') ||
-        text.contains('reconnect')) {
-      gravity += 0.20;
-    }
-    if (post.isAnonymous || post.contentType == TruPostContentType.support) {
-      gravity += 0.14;
-    }
-    return gravity.clamp(0.0, 1.0);
   }
 }
 
@@ -1620,7 +1389,7 @@ class _PostContentBlock extends StatelessWidget {
   final String? textStyle;
   final String? backgroundColorHex;
   final bool isStyledText;
-  final _FeedCardVisualSpec visualSpec;
+  final FeedCardVisualSpec visualSpec;
 
   const _PostContentBlock({
     required this.text,
@@ -1720,7 +1489,7 @@ class _PostContentBlock extends StatelessWidget {
                   color: Colors.white.withValues(alpha: 0.76),
                 ),
                 const SizedBox(width: 7),
-                Text(visualSpec.label, style: labelStyle),
+                Flexible(child: Text(visualSpec.label, style: labelStyle)),
               ],
             ),
             const SizedBox(height: 8),
@@ -1850,7 +1619,7 @@ class _FeedHeaderRow extends StatelessWidget {
   final bool isFallbackIdentity;
   final bool isBoosted;
   final bool isMonetized;
-  final _FeedCardVisualSpec visualSpec;
+  final FeedCardVisualSpec visualSpec;
   final bool showTransparency;
   final String? profileImage;
   final VoidCallback? onTapProfile;
@@ -1889,183 +1658,167 @@ class _FeedHeaderRow extends StatelessWidget {
       return 60 + (hash % 35);
     }
 
-    return Row(
-      children: [
-        _NoSplashTap(
-          onTap: onTapProfile,
-          child: BreathingGlow(
-            enabled: !isAnonymous,
-            glowColor: p.glowB.withValues(alpha: 0.65),
-            maxBlur: 34,
-            minBlur: 18,
-            maxAlpha: 0.34,
-            minAlpha: 0.18,
-            child: TruLuraHaloAvatar(
-              radius: 22,
-              tone: TruLuraModeTone.aura,
-              image: imageProvider,
-              // Keep a gentle % badge — makes identity feel energetic.
-              matchPercent:
-                  isAnonymous ? null : (derivedCompatibility() / 100.0),
-              fallback: const TruLuraIcon(glyph: TruLuraGlyph.person, size: 20),
-            ),
+    return LayoutBuilder(builder: (context, constraints) {
+      // At 170px, the 136px of avatar/gap/buttons left only 34px for
+      // identity. Reflow the chrome instead of squeezing text into that box.
+      final compact = constraints.maxWidth < 320;
+      final avatar = _NoSplashTap(
+        onTap: onTapProfile,
+        child: BreathingGlow(
+          enabled: !isAnonymous,
+          glowColor: p.glowB.withValues(alpha: 0.65),
+          maxBlur: 34,
+          minBlur: 18,
+          maxAlpha: 0.34,
+          minAlpha: 0.18,
+          child: TruLuraHaloAvatar(
+            radius: compact ? 16 : 22,
+            tone: TruLuraModeTone.aura,
+            image: imageProvider,
+            // Keep a gentle % badge — makes identity feel energetic.
+            matchPercent: isAnonymous ? null : (derivedCompatibility() / 100.0),
+            fallback: const TruLuraIcon(glyph: TruLuraGlyph.person, size: 20),
           ),
         ),
-        const SizedBox(width: 12),
-        Expanded(
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              _NoSplashTap(
-                onTap: onTapProfile,
-                child: AnimatedSwitcher(
-                  duration: const Duration(milliseconds: 220),
-                  switchInCurve: Curves.easeOutCubic,
-                  switchOutCurve: Curves.easeInCubic,
-                  transitionBuilder: (child, anim) => FadeTransition(
-                    opacity: anim,
-                    child: SlideTransition(
-                      position: Tween<Offset>(
-                              begin: const Offset(0, 0.08), end: Offset.zero)
-                          .animate(anim),
-                      child: child,
-                    ),
-                  ),
-                  child: Row(
-                    key: ValueKey<String>(
-                        'name:$name:${isFallbackIdentity ? 'fallback' : 'real'}'),
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      Flexible(
-                        child: Text(
-                          name,
-                          style: t.titleMedium?.copyWith(
-                            fontWeight: FontWeight.w900,
-                            letterSpacing: 0.15,
-                            color: Colors.white.withValues(alpha: 0.98),
-                          ),
-                          overflow: TextOverflow.ellipsis,
-                        ),
-                      ),
-                      if (!isAnonymous) ...[
-                        const SizedBox(width: 8),
-                        Container(
-                          padding: const EdgeInsets.symmetric(
-                              horizontal: 10, vertical: 5),
-                          decoration: BoxDecoration(
-                            color: (isFallbackIdentity ? p.glowA : p.glowB)
-                                .withValues(alpha: 0.20),
-                            borderRadius: BorderRadius.circular(999),
-                            border: Border.all(
-                                color:
-                                    visualSpec.accentB.withValues(alpha: 0.38),
-                                width: TruLuraSurfaces.hairline),
-                            boxShadow: [
-                              BoxShadow(
-                                color:
-                                    visualSpec.accentA.withValues(alpha: 0.14),
-                                blurRadius: 14,
-                                spreadRadius: -8,
-                                offset: const Offset(0, 8),
-                              ),
-                            ],
-                          ),
-                          child: Text(
-                            vibeLabel,
-                            style: t.labelSmall?.copyWith(
-                                fontWeight: FontWeight.w900,
-                                letterSpacing: 0.18,
-                                color: Colors.white.withValues(alpha: 0.92)),
-                          ),
-                        ),
-                        if (showTransparency && (isBoosted || isMonetized)) ...[
-                          const SizedBox(width: 8),
-                          Container(
-                            padding: const EdgeInsets.symmetric(
-                                horizontal: 10, vertical: 5),
-                            decoration: BoxDecoration(
-                              color: cs.surface.withValues(alpha: 0.18),
-                              borderRadius: BorderRadius.circular(999),
-                              border: Border.all(
-                                  color: Colors.white.withValues(alpha: 0.16),
-                                  width: TruLuraSurfaces.hairline),
-                            ),
-                            child: Text(
-                              isBoosted ? 'BOOST' : 'INFO',
-                              style: t.labelSmall?.copyWith(
-                                  fontWeight: FontWeight.w900,
-                                  letterSpacing: 0.22,
-                                  color: Colors.white.withValues(alpha: 0.90)),
-                            ),
-                          ),
-                        ],
-                      ],
-                    ],
-                  ),
+      );
+      final identity = Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          _NoSplashTap(
+            onTap: onTapProfile,
+            child: AnimatedSwitcher(
+              duration: const Duration(milliseconds: 220),
+              switchInCurve: Curves.easeOutCubic,
+              switchOutCurve: Curves.easeInCubic,
+              transitionBuilder: (child, anim) => FadeTransition(
+                opacity: anim,
+                child: SlideTransition(
+                  position: Tween<Offset>(
+                          begin: const Offset(0, 0.08), end: Offset.zero)
+                      .animate(anim),
+                  child: child,
                 ),
               ),
-              // timestampLabel is in this condition because the timestamp lives
-              // in this row now, so the row has to render for a Vent post that
-              // is neither anonymous nor mood-tagged -- reachable since 0d11570
-              // let the composer post an attributed vent.
-              if (moodTag != null ||
-                  isAnonymous ||
-                  isFallbackIdentity ||
-                  timestampLabel != null)
-                Padding(
-                  padding: const EdgeInsets.only(top: 6),
-                  child: Row(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      TruLuraIcon(
-                          glyph: TruLuraGlyph.spark,
-                          size: 14,
-                          active: true,
-                          color: Colors.white.withValues(alpha: 0.82)),
-                      const SizedBox(width: 6),
-                      Text(
-                        isAnonymous
-                            ? 'Anonymous share'
-                            : (isFallbackIdentity
-                                ? 'Identity syncing…'
-                                : 'Mood'),
-                        style: t.labelSmall?.copyWith(
-                            fontWeight: FontWeight.w800,
-                            letterSpacing: 0.18,
-                            color: Colors.white.withValues(alpha: 0.82)),
+              child: Row(
+                key: ValueKey<String>(
+                    'name:$name:${isFallbackIdentity ? 'fallback' : 'real'}'),
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Flexible(
+                    child: Text(
+                      name,
+                      style: t.titleMedium?.copyWith(
+                        fontWeight: FontWeight.w900,
+                        letterSpacing: 0.15,
+                        color: Colors.white.withValues(alpha: 0.98),
                       ),
-                      // Here rather than beside the name. In the name row the
-                      // timestamp competed with it for width, and since an
-                      // anonymous card's name row holds nothing else, the name
-                      // went from full width to truncated -- "Eastern Beacon"
-                      // rendering as "Eastern Beac...". This row is short copy
-                      // and a chip, so it has the room.
-                      if (timestampLabel != null) ...[
-                        const SizedBox(width: 8),
-                        Text(
-                          timestampLabel!,
-                          style: t.labelSmall?.copyWith(
-                            fontWeight: FontWeight.w600,
-                            color: Colors.white.withValues(alpha: 0.66),
-                          ),
-                        ),
-                      ],
-                      if (moodTag != null) ...[
-                        const SizedBox(width: 8),
-                        TruLuraOrbChip(
-                          label: moodTag!,
-                          selected: true,
-                          compact: true,
-                          size: 28,
-                          glyph: TruLuraGlyph.spark,
-                        ),
-                      ],
-                    ],
+                      softWrap: true,
+                    ),
                   ),
-                ),
-            ],
+                  if (!isAnonymous) ...[
+                    const SizedBox(width: 8),
+                    Container(
+                      padding: const EdgeInsets.symmetric(
+                          horizontal: 10, vertical: 5),
+                      decoration: BoxDecoration(
+                        color: (isFallbackIdentity ? p.glowA : p.glowB)
+                            .withValues(alpha: 0.20),
+                        borderRadius: BorderRadius.circular(999),
+                        border: Border.all(
+                            color: visualSpec.accentB.withValues(alpha: 0.38),
+                            width: TruLuraSurfaces.hairline),
+                        boxShadow: [
+                          BoxShadow(
+                            color: visualSpec.accentA.withValues(alpha: 0.14),
+                            blurRadius: 14,
+                            spreadRadius: -8,
+                            offset: const Offset(0, 8),
+                          ),
+                        ],
+                      ),
+                      child: Text(
+                        vibeLabel,
+                        style: t.labelSmall?.copyWith(
+                            fontWeight: FontWeight.w900,
+                            letterSpacing: 0.18,
+                            color: Colors.white.withValues(alpha: 0.92)),
+                      ),
+                    ),
+                    if (showTransparency && (isBoosted || isMonetized)) ...[
+                      const SizedBox(width: 8),
+                      Container(
+                        padding: const EdgeInsets.symmetric(
+                            horizontal: 10, vertical: 5),
+                        decoration: BoxDecoration(
+                          color: cs.surface.withValues(alpha: 0.18),
+                          borderRadius: BorderRadius.circular(999),
+                          border: Border.all(
+                              color: Colors.white.withValues(alpha: 0.16),
+                              width: TruLuraSurfaces.hairline),
+                        ),
+                        child: Text(
+                          isBoosted ? 'BOOST' : 'INFO',
+                          style: t.labelSmall?.copyWith(
+                              fontWeight: FontWeight.w900,
+                              letterSpacing: 0.22,
+                              color: Colors.white.withValues(alpha: 0.90)),
+                        ),
+                      ),
+                    ],
+                  ],
+                ],
+              ),
+            ),
           ),
-        ),
+          if (moodTag != null ||
+              isAnonymous ||
+              isFallbackIdentity ||
+              timestampLabel != null)
+            Padding(
+              padding: const EdgeInsets.only(top: 6),
+              child: Wrap(
+                spacing: 6,
+                runSpacing: 6,
+                crossAxisAlignment: WrapCrossAlignment.center,
+                children: [
+                  TruLuraIcon(
+                      glyph: TruLuraGlyph.spark,
+                      size: 14,
+                      active: true,
+                      color: Colors.white.withValues(alpha: 0.82)),
+                  Text(
+                    isAnonymous
+                        ? 'Anonymous share'
+                        : (isFallbackIdentity ? 'Identity syncing…' : 'Mood'),
+                    style: t.labelSmall?.copyWith(
+                        fontWeight: FontWeight.w800,
+                        letterSpacing: 0.18,
+                        color: Colors.white.withValues(alpha: 0.82)),
+                  ),
+                  if (timestampLabel != null) ...[
+                    Text(
+                      timestampLabel!,
+                      style: t.labelSmall?.copyWith(
+                        fontWeight: FontWeight.w600,
+                        color: Colors.white.withValues(alpha: 0.66),
+                      ),
+                    ),
+                  ],
+                  if (moodTag != null) ...[
+                    TruLuraOrbChip(
+                      label: moodTag!,
+                      selected: true,
+                      compact: true,
+                      size: 28,
+                      glyph: TruLuraGlyph.spark,
+                    ),
+                  ],
+                ],
+              ),
+            ),
+        ],
+      );
+      final controls = <Widget>[
         if (showTransparency)
           _NoSplashIconButton(
             tooltip: 'Why am I seeing this?',
@@ -2085,8 +1838,24 @@ class _FeedHeaderRow extends StatelessWidget {
               active: false,
               color: Colors.white.withValues(alpha: 0.90)),
         ),
-      ],
-    );
+      ];
+      if (compact) {
+        return Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            Row(children: [avatar, const Spacer(), ...controls]),
+            const SizedBox(height: 6),
+            identity,
+          ],
+        );
+      }
+      return Row(children: [
+        avatar,
+        const SizedBox(width: 12),
+        Expanded(child: identity),
+        ...controls,
+      ]);
+    });
   }
 }
 
@@ -2095,7 +1864,7 @@ class _PostAuraBackground extends StatelessWidget {
   final String? moodTag;
   final String? imageAssetOrUrl;
   final Brightness brightness;
-  final _FeedCardVisualSpec spec;
+  final FeedCardVisualSpec spec;
 
   const _PostAuraBackground(
       {required this.mode,
@@ -2264,23 +2033,20 @@ class _PostPresenceStrip extends StatelessWidget {
           width: TruLuraSurfaces.hairline,
         ),
       ),
-      child: Row(
+      child: Wrap(
+        spacing: 8,
+        runSpacing: 6,
+        crossAxisAlignment: WrapCrossAlignment.center,
         children: [
           _TinyPulse(color: palette.glowB),
-          const SizedBox(width: 9),
-          Expanded(
-            child: Text(
-              label,
-              maxLines: 1,
-              overflow: TextOverflow.ellipsis,
-              style: t.labelMedium?.copyWith(
-                color: cs.onSurface.withValues(alpha: 0.88),
-                fontWeight: FontWeight.w900,
-                letterSpacing: 0,
-              ),
+          Text(
+            label,
+            style: t.labelMedium?.copyWith(
+              color: cs.onSurface.withValues(alpha: 0.88),
+              fontWeight: FontWeight.w900,
+              letterSpacing: 0,
             ),
           ),
-          const SizedBox(width: 8),
           Text(
             sub,
             style: t.labelSmall?.copyWith(
@@ -2386,74 +2152,85 @@ class _EmotionalActionRow extends StatelessWidget {
   Widget build(BuildContext context) {
     final p = kTruLuraPalettes[mode]!;
     final spec = _ActionSpec.forContext(ctx);
-    return Row(
-      children: [
-        Expanded(
-          child: _GlowPulse(
-            tick: glowPulseTick,
-            child: BreathingGlow(
-              enabled: hasGlowed,
-              glowColor: p.glowB,
-              maxBlur: 34,
-              minBlur: 18,
-              maxAlpha: 0.32,
-              minAlpha: 0.12,
-              child: _ActionPill(
-                mode: mode,
-                glyph: spec.primaryGlyph,
-                label: spec.primaryLabel,
-                count: glowCount,
-                emphasized: hasGlowed,
-                primary: true,
-                onTap: onTapGlow,
+    return LayoutBuilder(builder: (context, constraints) {
+      final columns = constraints.maxWidth < 240
+          ? 1
+          : constraints.maxWidth < 600
+              ? 2
+              : 4;
+      final width = (constraints.maxWidth - 10 * (columns - 1)) / columns;
+      return Wrap(
+        spacing: 10,
+        runSpacing: 10,
+        children: [
+          SizedBox(
+            width: width,
+            child: _GlowPulse(
+              tick: glowPulseTick,
+              child: BreathingGlow(
+                enabled: hasGlowed,
+                glowColor: p.glowB,
+                maxBlur: 34,
+                minBlur: 18,
+                maxAlpha: 0.32,
+                minAlpha: 0.12,
+                child: _ActionPill(
+                  mode: mode,
+                  glyph: spec.primaryGlyph,
+                  label: spec.primaryLabel,
+                  count: glowCount,
+                  emphasized: hasGlowed,
+                  primary: true,
+                  onTap: onTapGlow,
+                ),
               ),
             ),
           ),
-        ),
-        const SizedBox(width: 10),
-        Expanded(
-          child: Opacity(
-            opacity: spec.showSecondary ? 1.0 : 0.35,
-            child: _ActionPill(
-              mode: mode,
-              glyph: spec.secondaryGlyph,
-              label: spec.secondaryLabel,
-              count: spec.secondaryShowsCount ? reactCount : null,
-              emphasized: reacted,
-              onTap: spec.showSecondary ? onTapSpark : null,
+          SizedBox(
+            width: width,
+            child: Opacity(
+              opacity: spec.showSecondary ? 1.0 : 0.35,
+              child: _ActionPill(
+                mode: mode,
+                glyph: spec.secondaryGlyph,
+                label: spec.secondaryLabel,
+                count: spec.secondaryShowsCount ? reactCount : null,
+                emphasized: reacted,
+                onTap: spec.showSecondary ? onTapSpark : null,
+              ),
             ),
           ),
-        ),
-        const SizedBox(width: 10),
-        Expanded(
-          child: Opacity(
-            opacity: spec.showTertiary ? 1.0 : 0.35,
-            child: _ActionPill(
-              mode: mode,
-              glyph: spec.tertiaryGlyph,
-              label: spec.tertiaryLabel,
-              count: null,
-              onTap: spec.showTertiary ? onTapEcho : null,
+          SizedBox(
+            width: width,
+            child: Opacity(
+              opacity: spec.showTertiary ? 1.0 : 0.35,
+              child: _ActionPill(
+                mode: mode,
+                glyph: spec.tertiaryGlyph,
+                label: spec.tertiaryLabel,
+                count: null,
+                onTap: spec.showTertiary ? onTapEcho : null,
+              ),
             ),
           ),
-        ),
-        const SizedBox(width: 10),
-        Expanded(
-          child: Opacity(
-            opacity: shareSuppressed ? 0.35 : 1.0,
-            child: _ActionPill(
-              mode: mode,
-              glyph: TruLuraGlyph.share,
-              label: sharing ? 'Share...' : 'Share',
-              count: shareCount,
-              badgeTight: true,
-              integratedBadge: true,
-              onTap: shareSuppressed ? null : onTapShare,
+          SizedBox(
+            width: width,
+            child: Opacity(
+              opacity: shareSuppressed ? 0.35 : 1.0,
+              child: _ActionPill(
+                mode: mode,
+                glyph: TruLuraGlyph.share,
+                label: sharing ? 'Share...' : 'Share',
+                count: shareCount,
+                badgeTight: true,
+                integratedBadge: true,
+                onTap: shareSuppressed ? null : onTapShare,
+              ),
             ),
           ),
-        ),
-      ],
-    );
+        ],
+      );
+    });
   }
 }
 

@@ -10,12 +10,25 @@ class TruLuraSafeAvatar extends StatelessWidget {
   final Widget? fallback;
   final Color? backgroundColor;
 
-  const TruLuraSafeAvatar({super.key, required this.radius, required this.image, this.fallback, this.backgroundColor});
+  const TruLuraSafeAvatar(
+      {super.key,
+      required this.radius,
+      required this.image,
+      this.fallback,
+      this.backgroundColor});
 
   @override
   Widget build(BuildContext context) {
-    final bg = backgroundColor ?? Theme.of(context).colorScheme.surfaceContainerHighest.withValues(alpha: 0.75);
-    final fallbackWidget = Center(child: fallback ?? Icon(Icons.person, size: radius, color: Theme.of(context).colorScheme.onSurfaceVariant));
+    final bg = backgroundColor ??
+        Theme.of(context)
+            .colorScheme
+            .surfaceContainerHighest
+            .withValues(alpha: 0.75);
+    final fallbackWidget = Center(
+        child: fallback ??
+            Icon(Icons.person,
+                size: radius,
+                color: Theme.of(context).colorScheme.onSurfaceVariant));
 
     return SizedBox.square(
       dimension: radius * 2,
@@ -35,4 +48,15 @@ class TruLuraSafeAvatar extends StatelessWidget {
       ),
     );
   }
+}
+
+/// Selects the correct loader for a stored profile image reference.
+ImageProvider? profileImageProvider(String? source) {
+  final value = source?.trim() ?? '';
+  if (value.isEmpty) return null;
+  final uri = Uri.tryParse(value);
+  if (uri != null && (uri.scheme == 'http' || uri.scheme == 'https')) {
+    return NetworkImage(value);
+  }
+  return AssetImage(value);
 }

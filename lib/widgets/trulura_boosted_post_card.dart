@@ -1,16 +1,18 @@
 import 'package:flutter/material.dart';
 import 'package:trulura/models/post.dart';
 import 'package:trulura/widgets/feed_card.dart';
+import 'package:trulura/widgets/feed_card_visual_spec.dart';
 import 'package:trulura/widgets/trulura_glass_card.dart';
 import 'package:trulura/widgets/trulura_icon.dart';
 
 class TruluraBoostedPostCard extends StatelessWidget {
   final Post post;
+  final FeedCardVisualSpec? visualSpec;
   final int initialGlowCount;
   final bool initiallyGlowed;
   final String why;
 
-  const TruluraBoostedPostCard({super.key, required this.post, required this.initialGlowCount, required this.initiallyGlowed, required this.why});
+  const TruluraBoostedPostCard({super.key, required this.post, this.visualSpec, required this.initialGlowCount, required this.initiallyGlowed, required this.why});
 
   @override
   Widget build(BuildContext context) {
@@ -19,7 +21,8 @@ class TruluraBoostedPostCard extends StatelessWidget {
 
     return Stack(
       children: [
-        FeedCard(post: post, initialGlowCount: initialGlowCount, initiallyGlowed: initiallyGlowed, whyAmISeeingThis: why),
+        FeedCard(post: post, visualSpec: visualSpec, initialGlowCount: initialGlowCount, initiallyGlowed: initiallyGlowed, whyAmISeeingThis: why),
+        if (visualSpec?.presentation?.showPromotionBadge ?? true)
         Positioned(
           top: 12,
           right: 12,
