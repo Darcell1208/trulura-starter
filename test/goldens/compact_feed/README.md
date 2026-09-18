@@ -1,4 +1,27 @@
-> **These goldens are not evidence.** Read this before trusting a pass.
+> **These goldens are not evidence of design correctness.** Read this before
+> trusting a pass.
+>
+> **Regenerated 2026-09-17, deliberately — not the pattern recorded below.**
+> All three images were rewritten with `--update-goldens` after the Product
+> Owner confirmed the DR-2 mood palette and directed that it be applied to the
+> chip dot. The distinction from 2026-09-14 is the whole point:
+>
+> - The change that invalidated them was **decided first and intentional**. It
+>   was not discovered by a failing test and then accepted to make the test go
+>   away.
+> - The blast radius was **measured before** regenerating, not assumed. Only
+>   these three moved: `moods.png` by 0.06% / 265px, `ring.png` and `dot.png`
+>   by 0.30% / 760px each. The 24 pre-change baselines in `../feed_boundary`
+>   still pass at zero tolerance (48 comparisons), and
+>   `console_regressions_test` passes.
+> - The dot colours **no longer rest on these images at all.** The harness now
+>   asserts each dot's RGB against `MoodPalette` and asserts the five are
+>   distinct from one another. A regenerated golden can no longer hide a
+>   palette collapse the way the 2026-09-14 images did — that is what makes
+>   this regeneration safe, rather than the intent behind it. Build Status
+>   known issue 25.
+>
+> **The 2026-09-14 regeneration, kept because it is the record:**
 >
 > - `ring.png` and `dot.png` were regenerated with `--update-goldens` on
 >   2026-09-14 at 02:38 UTC, one minute after the suite failed against them
@@ -6,19 +29,27 @@
 >   mood chip. `moods.png` was created with `--update-goldens` at 02:37 UTC and
 >   rewritten the same way at 03:02 UTC. Claude did all three, in a Claude Code
 >   session, and said so at the time. Nobody reviewed the images.
-> - They record what the widget drew at that moment, not what it should draw.
->   `moods.png` includes an untagged card whose chip reads "Radiant", a label
->   invented by `_vibeLabelFor` (Build Status known issue 24).
+>
+> **Still unverified after the 2026-09-17 regeneration:**
+>
+> - Everything in these images except the dot colours. Layout, type, spacing
+>   and composition have never been compared against an approved design.
+> - `moods.png` still shows an untagged card whose chip reads a label invented
+>   by `_vibeLabelFor` ("Radiant" at last inspection) — Build Status known
+>   issue 24. That bug is **not** fixed: the 2026-09-17 change corrected the
+>   dot palette only, so the regenerated image preserves the invented label
+>   rather than discharging it.
 > - They render `CompactFeedCardPresentation` on its own, with fixture data.
 >   On 2026-09-14 this suite passed 9/9 while the running app was drawing a
->   different card entirely (known issue 23). A pass shows the widget still
->   paints the same pixels. It does not show the design is right, or that the
->   app is using this widget.
+>   different card entirely (known issue 23, since diagnosed as a stale dev
+>   build serving the legacy card). A pass shows the widget still paints the
+>   same pixels. It does not show the design is right, or that the app is
+>   using this widget.
 >
-> Before any of these images is used to accept or reject a change, compare it
-> with an approved design and replace this note with who approved it and when.
-> The `../feed_boundary` baselines are a different kind of golden; see their
-> README. Build Status known issue 26 records the same facts.
+> Before any of these images is used to accept or reject a *design*, compare it
+> with an approved design and record who approved it and when. The
+> `../feed_boundary` baselines are a different kind of golden; see their
+> README. Build Status known issues 25 and 26 record these facts.
 
 # Compact Home card verification
 
