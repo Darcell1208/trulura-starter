@@ -34,6 +34,9 @@ class CompactFeedCardPresentation extends FeedCardPresentation {
     // is something here", which is the impression known issue 24 was about.
     final rawVibe = data.vibe?.trim();
     final moodLabel = (rawVibe == null || rawVibe.isEmpty) ? null : rawVibe;
+    // Same rule for the name: no name, no text. Known issue 31.
+    final rawName = data.name?.trim();
+    final nameLabel = (rawName == null || rawName.isEmpty) ? null : rawName;
     final textStyle = Theme.of(context).textTheme.bodyMedium!.copyWith(
         fontSize: textSize,
         height: 1.4,
@@ -92,19 +95,20 @@ class CompactFeedCardPresentation extends FeedCardPresentation {
                                 shape: BoxShape.circle, color: data.auraColor)),
                         const SizedBox(width: 5),
                       ],
-                      Flexible(
-                          child: GestureDetector(
-                              onTap: data.onProfile,
-                              child: Text(data.name,
-                                  maxLines: 1,
-                                  overflow: TextOverflow.ellipsis,
-                                  style: Theme.of(context)
-                                      .textTheme
-                                      .bodyMedium!
-                                      .copyWith(
-                                          fontSize: nameSize,
-                                          fontWeight: FontWeight.w500,
-                                          color: ink)))),
+                      if (nameLabel != null)
+                        Flexible(
+                            child: GestureDetector(
+                                onTap: data.onProfile,
+                                child: Text(nameLabel,
+                                    maxLines: 1,
+                                    overflow: TextOverflow.ellipsis,
+                                    style: Theme.of(context)
+                                        .textTheme
+                                        .bodyMedium!
+                                        .copyWith(
+                                            fontSize: nameSize,
+                                            fontWeight: FontWeight.w500,
+                                            color: ink)))),
                       // Mood chip: neutral pill, coloured dot, mood name. The
                       // ring is brand glow; this is the only mood carrier, and
                       // the name means it still reads without colour. No mood,

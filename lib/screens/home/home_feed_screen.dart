@@ -1024,25 +1024,19 @@ class _AuraWorldHero extends StatelessWidget {
           onTap: () => context.push(AppRoutes.onboardingVibe),
         ),
       ],
+      // Only portals that actually go somewhere. "Emotional Weather" and
+      // "Reflection Journey" were removed on 2026-09-18 (Build Status known
+      // issue 32): neither passed an onTap, and no screen or route existed for
+      // either, so they were inert cards advertising features that do not
+      // exist. Do not re-add a portal without a destination -- a decorative
+      // rail entry is indistinguishable from a broken one to anyone using it.
       portals: [
-        TruRealmPortal(
-          title: 'Emotional Weather',
-          subtitle: 'Notice what is rising, softening, or asking for care.',
-          glyph: TruLuraGlyph.aura,
-          accent: data.primary,
-        ),
         TruRealmPortal(
           title: 'Aura Pulse',
           subtitle: 'The living signal of your current emotional world.',
           glyph: TruLuraGlyph.groups,
           accent: data.secondary,
           onTap: () => context.go(AppRoutes.homeTab('explore')),
-        ),
-        TruRealmPortal(
-          title: 'Reflection Journey',
-          subtitle: 'Follow how your mood evolves across posts and check-ins.',
-          glyph: TruLuraGlyph.star,
-          accent: TruLuraBrandColors.glowGold,
         ),
       ],
     );

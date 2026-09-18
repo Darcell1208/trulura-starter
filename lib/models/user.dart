@@ -400,6 +400,26 @@ class User {
     return local.isEmpty ? null : local;
   }
 
+  /// The display name, or null when there is nothing safe to show.
+  ///
+  /// Null is a real answer here, not an error: an empty name, an email-shaped
+  /// name, and a name equal to the email's local part are all cases where
+  /// showing the raw value would leak or mislead. Callers that must render
+  /// something pass their own fallback through [publicDisplayNameFrom];
+  /// callers that would rather render nothing use this and omit the widget.
+  /// FeedCard uses this one — a placeholder name there was indistinguishable
+  /// from a real one (Build Status known issue 31).
+  static String? publicDisplayNameOrNull(String? raw, {String? email}) {
+    final trimmed = raw?.trim() ?? '';
+    if (trimmed.isEmpty) return null;
+    if (_looksLikeEmail(trimmed)) return null;
+    final local = _emailLocalPart(email);
+    if (local != null && trimmed.toLowerCase() == local.toLowerCase()) {
+      return null;
+    }
+    return trimmed;
+  }
+
   static String publicDisplayNameFrom(
     String? raw, {
     String? email,

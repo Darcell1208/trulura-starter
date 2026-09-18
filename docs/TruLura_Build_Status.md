@@ -748,7 +748,9 @@ Top blockers, unchanged:
 
 29. **The Vent/Profile card strip is not one invented label but three
     independent hardcoded systems, plus a fourth fabricated value.** Logged
-    2026-09-17 after a browser review. **Not fixed; no code changed.**
+    2026-09-17 after a browser review. **Partially fixed 2026-09-18 — source
+    (1) only. Sources (2), (4) and (5) are untouched, and (3) still renders on
+    Vent. See the closing bullets.**
     - **The question asked was "one source or several".** Several. They look
       like a single strip only because they are stacked adjacently in the same
       legacy branch of `FeedCard`. Each would have to be fixed separately.
@@ -819,9 +821,22 @@ Top blockers, unchanged:
       rendered frame has a hero, so it belongs to the design thread before any
       implementation. Recorded here as an open question only; this is not a
       ruling.
+    - **Fixed 2026-09-18, source (1) only, on Product Owner instruction:**
+      "suppress `_PostPresenceStrip` entirely when glow, react and share are all
+      zero. Don't rewrite the branches — show real data or nothing, same rule as
+      the chip." The strip is now guarded by
+      `if (_glowCount + _reactCount + post.shareCount > 0)`, with the leading
+      spacer folded inside the guard so suppressing it leaves one gap rather
+      than two. The branch chains are deliberately left intact — known issue 33.
+    - **Still present after that fix, and this is the part not to lose:**
+      (2) "Soft check-in" stays, ruled data-driven and merely uniform because
+      Vent forces `isAnonymous`. (3) the 66% badge no longer reaches Profile,
+      which now takes the compact presentation (issue 30), but **still renders
+      on Vent**, which remains on the legacy tree. (4) the `_signals` banner and
+      (5) the hardcoded Aura hero are untouched.
 
 30. **Profile renders feed cards on the legacy path because no visual spec is
-    passed.** Logged 2026-09-17. **Not fixed; no code changed.**
+    passed.** Logged 2026-09-17. **Fixed 2026-09-18.**
     - `profile_screen.dart:695` and `:723` call
       `TruluraFeedItemRenderer(item: item)` with no `visualSpec`, so
       `FeedCard` falls back to `FeedCardVisualSpec.fromPost`
@@ -836,17 +851,23 @@ Top blockers, unchanged:
       the screens: "Full Vent/Profile screen rendering is NOT exercised. These
       are card goldens" (`test/goldens/feed_boundary/README.md`). So the
       boundary work measured Profile's cards against baselines but never wired
-      Profile to the injected presentation. Whether it should adopt the compact
-      presentation is **not decided**.
+      Profile to the injected presentation. **Decided 2026-09-18: Profile
+      adopts the compact presentation** — see the fix note below.
     - **Naming note:** there is no "Journey" card or screen on Profile. All of
       `lib/` contains only `_TruJourneyTimelineDestination` inside
       `placeholder_screen.dart`, a `truJourney` quiz-effect enum value
       (`quiz_registry_models.dart:56`), and a label string
       (`quiz_library_screen.dart:64`).
+    - **Fixed 2026-09-18:** `profile_screen.dart` now passes
+      `FeedCardVisualSpec.fromPost(...).withPresentation(const CompactFeedCardPresentation(), accentB: TruLuraModeTone.aura...)`
+      — the same injection Home uses. Product Owner reasoning: "The 66% badge is
+      worst on a profile, where it reads as a real score." Profile therefore
+      leaves the legacy tree entirely, losing the badge, the presence strip and
+      the body-box header in one change rather than three.
 
 31. **"New member" renders identically for three different states: still
-    loading, no such user, and the lookup threw.** Logged 2026-09-17. **Not
-    fixed; no code changed.**
+    loading, no such user, and the lookup threw.** Logged 2026-09-17.
+    **Fixed 2026-09-18.**
     - `_fallbackIdentityLabel` (`feed_card.dart:128-131`) returns the literal
       `'New member'` for any non-anonymous post.
     - Three paths reach it: the first render before `_loadIdentity` resolves
@@ -866,10 +887,25 @@ Top blockers, unchanged:
       the current user (auth-only setup)."
     - **Failure class:** a failed read rendered as a value — the same shape as
       a default counted as an answer, with the failure path folded in.
+    - **Fixed 2026-09-18, with the three cases actually separated:**
+      `_fallbackIdentityLabel` is deleted. `User.publicDisplayNameOrNull`
+      returns null where `publicDisplayNameFrom` returned a placeholder, and
+      `FeedCardPresentationData.name` and `_FeedHeaderRow.name` are now
+      nullable, so both presentations omit the name rather than substituting
+      one. A private `_IdentityResolution { pending, resolved, absent, failed }`
+      records which case applies, and only `pending` may show the "Identity
+      syncing…" hint — a terminal absent or failed resolution can no longer
+      claim something is still on its way.
+    - **A failed read now logs.** The catch calls
+      `truLogStateError('FeedCard._loadIdentity', e, st)`, which routes through
+      `safeError` and drops the fields carrying user content, so the failure is
+      visible without putting a name or a row in the console.
+    - **The flash is gone as a consequence rather than as a separate fix.** With
+      no placeholder there is nothing to render before the real name arrives.
 
 32. **"Emotional Weather" and "Reflection Journey" are inert cards pointing at
-    destinations that do not exist.** Logged 2026-09-17. **Not fixed; no code
-    changed.**
+    destinations that do not exist.** Logged 2026-09-17. **Fixed 2026-09-18 by
+    removal.**
     - Both are `TruRealmPortal` entries in the `portals:` list of
       `_AuraWorldHero`: `home_feed_screen.dart:1028-1033` and `:1041-1046`.
       **Neither passes an `onTap` at all.** `TruRealmPortal.onTap` is a
@@ -897,6 +933,47 @@ Top blockers, unchanged:
       manufactures the appearance of a working feature. Wiring these is not a
       one-line change: it needs the screens built, or a deliberate decision to
       point them at the generic `/p` placeholder, which is itself scaffolding.
+    - **Fixed 2026-09-18 by removal, on Product Owner instruction:** "remove the
+      two inert cards. Don't build screens to justify a decorative rail, and
+      don't point them at /p scaffolding." Both `TruRealmPortal` entries are
+      deleted from `_AuraWorldHero`; "Aura Pulse", which has a working
+      destination, is the only portal left. A comment at the call site records
+      why, so a portal without a destination is not re-added later.
+
+33. **`_PostPresenceStrip`'s branch logic is unreachable rather than absent, and
+    will wake up untested if engagement counts ever become real.** Logged
+    2026-09-18. **Not fixed; logged deliberately.**
+    - The strip picks between five label arms and four sub-label arms keyed on
+      `total = glowCount + reactCount + shareCount` (`_PostPresenceStrip`'s
+      build, `feed_card.dart`). Four of the five, and three of the four, cannot
+      be selected at all today.
+    - **Why:** `_fromAuraRow` hardcodes `likeCount: 0, commentCount: 0,
+      shareCount: 0` when mapping database rows (`post_service.dart:464-466`),
+      so `total` is structurally 0 for every post the app loads. `mood_tag` is
+      null on all 12 rows, so the one remaining data-driven arm ("people are
+      reflecting here") never fires either.
+    - **Why this earns its own entry, separate from 29.** Issue 29 recorded the
+      strip as hardcoded copy — that is the symptom. The cause outlasts the fix:
+      the logic is not missing, it is *written and unreachable*. Suppressing the
+      strip when counts are zero hides the symptom without ever exercising the
+      branches. On the day `_fromAuraRow` carries real counts, four label arms
+      and three sub-label arms render for the first time, in production, having
+      never been seen by anyone.
+    - **The same trap is in the test fixtures, which is how this was found.**
+      The shared boundary fixture sets `likeCount: 7, shareCount: 2`
+      (`test/feed_card_boundary_golden_test.dart:243-244`), so `total` is 9 and
+      the strip renders in 24 of the 25 boundary goldens — the opposite of live
+      data. Only `positive_accent_green`, built separately with no counts
+      (`:70-80`), behaves like production, and it was the single golden that
+      moved when the strip was suppressed. **A fixture that disagrees with
+      production hides the change it was meant to catch**, and it hid this one
+      down to a single image.
+    - **What would close this:** either counts reach the model and the branches
+      get coverage at each threshold (3 and 8), or the unreachable arms are
+      deleted so the code states what it actually does. Not decided.
+    - **Failure class:** unreachable logic that reads as implemented behaviour —
+      adjacent to "a default counted as an answer", but here the default is a
+      whole branch rather than a value.
 
 ---
 

@@ -37,7 +37,15 @@ class FeedCardAction {
 /// known issue 24). A presentation that renders an empty pill for an empty
 /// label reintroduces the same problem in a quieter form.
 class FeedCardPresentationData {
-  final String name, text;
+  final String text;
+
+  /// The author's display name, or null when there is none to show.
+  ///
+  /// Null means render no name at all. It is nullable for the same reason
+  /// [vibe] is: until 2026-09-18 an unresolved identity produced the literal
+  /// 'New member', which looked identical whether the name was still loading,
+  /// the author could not be found, or the lookup threw (known issue 31).
+  final String? name;
 
   /// Mood label for the chip, or null when the post has no mood. Anonymous
   /// posts pass 'Anonymous', which is true of the post rather than a mood.

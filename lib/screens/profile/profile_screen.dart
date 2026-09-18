@@ -33,6 +33,9 @@ import 'package:trulura/services/post_service.dart';
 import 'package:trulura/models/post.dart';
 import 'package:trulura/widgets/trulura_feed_components.dart';
 import 'package:trulura/widgets/trulura_feed_item_renderer.dart';
+import 'package:trulura/widgets/feed_card_visual_spec.dart';
+import 'package:trulura/widgets/compact_feed_card_presentation.dart';
+import 'package:trulura/providers/trulura_mode_controller.dart';
 
 class ProfileScreen extends StatefulWidget {
   const ProfileScreen({super.key});
@@ -720,7 +723,22 @@ class _ProfileScreenState extends State<ProfileScreen>
           );
         }
         final item = items[_myPosts.isEmpty ? i - 1 : i];
-        return TruluraFeedItemRenderer(item: item);
+        // Profile takes the same compact presentation Home uses. Passing no
+        // visualSpec fell through to the legacy FeedCard tree, which renders
+        // the hashed 66% badge — worst on a profile, where a fabricated
+        // percentage reads as a real score (Build Status known issues 29, 30).
+        return TruluraFeedItemRenderer(
+          item: item,
+          visualSpec: FeedCardVisualSpec.fromPost(
+            item.post,
+            context.watch<TruLuraModeController>().mode,
+            // Ring is aura glow, never mood; the chip carries mood. Passed
+            // explicitly because fromPost's accentB varies by mood branch.
+          ).withPresentation(const CompactFeedCardPresentation(),
+              accentB: TruLuraModeTone.aura
+                  .resolve(Theme.of(context).colorScheme)
+                  .$1),
+        );
       },
     );
   }

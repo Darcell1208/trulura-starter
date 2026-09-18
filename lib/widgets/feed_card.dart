@@ -25,10 +25,20 @@ import 'package:trulura/widgets/trulura_icon.dart';
 import 'package:trulura/widgets/breathing_glow.dart';
 import 'package:trulura/widgets/trulura_profile_preview_sheet.dart';
 import 'package:trulura/widgets/trulura_ai_suggestions_sheet.dart';
+import 'package:trulura/widgets/trulura_screen_state.dart';
 import 'package:trulura/services/database_service/database_service.dart';
 import 'package:trulura/services/post_service.dart';
 import 'package:trulura/services/user_service.dart';
 import 'package:trulura/services/feed_behavior_service.dart';
+
+/// How far a card has got in resolving its author's identity.
+///
+/// Kept separate from the name itself so the three non-resolved cases stay
+/// distinguishable. [pending] is transient and may show a syncing hint;
+/// [absent] means the lookup succeeded and there is no usable name; [failed]
+/// means the lookup threw and is logged. None of them renders a placeholder
+/// name — see Build Status known issue 31.
+enum _IdentityResolution { pending, resolved, absent, failed }
 
 class FeedCard extends StatefulWidget {
   final Post post;
@@ -99,6 +109,10 @@ class _FeedCardState extends State<FeedCard>
       _reactCount = 0;
       _resolvedName = null;
       _resolvedProfileImage = null;
+      // The card is being recycled onto a different post. Without this the
+      // previous post's resolution would carry over, so a new card could claim
+      // to be resolved, absent or failed before its own lookup has run.
+      _identity = _IdentityResolution.pending;
       _loadGlowState();
       _loadIdentity();
     } else {
@@ -125,10 +139,14 @@ class _FeedCardState extends State<FeedCard>
     return lower == 'unknown' || lower == 'unknown user' || lower == 'n/a';
   }
 
-  String _fallbackIdentityLabel(Post post) {
-    if (post.isAnonymous) return ventPseudonymFor(post.id);
-    return 'New member';
-  }
+  /// How far identity resolution has got, kept distinct from the name itself.
+  ///
+  /// Until 2026-09-18 all three of the non-resolved cases produced the literal
+  /// 'New member', so a post still loading, a post whose author could not be
+  /// found, and a lookup that *threw* were indistinguishable on screen and in
+  /// the logs (Build Status known issue 31). Only [pending] is transient;
+  /// [absent] and [failed] are terminal, and [failed] is a bug worth seeing.
+  _IdentityResolution _identity = _IdentityResolution.pending;
 
   Future<void> _loadIdentity() async {
     final post = widget.post;
@@ -140,6 +158,8 @@ class _FeedCardState extends State<FeedCard>
         // is the per-user pseudonym ruled out on Blueprint 1.1 grounds.
         _resolvedName = ventPseudonymFor(post.id);
         _resolvedProfileImage = null;
+        // A pseudonym is a resolved identity, not a pending one.
+        _identity = _IdentityResolution.resolved;
       });
       return;
     }
@@ -150,6 +170,8 @@ class _FeedCardState extends State<FeedCard>
       setState(() {
         _resolvedName = postUser.name;
         _resolvedProfileImage = postUser.profileImage;
+        // Inline user data is as resolved as a service lookup would be.
+        _identity = _IdentityResolution.resolved;
       });
       return;
     }
@@ -167,19 +189,26 @@ class _FeedCardState extends State<FeedCard>
         setState(() {
           _resolvedName = u.name;
           _resolvedProfileImage = u.profileImage;
+          _identity = _IdentityResolution.resolved;
         });
       } else {
+        // The lookup succeeded and there is no usable name. Render nothing.
         setState(() {
-          _resolvedName = _fallbackIdentityLabel(post);
+          _resolvedName = null;
           _resolvedProfileImage = null;
+          _identity = _IdentityResolution.absent;
         });
       }
-    } catch (e) {
-      debugPrint('FeedCard: load identity failed: $e');
+    } catch (e, st) {
+      // A failed read is not an empty value. Logged through truLogStateError,
+      // which drops the fields carrying user content and keeps the diagnosis,
+      // so this is visible without putting a name or row in the console.
+      truLogStateError('FeedCard._loadIdentity', e, st);
       if (!mounted) return;
       setState(() {
-        _resolvedName = _fallbackIdentityLabel(post);
+        _resolvedName = null;
         _resolvedProfileImage = null;
+        _identity = _IdentityResolution.failed;
       });
     }
   }
@@ -669,16 +698,19 @@ class _FeedCardState extends State<FeedCard>
     final visualSpec =
         widget.visualSpec ?? FeedCardVisualSpec.fromPost(post, mode);
 
+    // Null means "we have no name to show", and every renderer omits the name
+    // rather than substituting one. Known issue 31: the old 'New member'
+    // placeholder rendered identically for a name still loading, an author who
+    // could not be found, and a lookup that threw.
     final rawName = _resolvedName ?? post.user?.name;
     final displayName = post.isAnonymous
         ? ventPseudonymFor(post.id)
-        : User.publicDisplayNameFrom(
-            rawName,
-            email: post.user?.email,
-            fallback: 'New member',
-          );
-    final isFallbackIdentity =
-        !post.isAnonymous && (displayName == 'New member');
+        : User.publicDisplayNameOrNull(rawName, email: post.user?.email);
+    // Only the transient case earns a "syncing" hint. A terminal absent or
+    // failed resolution must not claim something is still on its way.
+    final isIdentityPending = !post.isAnonymous &&
+        displayName == null &&
+        _identity == _IdentityResolution.pending;
     final profileImage = post.isAnonymous
         ? null
         : (_resolvedProfileImage ?? post.user?.profileImage);
@@ -933,7 +965,7 @@ class _FeedCardState extends State<FeedCard>
                               timestampLabel: timestampLabel,
                               moodTag: post.moodTag,
                               isAnonymous: post.isAnonymous,
-                              isFallbackIdentity: isFallbackIdentity,
+                              isIdentityPending: isIdentityPending,
                               isBoosted: post.isBoosted,
                               isMonetized: post.isMonetized,
                               visualSpec: visualSpec,
@@ -965,17 +997,28 @@ class _FeedCardState extends State<FeedCard>
                                 caption: post.caption,
                               ),
                             ],
-                            const SizedBox(height: 10),
-                            _PostPresenceStrip(
-                              mode: mode,
-                              glowCount: _glowCount,
-                              reactCount: _reactCount,
-                              shareCount: post.shareCount,
-                              moodTag: post.moodTag,
-                              isCreator: post.isCreatorContent ||
-                                  post.inferredExperienceMode() ==
-                                      TruExperienceMode.creator,
-                            ),
+                            // Real engagement or nothing -- the same rule the
+                            // mood chip follows. With every count at zero the
+                            // strip could only ever render its last-resort arms
+                            // ("quiet space tonight" / "Low-pressure"), which
+                            // read as a live signal about the post and are not
+                            // one. The branch logic is left intact rather than
+                            // rewritten: when counts become real it should wake
+                            // up as written. Build Status known issues 29, 33.
+                            if (_glowCount + _reactCount + post.shareCount >
+                                0) ...[
+                              const SizedBox(height: 10),
+                              _PostPresenceStrip(
+                                mode: mode,
+                                glowCount: _glowCount,
+                                reactCount: _reactCount,
+                                shareCount: post.shareCount,
+                                moodTag: post.moodTag,
+                                isCreator: post.isCreatorContent ||
+                                    post.inferredExperienceMode() ==
+                                        TruExperienceMode.creator,
+                              ),
+                            ],
                             const SizedBox(height: 9),
                             _EmotionalActionRow(
                               mode: mode,
@@ -1598,7 +1641,10 @@ class _PostMediaPanel extends StatelessWidget {
 
 class _FeedHeaderRow extends StatelessWidget {
   final TruLuraMode mode;
-  final String name;
+
+  /// Author's display name, or null when there is none to show. Null renders
+  /// no name — see [FeedCardPresentationData.name] and known issue 31.
+  final String? name;
 
   /// Mood label, or null when the post has no mood tag. Null renders no pill
   /// at all — see the note on [FeedCardPresentationData.vibe].
@@ -1609,7 +1655,10 @@ class _FeedHeaderRow extends StatelessWidget {
   final String? timestampLabel;
   final String? moodTag;
   final bool isAnonymous;
-  final bool isFallbackIdentity;
+  /// True only while identity resolution is still in flight. A lookup that
+  /// finished with no name, or that threw, is NOT pending and must not claim
+  /// to be syncing.
+  final bool isIdentityPending;
   final bool isBoosted;
   final bool isMonetized;
   final FeedCardVisualSpec visualSpec;
@@ -1626,7 +1675,7 @@ class _FeedHeaderRow extends StatelessWidget {
     required this.timestampLabel,
     required this.moodTag,
     required this.isAnonymous,
-    required this.isFallbackIdentity,
+    required this.isIdentityPending,
     required this.isBoosted,
     required this.isMonetized,
     required this.visualSpec,
@@ -1694,27 +1743,28 @@ class _FeedHeaderRow extends StatelessWidget {
               ),
               child: Row(
                 key: ValueKey<String>(
-                    'name:$name:${isFallbackIdentity ? 'fallback' : 'real'}'),
+                    'name:${name ?? ''}:${isIdentityPending ? 'pending' : 'real'}'),
                 mainAxisSize: MainAxisSize.min,
                 children: [
-                  Flexible(
-                    child: Text(
-                      name,
-                      style: t.titleMedium?.copyWith(
-                        fontWeight: FontWeight.w900,
-                        letterSpacing: 0.15,
-                        color: Colors.white.withValues(alpha: 0.98),
+                  if (name != null)
+                    Flexible(
+                      child: Text(
+                        name!,
+                        style: t.titleMedium?.copyWith(
+                          fontWeight: FontWeight.w900,
+                          letterSpacing: 0.15,
+                          color: Colors.white.withValues(alpha: 0.98),
+                        ),
+                        softWrap: true,
                       ),
-                      softWrap: true,
                     ),
-                  ),
                   if (!isAnonymous && vibeLabel != null) ...[
                     const SizedBox(width: 8),
                     Container(
                       padding: const EdgeInsets.symmetric(
                           horizontal: 10, vertical: 5),
                       decoration: BoxDecoration(
-                        color: (isFallbackIdentity ? p.glowA : p.glowB)
+                        color: (isIdentityPending ? p.glowA : p.glowB)
                             .withValues(alpha: 0.20),
                         borderRadius: BorderRadius.circular(999),
                         border: Border.all(
@@ -1767,7 +1817,7 @@ class _FeedHeaderRow extends StatelessWidget {
           ),
           if (moodTag != null ||
               isAnonymous ||
-              isFallbackIdentity ||
+              isIdentityPending ||
               timestampLabel != null)
             Padding(
               padding: const EdgeInsets.only(top: 6),
@@ -1784,7 +1834,7 @@ class _FeedHeaderRow extends StatelessWidget {
                   Text(
                     isAnonymous
                         ? 'Anonymous share'
-                        : (isFallbackIdentity ? 'Identity syncing…' : 'Mood'),
+                        : (isIdentityPending ? 'Identity syncing…' : 'Mood'),
                     style: t.labelSmall?.copyWith(
                         fontWeight: FontWeight.w800,
                         letterSpacing: 0.18,
