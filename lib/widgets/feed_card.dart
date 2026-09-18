@@ -16,6 +16,7 @@ import 'package:trulura/providers/app_provider.dart';
 import 'package:trulura/providers/experience_mode_controller.dart';
 import 'package:trulura/providers/trulura_mode_controller.dart';
 import 'package:trulura/theme/mood_colors.dart';
+import 'package:trulura/theme/mood_palette.dart';
 import 'package:trulura/theme.dart';
 import 'package:trulura/widgets/trulura_halo_avatar.dart';
 import 'package:trulura/widgets/trulura_glass_card.dart';
@@ -720,10 +721,12 @@ class _FeedCardState extends State<FeedCard>
         name: displayName, vibe: post.isAnonymous ? 'Anonymous' : (post.moodTag ?? vibeLabel),
         text: post.content.trim().isNotEmpty ? post.content : (post.caption ?? ''),
         auraColor: visualSpec.accentB,
-        // Mood rides on the header chip, not the ring. Palette is still
-        // MoodColors.glow pending the retune; untagged and anonymous get no dot.
-        moodColor: !post.isAnonymous && (post.moodTag?.trim().isNotEmpty ?? false)
-            ? MoodColors.glow(post.moodTag!) : null,
+        // Mood rides on the header chip, not the ring. The palette is DR-2 via
+        // MoodPalette, keyed on enum Mood so the compiler enforces the five.
+        // Anonymous posts, untagged posts, and any tag that is not one of the
+        // five all get no dot rather than a guessed colour -- dotFor returns
+        // null for each, and a null moodColor draws nothing. Known issue 25.
+        moodColor: post.isAnonymous ? null : MoodPalette.dotFor(post.moodTag),
         avatar: _imageProviderFor(profileImage),
         onProfile: post.isAnonymous ? null : () => _openUserProfile(context),
         onMore: () => _openMoreSheet(context),

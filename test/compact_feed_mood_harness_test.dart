@@ -16,7 +16,7 @@ import 'package:trulura/providers/aura_state.dart';
 import 'package:trulura/providers/experience_mode_controller.dart';
 import 'package:trulura/providers/trulura_mode_controller.dart';
 import 'package:trulura/theme.dart';
-import 'package:trulura/theme/mood_colors.dart';
+import 'package:trulura/theme/mood_palette.dart';
 import 'package:trulura/widgets/compact_feed_card_presentation.dart';
 import 'package:trulura/widgets/feed_card_visual_spec.dart';
 import 'package:trulura/widgets/trulura_feed_item_renderer.dart';
@@ -29,11 +29,17 @@ import 'package:trulura/widgets/trulura_feed_item_renderer.dart';
 /// injected as accentB -- the aura tone, not a mood colour. Ring is aura, chip
 /// is mood; the golden changes when either the palette or that split does.
 ///
-/// Asserts three things: the ring is the same colour on every card whatever
-/// the mood, each chip dot is painted from MoodColors.glow (the source FeedCard
-/// uses), and an untagged post gets no dot. It deliberately does not assert the
-/// five dot colours are distinct: today they are not, and the golden is there
-/// to be looked at.
+/// Asserts four things: the ring is the same colour on every card whatever the
+/// mood, each chip dot is painted from MoodPalette (the DR-2 source FeedCard
+/// now uses), the five dot colours are all different from each other, and an
+/// untagged post gets no dot.
+///
+/// The distinctness check is the point of this harness. Before 2026-09-17 the
+/// dot came from MoodColors.glow, which keys on a different vocabulary, so
+/// Reflective, Flirty, Social and Healing all fell through to one default
+/// purple and only Calm was itself. Four moods sharing a colour is invisible in
+/// a golden nobody reviews; it is loud in an assertion. Build Status known
+/// issue 25.
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
   setUpAll(() async {
@@ -202,12 +208,24 @@ void main() {
     final painted = <String>[];
     for (var i = 0; i < tagged.length; i++) {
       final rgb = rgbAt(tester.getCenter(dots.at(i)) - origin);
-      expect(rgb, channels(MoodColors.glow(tagged[i])),
+      final expected = MoodPalette.dotFor(tagged[i]);
+      expect(expected, isNotNull,
+          reason: '${tagged[i]} must parse to a Mood; an unparsed tag draws no '
+              'dot at all rather than a guessed colour');
+      expect(rgb, channels(expected!),
           reason: 'Chip dot for ${tagged[i]} must be painted from '
-              'MoodColors.glow, the source FeedCard uses');
+              'MoodPalette.stop1, the DR-2 source FeedCard uses');
       painted.add('${tagged[i]}='
           '#${rgb.map((c) => c.toRadixString(16).padLeft(2, '0')).join().toUpperCase()}');
     }
+
+    // Five moods must paint five colours. Issue 25 was four of them painting
+    // one purple, because a Mood was matched against a foreign vocabulary and
+    // fell through to a default. A distinctness check is what catches that
+    // class; comparing each dot only against its own expected value would not,
+    // since the expectation would collapse along with the implementation.
+    expect(painted.map((p) => p.split('=').last).toSet(), hasLength(tagged.length),
+        reason: 'Each mood needs its own DR-2 colour, got: $painted');
     image.dispose();
     // ignore: avoid_print
     print('mood harness chip dots: ${painted.join(', ')}');

@@ -180,7 +180,7 @@ Checked against the working tree, not only the last commit (`4c8a57b`).
 
 - **Blueprint pointers** — whether to annotate the three superseded Blueprint passages (see the authority caveat).
 - **Tint behind a ring** — the Sync hero's radial backdrop behind the avatar is tinted with the mood-derived `auraGlow` (`sync_hero_card.dart:139-147`). It is a glow behind the ring, not the ring; whether this rule covers it is not decided. **Settled 2026-09-14 by the Class D extension: it is covered, and prohibited.**
-- **Chip dot palette** — not decided. The dot currently uses `MoodColors.glow`, which gives four of the five moods the same colour.
+- **Chip dot palette** — ~~not decided~~ **decided 2026-09-17.** The Product Owner directed that the DR-2 palette be applied to the chip dot by mapping `enum Mood` directly, explicitly not through `MoodColors.glow`, which keys on a different vocabulary. Implemented as `lib/theme/mood_palette.dart` and wired at `lib/widgets/feed_card.dart` (chip dot only); measured afterwards as five distinct values matching DR-2. The former state — four of the five moods sharing one colour — is recorded as Build Status known issue 25. Surface tints that still read `MoodColors.glow` (`feed_card.dart:687`, `:1889`) are **not** covered by this decision and remain open under Ambiguity 4.
 - **`AuraStateController.auraColor`** is named for Aura but derived from Mood — the naming conflict this record's Layer rule forbids, and the source of contradiction 1. Pre-existing; not resolved here.
 
 ### Class D inventory — 2026-09-14

@@ -503,6 +503,11 @@ Top blockers, unchanged:
       Chrome on 2026-09-17 as "Healing", then settling to "Reflective", on a
       post whose `mood_tag` is null. The "New member" seen alongside it is the
       name field, not the chip.
+    - **Product Owner, 2026-09-17, on what the two labels actually are:**
+      "New member" hashes to Healing, "Darcell" to Reflective. Neither is data.
+      The chip is not showing a stale mood or a defaulted one; it is showing
+      the output of a hash over the name, which happens to land on words from
+      the mood vocabulary.
     - **The comment disagrees with the code.** `_vibeLabelFor` says "Prefer
       moodTag if available so it feels intentional." It does not prefer it; it
       only mixes it into the hash.
@@ -549,6 +554,44 @@ Top blockers, unchanged:
       database. The collapse above is measured against DR-3 names supplied by
       the harness.
     - **Failure class:** a default counted as an answer.
+    - **Fixed for the mood chip, 2026-09-17, on Product Owner instruction.**
+      `lib/theme/mood_palette.dart` maps `enum Mood` directly to the DR-2 pairs
+      and is keyed on the enum, so the compiler enforces the five and a sixth
+      mood becomes a compile error rather than a silent purple.
+      `MoodPalette.dotFor` returns null for an absent, blank or unrecognised
+      tag, and `feed_card.dart` draws no dot for null — an unknown mood is
+      never given a colour. The finding above is deliberately left in the words
+      it was found in; the Product Owner asked for it to be logged before it
+      was touched.
+    - **Verified by measurement, not by reading the switch.** Re-running
+      `test/compact_feed_mood_harness_test.dart` prints
+      `Reflective=#8B5CF6, Flirty=#FF4D9D, Calm=#7DD3FC, Social=#FB923C,
+      Healing=#34D399` — five distinct values matching DR-2 exactly, where four
+      were previously `#E040FB`. The harness now also asserts the five are
+      distinct from each other, which is the check that would have caught the
+      original collapse; asserting each dot only against its own expected value
+      would not, because the expectation collapses with the implementation.
+    - **Still on the old palette, deliberately:** `feed_card.dart:687`
+      (`moodGlow`, which feeds `TruLuraEffects.premiumCardDepth` — a shadow
+      around the whole card) and `feed_card.dart:1889` (a full-bleed gradient)
+      both still read `MoodColors.glow`. Both tint a *surface* rather than the
+      chip, and whether Mood may tint a card or background is recorded as
+      undecided ("Ambiguity 4",
+      `TruLura_PO_Decision_Aura_Architecture.md`). Repainting them would settle
+      a Product Owner question by implementation, so they were left alone.
+    - **Open, needs a decision: three goldens now fail, all of them in
+      `test/goldens/compact_feed`.** `moods.png` by 0.06% / 265px;
+      `ring.png` and `dot.png` by 0.30% / 760px each, both in
+      `test/compact_feed_card_test.dart`, whose fixtures carry mood tags so
+      their chip dots changed colour too. None has been regenerated.
+      Regenerating a golden after it fails is the exact act issue 26 exists to
+      record, so all three wait on the Product Owner.
+    - **The blast radius is confined, and that was checked rather than
+      assumed.** The 24 pre-change baselines in `test/goldens/feed_boundary`
+      all still pass at zero tolerance (48 comparisons), and
+      `console_regressions_test` passes. Only the compact-feed goldens moved —
+      the directory whose own README states its images are not evidence.
+      Nothing captured before the presentation-boundary refactor changed.
 
 26. **The `test/goldens/compact_feed` images record what the widget drew, not
     what it should draw.** Logged 2026-09-17, retroactively. **A standing
@@ -575,6 +618,55 @@ Top blockers, unchanged:
       Product Owner's 2026-09-17 Chrome session — not from an earlier draft.
       `git log -S` across all history finds no prior version of any of the
       three. 25 was cited nowhere and is used here for the palette finding.
+
+27. **Home manufactures the appearance of a working feed: two tabs are
+    unfiltered pass-throughs, and empty tabs render hardcoded demo cards.**
+    Logged 2026-09-17. **Not fixed; no code changed.**
+    - **The query never varies by tab.** `PostService.getAllPosts()` reaches
+      `fetchAuraFeed()`, whose query is
+      `.from(_feedView).select().order('created_at', ascending: false)`
+      (`post_service.dart:427-430`, `_feedView = 'posts_feed'` at `:20`) — no
+      predicate, no limit, and no tab argument anywhere in the chain. Switching
+      tabs rebuilds widgets; it never re-queries.
+    - **Two tabs apply no filter at all.** `_postsForKind`
+      (`home_feed_screen.dart:864-886`) returns `_posts` unchanged for
+      `forYou` (`:866`) and `trending` (`:884`). Only `aura` and `spark` carry
+      a predicate; `vent` computes one but is rendered as `SizedBox.shrink()`
+      (`:784-787`), so its result is never displayed on Home.
+    - **Why this is a verification problem and not merely a gap.** For You,
+      Aura and Trending would agree at *any* data volume, so their agreeing is
+      not evidence the filter works on a small dataset — it is consistent with
+      the filter never being consulted. The natural reading of "all tabs show
+      the same post" is the wrong one, and nothing on screen corrects it.
+    - **Empty tabs show hardcoded copy that looks like content.** When a kind's
+      ranked list is empty, `_composeItems` returns nothing (`:1935`) and
+      `build` takes the fallback branch (`:2203`), rendering
+      `_demoCards().take(2)` (`_demoCards` at `:1853`, rendered `:2233`) plus
+      per-kind ambient strips. So tabs look *different from each other* even
+      when no filter ran. Spark's entire visible content today is that
+      hardcoded copy.
+    - **Trending is not ranked differently either.** Its bias reads
+      `p.likeCount + p.shareCount * 2 + p.commentCount`
+      (`feed_distribution_engine.dart:181`), but `_fromAuraRow` hardcodes
+      `likeCount: 0, commentCount: 0, shareCount: 0`
+      (`post_service.dart:464-466`). The engagement term is therefore always 0
+      and the bias collapses to the constant `0.28` (`:192`), identical for
+      every candidate. Trending is neither filtered nor ordered differently
+      from For You.
+    - **Failure class:** verification producing false confidence — the same
+      family as issue 26, but sited in the product rather than the tests. A
+      golden nobody reviews manufactures a passing check; this manufactures a
+      working feature. The UI version is worse, because a reader has no reason
+      to go looking behind it.
+    - **Not established:** none of this was observed in the running app; it is
+      read from source, with each citation checked against the live files. The
+      Product Owner's 2026-09-17 browser session confirmed one post reaches
+      Home, which is consistent with all of the above but does not by itself
+      distinguish a working filter from an absent one.
+    - **Naming note:** there is no Calm tab. The feed kinds are
+      `_AuraFeedKind { forYou, aura, spark, vent, trending }`
+      (`home_feed_screen.dart:917`). "Calm" is a `Mood` value, surfaced as a
+      label in `home_hub_screen.dart`, and is unrelated to feed filtering.
 
 ---
 
