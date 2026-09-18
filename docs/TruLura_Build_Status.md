@@ -467,6 +467,115 @@ Top blockers, unchanged:
     - **Numbering note:** that 2026-09-09 item and known issue 20 are two
       different items that both carry the number 20.
 
+23. **The compact Home card looked like it had been replaced by a different
+    card in the running app. It had not.** Logged 2026-09-17, retroactively;
+    see the numbering note under 26. **Not a code defect; nothing to fix.**
+    - **What was observed:** on 2026-09-14 the compact-card suite passed 9/9
+      while the browser showed a card carrying a percentage pill where the
+      compact card draws an avatar with an Aura ring. Recorded at the time only
+      in `test/goldens/compact_feed/README.md`, which cites this number.
+    - **Diagnosis, Product Owner, 2026-09-17, verified in Chrome:** the pill was
+      the legacy `FeedCard` tree served by a **stale dev build**, not a
+      replacement for the avatar. The compact card has an avatar with an Aura
+      ring and nothing took its place.
+    - **Why it still earns a number:** a passing component suite said nothing
+      about what the running app drew, and nothing in the suite told a reader
+      that. That gap is issue 26. A stale bundle misreading as a code change has
+      happened here before — see "Clone freshness" in
+      `TruLura_PO_Decision_Record_2026-09-14.md`, where a dev build ran ahead of
+      `origin/main` and was mistaken for repository state.
+    - **Consequence:** the freeze on compact-card work, lifted 2026-09-17.
+
+24. **The Home mood chip's label is a hash of the display name, not the post's
+    mood.** Logged 2026-09-17. **Not fixed; no code changed.**
+    - **The path:** `lib/widgets/feed_card.dart:720` sets the chip text to
+      `post.moodTag ?? vibeLabel`. With `mood_tag` null it falls to
+      `_vibeLabelFor(post, displayName)` (`feed_card.dart:196-214`), which picks
+      from eight hardcoded labels — Old Soul, Healing, Reflective, Grounded,
+      Gentle Fire, Radiant, Soft Power, Seeking — by hashing
+      `'${post.moodTag ?? ''}|${post.userId}|$displayName|${post.content.length}'`.
+      Two of the eight, Healing and Reflective, are also real DR-3 Mood names,
+      so an invented label reads as a genuine one.
+    - **Why it flickers.** `displayName` (`feed_card.dart:691-698`) is
+      `_resolvedName ?? post.user?.name` with the fallback `'New member'`
+      (`lib/models/user.dart:406`, `:430`). The fallback is part of the hash
+      seed, so the label re-hashes when the real name arrives. Observed in
+      Chrome on 2026-09-17 as "Healing", then settling to "Reflective", on a
+      post whose `mood_tag` is null. The "New member" seen alongside it is the
+      name field, not the chip.
+    - **The comment disagrees with the code.** `_vibeLabelFor` says "Prefer
+      moodTag if available so it feels intentional." It does not prefer it; it
+      only mixes it into the hash.
+    - **A guard the compact card dropped.** The legacy tree computes
+      `isFallbackIdentity` (`feed_card.dart:699-700`) and uses it to render
+      "Identity syncing…" in place of "Mood" (`feed_card.dart:1792`) and to
+      recolour the pill (`:1724`). The presentation branch at `:720` ignores it.
+      Where the legacy card admitted it did not know yet, the compact card
+      states an invented mood confidently.
+    - **Not established:** whether any row in `posts` has a non-null `mood_tag`.
+      If none does, the chip has never shown a real mood for any post. The
+      session that logged this had no database tooling available; this needs a
+      query, not a code read.
+    - **Failure class:** a default counted as an answer.
+
+25. **`MoodColors.glow` cannot return the DR-2 palette: four of the five
+    canonical moods fall through to a single default colour.** Logged
+    2026-09-17. **Not fixed; no code changed** — logged before it is touched,
+    at the Product Owner's instruction.
+    - **Measured, not inferred.** Running `test/compact_feed_mood_harness_test.dart`
+      on 2026-09-17 printed the actual painted chip dots:
+      `Reflective=#E040FB, Flirty=#E040FB, Calm=#40C4FF, Social=#E040FB,
+      Healing=#E040FB`. Four of the five are the same pixel.
+    - **Why:** `lib/theme/mood_colors.dart:4-21` switches on `cheerful`,
+      `energetic`, `calm`, `romantic`, `focused` and `creative`, returning
+      Material accent constants. The canonical vocabulary is
+      `enum Mood { reflective, flirty, calm, social, healing }`
+      (`lib/providers/aura_state.dart:8`, DR-3). Only `calm` appears in both
+      sets; every other mood reaches `default: Colors.purpleAccent`.
+    - **DR-2 is unreachable from this function.** Its confirmed stop-1 values
+      are Reflective `#8B5CF6`, Flirty `#FF4D9D`, Calm `#7DD3FC`, Social
+      `#FB923C`, Healing `#34D399`. `MoodColors.glow` returns none of them for
+      any input, so no amount of correct data reaches the confirmed palette.
+    - **This corrects a prior assessment; that is the new part.** The 2026-09-14
+      scope report in `TruLura_PO_Decision_Record_2026-09-14.md` already
+      recorded this vocabulary mismatch and concluded "whatever this file
+      colours, it is not the DR-3 Mood," marking it out of scope for the palette
+      change. That no longer holds: `feed_card.dart:725-726` passes
+      `post.moodTag` directly into `MoodColors.glow` to colour the chip dot, so
+      whatever vocabulary `mood_tag` actually stores, this function is what
+      colours it. It is a third site the palette change must reach, not a
+      separate concept to leave alone.
+    - **Unverified here:** what values live in `posts.mood_tag` in the live
+      database. The collapse above is measured against DR-3 names supplied by
+      the harness.
+    - **Failure class:** a default counted as an answer.
+
+26. **The `test/goldens/compact_feed` images record what the widget drew, not
+    what it should draw.** Logged 2026-09-17, retroactively. **A standing
+    condition, not a defect to fix.**
+    - `ring.png` and `dot.png` were regenerated with `--update-goldens` on
+      2026-09-14 at 02:38 UTC, one minute after the suite failed against them
+      (`ring.png`: 1.74%, 4339px). `moods.png` was created the same way at 02:37
+      and rewritten at 03:02. Claude did all three, in a Claude Code session,
+      and said so at the time. Nobody reviewed the images.
+    - `moods.png` contains an untagged card whose chip reads "Radiant" — an
+      invented label, issue 24 — so a passing golden currently preserves a bug.
+    - A pass shows the widget still paints the same pixels. It does not show the
+      design is right, nor that the app uses the widget (issue 23).
+    - `test/goldens/feed_boundary` is a different kind of golden: pre-change
+      baselines compared at zero tolerance. Those must never be refreshed with
+      `--update-goldens` to accept a Home redesign.
+    - **Condition for closing:** compare the images against an approved design,
+      then record who approved them and when, in
+      `test/goldens/compact_feed/README.md`.
+    - **Numbering note:** 23, 24 and 26 were written on 2026-09-17, after
+      `test/goldens/compact_feed/README.md` had already cited all three by
+      number; the citations stood with no entries behind them. Their content is
+      reconstructed from that README, from the code as it stands, and from the
+      Product Owner's 2026-09-17 Chrome session — not from an earlier draft.
+      `git log -S` across all history finds no prior version of any of the
+      three. 25 was cited nowhere and is used here for the palette finding.
+
 ---
 
 ## Irreversible cleanup, deferred
