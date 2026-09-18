@@ -8,6 +8,31 @@ SDK executable path: C:/Users/darcl/flutter/flutter/bin/cache/flutter_tools.snap
 Today's zero-tolerance 48/48 rerun certifies that the recorded toolchain matches
 the original baselines, regardless of which toolchain captured them.
 
+## Isolation verification, 2026-09-17 (corrects commit 9119cb2)
+
+The message on commit 9119cb2 states that its contents "have not been tested
+in isolation" from the then-uncommitted Home wiring. That was accurate when
+the message was written and is no longer accurate. A pushed commit message
+cannot be corrected without rewriting history, so the later result is recorded
+here, next to the baselines it concerns, rather than only in the commit log.
+
+On 2026-09-17 commit 9119cb2 was checked out into a separate git worktree
+holding that commit and nothing after it. The absence of the later WIP layer
+was asserted rather than assumed: in that tree home_feed_screen.dart contained
+no reference to CompactFeedCardPresentation, chat_list_screen.dart none to
+profileImageProvider, and home_hub_screen.dart none to the HomeHubScreen.build
+debug print. There `flutter analyze` reported no issues, and
+compact_feed_card_test, compact_feed_mood_harness_test,
+feed_card_boundary_golden_test and console_regressions_test ran 59 tests, all
+passing, none skipped — the same counts as the original run. The commit
+therefore compiles and its suites pass with the Home wiring absent.
+
+Two limits on that claim. vent_known_row_trace_test contributed nothing: all
+5 of its tests skip unless VENT_TRACE_BODY, VENT_TRACE_ID and VENT_TRACE_SUB
+are set, so it is a committed harness rather than coverage. And this remains
+component-level verification; nothing in that commit has been exercised
+through the running app.
+
 ## Valid toolchain
 
 - Flutter 3.44.0 stable, framework 559ffa3f75e7402d65a8def9c28389a9b2e6fe42
