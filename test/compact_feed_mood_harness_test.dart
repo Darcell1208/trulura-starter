@@ -171,10 +171,11 @@ void main() {
     expect(tester.takeException(), isNull);
     expect(find.byKey(const ValueKey('compact-feed-card')),
         findsNWidgets(moodTags.length));
-    expect(find.byKey(const ValueKey('compact-mood-chip')),
-        findsNWidgets(moodTags.length));
-
     final tagged = moodTags.whereType<String>().toList();
+    // The untagged post has no mood, so it gets no chip at all rather than an
+    // empty pill: one chip per tagged post, one fewer than there are cards.
+    expect(find.byKey(const ValueKey('compact-mood-chip')),
+        findsNWidgets(tagged.length));
     final dots = find.byKey(const ValueKey('compact-mood-chip-dot'));
     expect(dots, findsNWidgets(tagged.length),
         reason: 'An untagged post gets no dot, not a guessed colour');

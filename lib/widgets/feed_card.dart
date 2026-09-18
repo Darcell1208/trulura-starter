@@ -194,26 +194,6 @@ class _FeedCardState extends State<FeedCard>
     return isNetwork ? NetworkImage(v) : AssetImage(v);
   }
 
-  String _vibeLabelFor(Post post, String displayName) {
-    // Energy-based identity, deterministic but soft.
-    // Prefer moodTag if available so it feels intentional.
-    const labels = <String>[
-      'Old Soul',
-      'Healing',
-      'Reflective',
-      'Grounded',
-      'Gentle Fire',
-      'Radiant',
-      'Soft Power',
-      'Seeking',
-    ];
-    final seed =
-        '${post.moodTag ?? ''}|${post.userId}|$displayName|${post.content.length}';
-    final hash =
-        seed.codeUnits.fold<int>(0, (a, b) => (a * 31 + b) & 0x7fffffff);
-    return labels[hash % labels.length];
-  }
-
   Future<void> _loadGlowState() async {
     final postId = widget.post.id;
     if (postId.isEmpty) return;
@@ -702,8 +682,15 @@ class _FeedCardState extends State<FeedCard>
     final profileImage = post.isAnonymous
         ? null
         : (_resolvedProfileImage ?? post.user?.profileImage);
-    final vibeLabel =
-        post.isAnonymous ? 'Anonymous' : _vibeLabelFor(post, displayName);
+    // The chip shows a real mood or nothing at all. 'Anonymous' is kept: it is
+    // true of the post rather than a guess about it. A post with no mood tag
+    // gets a null label and the presentations omit the chip entirely, instead
+    // of the hash of displayName that stood in for data until 2026-09-17
+    // (known issue 24).
+    final trimmedMood = post.moodTag?.trim();
+    final vibeLabel = post.isAnonymous
+        ? 'Anonymous'
+        : (trimmedMood == null || trimmedMood.isEmpty ? null : trimmedMood);
 
     // Vent cards only, deliberately. created_at is on every row and FeedCard
     // renders it nowhere, so the main feed has no timestamp either -- but that
@@ -718,7 +705,7 @@ class _FeedCardState extends State<FeedCard>
     if (presentation != null) {
       final actions = _ActionSpec.forContext(participation);
       return presentation.build(context, FeedCardPresentationData(
-        name: displayName, vibe: post.isAnonymous ? 'Anonymous' : (post.moodTag ?? vibeLabel),
+        name: displayName, vibe: vibeLabel,
         text: post.content.trim().isNotEmpty ? post.content : (post.caption ?? ''),
         auraColor: visualSpec.accentB,
         // Mood rides on the header chip, not the ring. The palette is DR-2 via
@@ -1612,7 +1599,10 @@ class _PostMediaPanel extends StatelessWidget {
 class _FeedHeaderRow extends StatelessWidget {
   final TruLuraMode mode;
   final String name;
-  final String vibeLabel;
+
+  /// Mood label, or null when the post has no mood tag. Null renders no pill
+  /// at all — see the note on [FeedCardPresentationData.vibe].
+  final String? vibeLabel;
 
   /// Relative age, e.g. `2h ago`. Null on cards that do not show one, which is
   /// currently every card outside Vent.
@@ -1718,7 +1708,7 @@ class _FeedHeaderRow extends StatelessWidget {
                       softWrap: true,
                     ),
                   ),
-                  if (!isAnonymous) ...[
+                  if (!isAnonymous && vibeLabel != null) ...[
                     const SizedBox(width: 8),
                     Container(
                       padding: const EdgeInsets.symmetric(
@@ -1740,7 +1730,9 @@ class _FeedHeaderRow extends StatelessWidget {
                         ],
                       ),
                       child: Text(
-                        vibeLabel,
+                        // Non-null by the guard on the enclosing `if`. A public
+                        // final field is not promotable in Dart, unlike a local.
+                        vibeLabel!,
                         style: t.labelSmall?.copyWith(
                             fontWeight: FontWeight.w900,
                             letterSpacing: 0.18,

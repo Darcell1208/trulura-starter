@@ -30,15 +30,20 @@
 >   rewritten the same way at 03:02 UTC. Claude did all three, in a Claude Code
 >   session, and said so at the time. Nobody reviewed the images.
 >
-> **Still unverified after the 2026-09-17 regeneration:**
+> **Second regeneration later on 2026-09-17: the invented label is gone.**
+> `moods.png` was regenerated again (0.27% / 1104px) after `_vibeLabelFor` was
+> deleted, on Product Owner instruction. The untagged card now renders **no
+> chip at all** rather than a pill reading an invented mood — an absent mood is
+> shown as absent. `ring.png` and `dot.png` did **not** move this time,
+> confirmed by SHA256 against their pre-change bytes: all three of their
+> fixtures carry real mood tags, so their chips were already truthful. Build
+> Status known issue 24.
 >
-> - Everything in these images except the dot colours. Layout, type, spacing
->   and composition have never been compared against an approved design.
-> - `moods.png` still shows an untagged card whose chip reads a label invented
->   by `_vibeLabelFor` ("Radiant" at last inspection) — Build Status known
->   issue 24. That bug is **not** fixed: the 2026-09-17 change corrected the
->   dot palette only, so the regenerated image preserves the invented label
->   rather than discharging it.
+> **Still unverified after the 2026-09-17 regenerations:**
+>
+> - Everything in these images except the dot colours and the presence or
+>   absence of the chip. Layout, type, spacing and composition have never been
+>   compared against an approved design.
 > - They render `CompactFeedCardPresentation` on its own, with fixture data.
 >   On 2026-09-14 this suite passed 9/9 while the running app was drawing a
 >   different card entirely (known issue 23, since diagnosed as a stale dev

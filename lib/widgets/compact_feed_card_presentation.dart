@@ -29,6 +29,11 @@ class CompactFeedCardPresentation extends FeedCardPresentation {
     final ink = dark ? const Color(0xFFF0EFF8) : const Color(0xFF242033);
     final muted = dark ? const Color(0xFFB0ADC4) : const Color(0xFF625D73);
     final scale = MediaQuery.textScalerOf(context);
+    // Null or blank means the post has no mood to show. The chip is omitted
+    // entirely rather than rendered empty: a bare pill still reads as "there
+    // is something here", which is the impression known issue 24 was about.
+    final rawVibe = data.vibe?.trim();
+    final moodLabel = (rawVibe == null || rawVibe.isEmpty) ? null : rawVibe;
     final textStyle = Theme.of(context).textTheme.bodyMedium!.copyWith(
         fontSize: textSize,
         height: 1.4,
@@ -100,10 +105,12 @@ class CompactFeedCardPresentation extends FeedCardPresentation {
                                           fontSize: nameSize,
                                           fontWeight: FontWeight.w500,
                                           color: ink)))),
-                      const SizedBox(width: 6),
                       // Mood chip: neutral pill, coloured dot, mood name. The
                       // ring is brand glow; this is the only mood carrier, and
-                      // the name means it still reads without colour.
+                      // the name means it still reads without colour. No mood,
+                      // no chip -- and no spacer either, so the row closes up.
+                      if (moodLabel != null) ...[
+                      const SizedBox(width: 6),
                       Flexible(
                           child: Container(
                               key: const ValueKey('compact-mood-chip'),
@@ -129,7 +136,7 @@ class CompactFeedCardPresentation extends FeedCardPresentation {
                                       const SizedBox(width: 5),
                                     ],
                                     Flexible(
-                                        child: Text(data.vibe,
+                                        child: Text(moodLabel,
                                             maxLines: 1,
                                             overflow: TextOverflow.ellipsis,
                                             style: Theme.of(context)
@@ -141,6 +148,7 @@ class CompactFeedCardPresentation extends FeedCardPresentation {
                                                         FontWeight.w500,
                                                     color: muted))),
                                   ]))),
+                      ],
                     ])),
                     SizedBox(
                         width: 32,

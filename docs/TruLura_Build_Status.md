@@ -522,6 +522,41 @@ Top blockers, unchanged:
       session that logged this had no database tooling available; this needs a
       query, not a code read.
     - **Failure class:** a default counted as an answer.
+    - **Fixed 2026-09-17 on both surfaces, on Product Owner instruction:**
+      "A fabricated mood is worse than no mood, and all 12 posts are null
+      today so the honest render is nothing." `_vibeLabelFor` is deleted.
+      `FeedCardPresentationData.vibe` and `_FeedHeaderRow.vibeLabel` are now
+      nullable, the label is `post.moodTag` or null, and both presentations
+      omit the chip or pill **entirely** when it is null rather than laying out
+      an empty pill — an empty pill still reads as "something is here". The
+      compact card did not previously handle absence: its chip `Container` was
+      unconditional and `vibe` was non-nullable, so this required changing the
+      type and both presentations, not only deleting the function.
+    - **'Anonymous' is kept.** It is true of the post rather than a guess about
+      it, and it is not a mood. The legacy pill is suppressed for anonymous
+      posts by a separate pre-existing guard, so it is the compact chip that
+      carries it.
+    - **This also removes the flicker.** The label was a hash whose seed
+      included `displayName`; with no label there is nothing to re-hash when
+      the real name arrives, so the placeholder flash is gone as a consequence
+      rather than needing its own fix.
+    - **The legacy pill never read `post.moodTag` at all.** It rendered the
+      hashed label for every non-anonymous post. So for Vent and Profile this
+      change is not only the removal of a fabrication: it is the **first time
+      those cards show a real mood**.
+    - **Golden consequence, measured before regenerating.** SHA256 of all 28
+      images was recorded before any code change; 18 changed and 10 did not,
+      and `git status` listed exactly the same 18. The 16 `profile_*` /
+      `profile_boosted_*` baselines changed, **plus
+      `positive_accent_green.png`** — 17 in `feed_boundary`, one more than the
+      16 the instruction anticipated, because that post-boundary positive
+      reference is also non-anonymous with a mood tag. `moods.png` changed
+      (0.27% / 1104px) as its untagged chip disappeared. All eight `vent_*`
+      baselines and both `ring.png` / `dot.png` are byte-identical, confirmed
+      per file rather than inferred from a passing run. The recapture and its
+      reasoning are recorded in
+      `test/goldens/feed_boundary/README.md`; it replaces invented data with
+      real mood tags and is explicitly not an acceptance of a redesign.
 
 25. **`MoodColors.glow` cannot return the DR-2 palette: four of the five
     canonical moods fall through to a single default colour.** Logged
@@ -667,6 +702,49 @@ Top blockers, unchanged:
       `_AuraFeedKind { forYou, aura, spark, vent, trending }`
       (`home_feed_screen.dart:917`). "Calm" is a `Mood` value, surfaced as a
       label in `home_hub_screen.dart`, and is unrelated to feed filtering.
+
+28. **~~Home does not scroll with a real mouse wheel over the hero area.~~ —
+    closed 2026-09-17, not reproducible; cause was stale page state.**
+    Logged and closed the same day. **No code changed, and none is needed for
+    the reported symptom.**
+    - **Reported symptom:** a real mouse wheel over Home's hero area did
+      nothing, while a synthetic wheel event dispatched to the `flutter-view`
+      element scrolled the feed normally. The natural reading was that the
+      scroll view worked and pointer input was not reaching it.
+    - **Resolution, Product Owner, verified in Chrome 2026-09-17:** a real
+      wheel at client coordinates (575, 400) scrolls Home correctly. The
+      original failure was the state of the page before a restart, not a
+      defect in the scroll tree.
+    - **Why the premise was suspect before the retest.** A synthetic wheel
+      dispatched at `flutter-view` with no `clientX`/`clientY` hit-tests at
+      (0, 0) — the top-left of the hero band, not the feed. So "synthetic
+      scrolls, real does not" could compare two *different* scrollables rather
+      than demonstrate a delivery failure. Re-dispatching at the hero's actual
+      coordinates is what settled it.
+    - **What the scroll-tree audit established, kept because it is the answer
+      to the next person who asks.** Nothing in the Home tree can swallow a
+      vertical wheel over the hero. `Scrollable` places its pointer-signal
+      listener above an opaque `RawGestureDetector`, and the feed `ListView` is
+      an *ancestor* of the hero, so opaque painters, `InkWell`s and scrims
+      inside the hero cannot intercept it. `lib/` contains no `Listener(` and
+      no `AbsorbPointer` at all, and every full-bleed decorative layer is an
+      `IgnorePointer` drawn beneath the content.
+    - **Found while investigating, still true, and not the cause.** The
+      populated feed's `ListView.separated`
+      (`home_feed_screen.dart:2268`) specifies no `physics`, so when ranked
+      content is shorter than the viewport `maxScrollExtent` is 0: the wheel is
+      a no-op and the enclosing `RefreshIndicator` (`:2266`) cannot trigger
+      either. The empty-state sibling (`:2209`) does set
+      `AlwaysScrollableScrollPhysics`. This was ruled out as the cause here —
+      the synthetic wheel scrolled, so the extent was non-zero at that moment —
+      but it remains a live way for Home to become unscrollable on a short
+      feed, which is the current data shape.
+    - **Also noted:** `TruPortalRail`
+      (`lib/widgets/trulura_world_layers.dart:484`) is a horizontal scrollable
+      occupying the lower band of the hero. A pure vertical wheel passes it by,
+      since horizontal scrollables read `scrollDelta.dx` and dx is 0, but a
+      trackpad or tilt-wheel supplies a non-zero dx and that rail will pan
+      portals instead of scrolling the feed. Not tested.
 
 ---
 

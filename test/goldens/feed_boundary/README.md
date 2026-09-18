@@ -33,6 +33,47 @@ are set, so it is a committed harness rather than coverage. And this remains
 component-level verification; nothing in that commit has been exercised
 through the running app.
 
+## Baseline recapture, 2026-09-17 — 17 images replaced deliberately
+
+**This is the one sanctioned recapture of these baselines, and it is not an
+acceptance of a redesign.** Read this before concluding the rule below was
+broken.
+
+`_vibeLabelFor` was deleted on 2026-09-17 (Build Status known issue 24). It
+hashed the author's display name into one of eight invented labels, and the
+legacy `FeedCard` header pill rendered that hash for every non-anonymous post.
+The pill now shows `post.moodTag` when there is one and nothing at all when
+there is not. **The legacy pill never read `post.moodTag` at any point before
+this**, so for Vent and Profile cards this is the first time these images show
+a real mood rather than a fabricated one. That is why the baselines moved: the
+data in them changed from invented to true. Composition, geometry, type and
+colour were not touched.
+
+**Measured before regenerating, not after.** SHA256 of all 28 images was
+recorded before any code change and compared afterwards. 18 changed, 10 did
+not, and `git status` listed exactly the same 18:
+
+- **Changed (17 here):** the 16 `profile_*` and `profile_boosted_*` baselines,
+  plus `positive_accent_green.png` — that last one is a post-boundary
+  known-positive reference, non-anonymous with `moodTag: 'reflective'`, so its
+  pill text changed along with the rest. It is easy to overlook when counting
+  "the 16 baselines"; it is included here.
+- **Unchanged, confirmed per file rather than assumed (8 here):** every
+  `vent_*` baseline is byte-identical. The Vent fixtures are anonymous, the
+  pill is suppressed for anonymous posts (`feed_card.dart`, the
+  `!isAnonymous` guard on the header pill), so nothing in them could move.
+- Also unchanged outside this directory: `../compact_feed/ring.png` and
+  `dot.png`, whose fixtures all carry mood tags.
+
+**What this does not license.** The rule below stands unchanged: these
+baselines must never be refreshed to accept a visual redesign. The test for a
+future recapture is the one applied here — name the specific data or toolchain
+fact that changed, measure the blast radius before touching anything, confirm
+the images that should not move are byte-identical, and record all of it in
+this file. A recapture that cannot state which images moved and why is the
+`--update-goldens`-after-failure pattern that Build Status known issue 26
+exists to record.
+
 ## Valid toolchain
 
 - Flutter 3.44.0 stable, framework 559ffa3f75e7402d65a8def9c28389a9b2e6fe42
