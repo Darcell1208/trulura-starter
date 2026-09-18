@@ -746,6 +746,158 @@ Top blockers, unchanged:
       trackpad or tilt-wheel supplies a non-zero dx and that rail will pan
       portals instead of scrolling the feed. Not tested.
 
+29. **The Vent/Profile card strip is not one invented label but three
+    independent hardcoded systems, plus a fourth fabricated value.** Logged
+    2026-09-17 after a browser review. **Not fixed; no code changed.**
+    - **The question asked was "one source or several".** Several. They look
+      like a single strip only because they are stacked adjacently in the same
+      legacy branch of `FeedCard`. Each would have to be fixed separately.
+    - **(1) The presence strip** — `_PostPresenceStrip`, defined
+      `feed_card.dart:1974-2057`, instantiated unconditionally at
+      `feed_card.dart:969-978`.
+      - The pink dot is `_TinyPulse(color: palette.glowB)`
+        (`feed_card.dart:2036`), a per-mode brand constant from
+        `kTruLuraPalettes`. It reads no post data and cannot vary by card.
+      - "quiet space tonight" (`feed_card.dart:2005`) is the last arm of a
+        five-branch chain at `:1997-2005`; "Low-pressure"
+        (`feed_card.dart:2012`) is the last arm of a four-branch chain at
+        `:2006-2012`. Both are keyed on
+        `total = glowCount + reactCount + shareCount` (`:1996`).
+      - **Why the other branches are unreachable.** `_fromAuraRow` hardcodes
+        `likeCount: 0, commentCount: 0, shareCount: 0`
+        (`post_service.dart:464-466`), so `total` is structurally 0 on every
+        post, and `mood_tag` is null on all 12 rows, so the
+        "people are reflecting here" arm never fires either. The chains contain
+        real logic that current data can never reach — so the strip is not
+        *written* as a constant, it is one in practice, which is harder to see.
+    - **(2) The body-box header** — a different file entirely.
+      `FeedCardVisualSpec.fromPost`'s support branch
+      (`feed_card_visual_spec.dart:140-161`) sets
+      `label: post.isAnonymous ? 'Soft check-in' : 'Support note'` (`:147`) and
+      `glyph: TruLuraGlyph.moon` (`:148`). It is rendered by `_PostContentBlock`
+      at `feed_card.dart:1471-1484`, behind `visualSpec.hasTypeLabel`.
+      - **Why it is identical on every Vent card:** Vent forces
+        `post.copyWith(isAnonymous: true)` on every post it lists
+        (`vent_screen.dart:461-462`), so both the branch and its anonymous arm
+        are taken unconditionally.
+    - **(3) The 66% badge** — `derivedCompatibility()`
+      (`feed_card.dart:1646-1649`) hashes
+      `'$name|${moodTag ?? ''}|${profileImage ?? ''}'` into 60–94 and passes it
+      as `matchPercent` (`:1672`). The comment above it reads "Keep a gentle %
+      badge — makes identity feel energetic." This is the same class as the
+      deleted `_vibeLabelFor`: a hash presented as a measurement.
+    - **(4) A third copy of the same motif, not on any card.**
+      `home_feed_screen.dart:1240-1258` defines `_signals`, giving the Vent kind
+      `['quiet space', 'low-pressure', 'held']` for a feed banner. Same idea,
+      different strings, independently maintained.
+    - **(5) Related instance on Home's hero, different surface.**
+      `_AuraWorldHero` (`home_feed_screen.dart:977-987`) hardcodes
+      `focal: 'Aura pulse'` and `value: 'Radiant'`, along with
+      `identityValue`, `atmosphereLabel`, `heroLabel`, `interactionLabel` and
+      `contentLabel`. Traced end to end: literal → `TruWorldStage`, whose
+      `focalLabel`/`focalValue` are required `String`s
+      (`trulura_world_layers.dart:16-17`) → `TruWorldFocal` → `Text(value)`
+      verbatim (`:301-302`). **It is not a data read returning a default.** The
+      collision with `TruTemperament.radiant`, which also renders as "Radiant"
+      (`user.dart:509`) and whose enum defaults to `oldSoul` (`user.dart:221`),
+      is a coincidence of vocabulary and is exactly what makes this one look
+      like a defaulted read when it is a constant.
+    - **Why none of these were touched by the `_vibeLabelFor` removal
+      (`3cb8150`):** none of them reads `vibeLabel`. That fix corrected the
+      mood chip only.
+    - **Where they render, and why Home is clean.** The legacy tree runs only
+      when `visualSpec.presentation == null` (`feed_card.dart:669-670`, early
+      return `:704-737`). Vent (`vent_screen.dart:186`, `:456-466`) and Profile
+      (`profile_screen.dart:695`, `:723`) pass no spec; Home passes
+      `CompactFeedCardPresentation`, which is why Home verified clean in the
+      browser on 2026-09-17 while these two did not.
+    - **Failure class:** hardcoded copy presented as a live signal. Distinct
+      from "a default counted as an answer" — there is no data path here at all
+      for (1), (4) and (5).
+    - **Not decided, flagged not settled:** a compact status line driven by real
+      data has been raised as a direction. It bears on Study 05, where every
+      rendered frame has a hero, so it belongs to the design thread before any
+      implementation. Recorded here as an open question only; this is not a
+      ruling.
+
+30. **Profile renders feed cards on the legacy path because no visual spec is
+    passed.** Logged 2026-09-17. **Not fixed; no code changed.**
+    - `profile_screen.dart:695` and `:723` call
+      `TruluraFeedItemRenderer(item: item)` with no `visualSpec`, so
+      `FeedCard` falls back to `FeedCardVisualSpec.fromPost`
+      (`feed_card.dart:669-670`), `presentation` is null, and the legacy tree
+      renders — bringing the 66% badge, the presence strip and the body-box
+      header with it.
+    - **A one-argument gap, not a missing capability.**
+      `TruluraFeedItemRenderer` already accepts and forwards `visualSpec`;
+      Profile simply does not supply one.
+    - **Was Profile meant to receive the presentation boundary?** The record
+      claims card-level goldens for Vent and Profile and explicitly excludes
+      the screens: "Full Vent/Profile screen rendering is NOT exercised. These
+      are card goldens" (`test/goldens/feed_boundary/README.md`). So the
+      boundary work measured Profile's cards against baselines but never wired
+      Profile to the injected presentation. Whether it should adopt the compact
+      presentation is **not decided**.
+    - **Naming note:** there is no "Journey" card or screen on Profile. All of
+      `lib/` contains only `_TruJourneyTimelineDestination` inside
+      `placeholder_screen.dart`, a `truJourney` quiz-effect enum value
+      (`quiz_registry_models.dart:56`), and a label string
+      (`quiz_library_screen.dart:64`).
+
+31. **"New member" renders identically for three different states: still
+    loading, no such user, and the lookup threw.** Logged 2026-09-17. **Not
+    fixed; no code changed.**
+    - `_fallbackIdentityLabel` (`feed_card.dart:128-131`) returns the literal
+      `'New member'` for any non-anonymous post.
+    - Three paths reach it: the first render before `_loadIdentity` resolves
+      (via `publicDisplayNameFrom`'s fallback, `user.dart:403-414`); the branch
+      where the lookup returned null or an unknown name
+      (`feed_card.dart:171-176`); and the `catch` when the lookup **threw**
+      (`feed_card.dart:177-184`).
+    - `publicDisplayNameFrom` additionally returns the fallback for an
+      email-shaped name, or a name equal to the email's local part
+      (`user.dart:408-414`), so a real account with a poor name also lands here.
+    - **Observed** as roughly a one-second flash before resolving to the real
+      name. That is the benign case. The same string is also the permanent
+      state after a failure, and nothing on screen distinguishes them.
+    - **Is there a reason to render a placeholder rather than nothing?** No
+      reason is stated anywhere in the code. The only related comment
+      (`feed_card.dart:158`) says "Best-effort: we only have robust data for
+      the current user (auth-only setup)."
+    - **Failure class:** a failed read rendered as a value — the same shape as
+      a default counted as an answer, with the failure path folded in.
+
+32. **"Emotional Weather" and "Reflection Journey" are inert cards pointing at
+    destinations that do not exist.** Logged 2026-09-17. **Not fixed; no code
+    changed.**
+    - Both are `TruRealmPortal` entries in the `portals:` list of
+      `_AuraWorldHero`: `home_feed_screen.dart:1028-1033` and `:1041-1046`.
+      **Neither passes an `onTap` at all.** `TruRealmPortal.onTap` is a
+      `VoidCallback?` forwarded into an `InkWell`, so a null handler is
+      completely inert — no ripple, no callback.
+    - Their middle sibling **is** wired: "Aura Pulse" (`:1034-1040`) passes
+      `onTap: () => context.go(AppRoutes.homeTab('explore'))`, which resolves.
+      So this is an omission on two specific cards, not a broken component.
+    - **No destination exists for either.** A class search over `lib/` for
+      `(Weather|Journey|Reflection|Evolution|Orbit|Pulse)(Screen|Page|View)`
+      returns nothing, while the same pattern matches `VentScreen` — the
+      negative was instrument-checked against a known positive rather than
+      trusted. `app_router.dart` has no corresponding route.
+    - **One nuance that does not change the verdict:**
+      `placeholder_screen.dart:28` branches on a title containing "journey" and
+      `:47-54` returns `_TruJourneyTimelineDestination`, built entirely from
+      URL query params with the default summary "This world is being prepared
+      for you." So a journey-titled route *would* land somewhere themed — but
+      nothing routes there, and there is no weather equivalent.
+    - **The row above them is fully wired,** which is what makes the omission
+      easy to miss: "Begin Reflection" → `createPost` (`:1009-1012`), "Tune
+      Aura" → `feedPersonalization` (`:1018`), "Track Mood" → `onboardingVibe`
+      (`:1024`).
+    - **Failure class:** the same family as known issue 27 — UI that
+      manufactures the appearance of a working feature. Wiring these is not a
+      one-line change: it needs the screens built, or a deliberate decision to
+      point them at the generic `/p` placeholder, which is itself scaffolding.
+
 ---
 
 ## Irreversible cleanup, deferred
