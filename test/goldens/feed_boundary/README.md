@@ -74,6 +74,32 @@ this file. A recapture that cannot state which images moved and why is the
 `--update-goldens`-after-failure pattern that Build Status known issue 26
 exists to record.
 
+## Baseline recapture, 2026-09-19 — one image, `positive_accent_green.png`
+
+A second sanctioned recapture, and a far smaller one. `_PostPresenceStrip` is
+now suppressed when glow, react and share counts are all zero (Build Status
+known issue 29), which removed the strip from the only fixture whose counts
+resemble live data.
+
+**Measured before regenerating, per the standard below.** The suite ran first
+without `--update-goldens`: `+24 -1`, with all 25 tests reaching `tearDownAll`
+so the count is real rather than an early abort, and
+`positive_accent_green.png` the single failure. After regenerating,
+`git status` listed exactly one modified image. The 24 pre-change baselines are
+untouched — confirmed by git, not assumed.
+
+**Why only one moved, and why that is itself a finding.** The shared fixture
+sets `likeCount: 7, shareCount: 2` (`:243-244`), so `total` is 9 and the strip
+still renders in all 24. Only `positive_accent_green`, built separately with no
+counts (`:70-80`), behaves like production — where all 12 posts have zero rows
+in `post_reactions`. A change that removes an element from **every card in the
+running app** surfaced here as a single image. The prediction made from these
+fixtures was wrong by a factor of seventeen. That fixture-validity problem is
+Build Status known issue 34.
+
+**This does not license refreshing the 24.** They stay as they are, and the
+standard in the 2026-09-17 note applies unchanged.
+
 ## Valid toolchain
 
 - Flutter 3.44.0 stable, framework 559ffa3f75e7402d65a8def9c28389a9b2e6fe42

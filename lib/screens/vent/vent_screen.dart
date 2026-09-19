@@ -21,6 +21,8 @@ import 'package:trulura/widgets/trulura_glass_card.dart';
 import 'package:trulura/widgets/trulura_screen_state.dart';
 import 'package:trulura/widgets/trulura_feed_components.dart';
 import 'package:trulura/widgets/trulura_feed_item_renderer.dart';
+import 'package:trulura/widgets/feed_card_visual_spec.dart';
+import 'package:trulura/widgets/compact_feed_card_presentation.dart';
 
 class VentScreen extends StatefulWidget {
   const VentScreen({super.key});
@@ -182,9 +184,29 @@ class _VentScreenState extends State<VentScreen> {
       padding: AppSpacing.paddingMd,
       itemCount: items.length,
       separatorBuilder: (_, __) => const SizedBox(height: 10),
-      itemBuilder: (context, index) => TruluraFeedLane(
-        child: TruluraFeedItemRenderer(item: items[index]),
-      ),
+      itemBuilder: (context, index) {
+        final item = items[index];
+        // Vent takes the compact presentation too. On the legacy tree these
+        // cards carried derivedCompatibility()'s hashed 60-94 "match" badge,
+        // which is worse here than on a profile: every Vent post is anonymous,
+        // so there is no identity for a compatibility score to be about.
+        // Build Status known issues 29 and 30.
+        final post = item is TruPostFeedItem ? item.post : null;
+        return TruluraFeedLane(
+          child: TruluraFeedItemRenderer(
+            item: item,
+            visualSpec: post == null
+                ? null
+                : FeedCardVisualSpec.fromPost(
+                    post,
+                    context.watch<TruLuraModeController>().mode,
+                  ).withPresentation(const CompactFeedCardPresentation(),
+                    accentB: TruLuraModeTone.aura
+                        .resolve(Theme.of(context).colorScheme)
+                        .$1),
+          ),
+        );
+      },
     );
   }
 

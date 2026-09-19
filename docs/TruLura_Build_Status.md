@@ -940,25 +940,47 @@ Top blockers, unchanged:
       destination, is the only portal left. A comment at the call site records
       why, so a portal without a destination is not re-added later.
 
-33. **`_PostPresenceStrip`'s branch logic is unreachable rather than absent, and
-    will wake up untested if engagement counts ever become real.** Logged
-    2026-09-18. **Not fixed; logged deliberately.**
+33. **~~`_PostPresenceStrip`'s branch logic is unreachable rather than
+    absent~~ — wrong. The strip's counts are real and load from the database;
+    they are zero because no post has any engagement.** Logged 2026-09-18,
+    **substantially corrected 2026-09-19.** **Not fixed; see what is actually
+    open, below.**
+    - **Correction, 2026-09-19 — the original claim in this entry was wrong.**
+      It asserted that `_fromAuraRow`'s hardcoded zeros made the strip's
+      branches unreachable. They do not. `_PostPresenceStrip` reads
+      `_glowCount` and `_reactCount`, which `FeedCard._loadGlowState` fills
+      from the live database through `PostService.getGlowCount` and
+      `getReactionCount` — real aggregates over `post_reactions`, not fields
+      carried on the mapped row. The branches are **unreached, not
+      unreachable**, and that is a different problem with a different fix.
+    - **Measured 2026-09-19 against the live database:** 12 posts, **0 rows in
+      `post_reactions`**, 0 rows in `comments`, 0 posts with either. `total` is
+      0 on every card because nothing has been reacted to — the strip behaving
+      correctly, not a defect.
+    - **How the error happened, which is the more useful part.** The conclusion
+      came from reading `_fromAuraRow` and the strip's build in one sitting and
+      assuming the strip's counts came from the model. The async path that
+      actually feeds them was never opened. The field names had two writers;
+      reading one of them looked like reading the answer.
     - The strip picks between five label arms and four sub-label arms keyed on
       `total = glowCount + reactCount + shareCount` (`_PostPresenceStrip`'s
       build, `feed_card.dart`). Four of the five, and three of the four, cannot
       be selected at all today.
-    - **Why:** `_fromAuraRow` hardcodes `likeCount: 0, commentCount: 0,
-      shareCount: 0` when mapping database rows (`post_service.dart:464-466`),
-      so `total` is structurally 0 for every post the app loads. `mood_tag` is
-      null on all 12 rows, so the one remaining data-driven arm ("people are
-      reflecting here") never fires either.
-    - **Why this earns its own entry, separate from 29.** Issue 29 recorded the
-      strip as hardcoded copy — that is the symptom. The cause outlasts the fix:
-      the logic is not missing, it is *written and unreachable*. Suppressing the
-      strip when counts are zero hides the symptom without ever exercising the
-      branches. On the day `_fromAuraRow` carries real counts, four label arms
-      and three sub-label arms render for the first time, in production, having
-      never been seen by anyone.
+    - **~~Why:~~ superseded by the correction above.** `_fromAuraRow` does
+      hardcode `likeCount: 0, commentCount: 0, shareCount: 0`
+      (`post_service.dart:464-466`), but those fields do not feed the strip's
+      glow or reaction counts. They remain a real defect elsewhere: they feed
+      `TruFeedInteractionCounts`, Home's initial glow count, and the Trending
+      bias that known issue 27 records as inert. The `mood_tag` half stands —
+      it is null on all 12 rows, so the "people are reflecting here" arm is
+      genuinely unreached.
+    - **What is genuinely open, restated after the correction.** The threshold
+      arms (3 and 8) have never rendered, because no post has ever carried that
+      much engagement. They will render for the first time in production on the
+      day a post gets three reactions, having never been exercised. That is
+      worth keeping — but it is an untested-path problem, not an
+      unreachable-code problem, and it is closed by test coverage at each
+      threshold rather than by changing `_fromAuraRow`.
     - **The same trap is in the test fixtures, which is how this was found.**
       The shared boundary fixture sets `likeCount: 7, shareCount: 2`
       (`test/feed_card_boundary_golden_test.dart:243-244`), so `total` is 9 and
@@ -968,12 +990,51 @@ Top blockers, unchanged:
       moved when the strip was suppressed. **A fixture that disagrees with
       production hides the change it was meant to catch**, and it hid this one
       down to a single image.
-    - **What would close this:** either counts reach the model and the branches
-      get coverage at each threshold (3 and 8), or the unreachable arms are
-      deleted so the code states what it actually does. Not decided.
-    - **Failure class:** unreachable logic that reads as implemented behaviour —
-      adjacent to "a default counted as an answer", but here the default is a
-      whole branch rather than a value.
+    - **What would close this, corrected:** tests that drive `_glowCount` and
+      `_reactCount` past 3 and past 8 and assert the arm each produces. The
+      Product Owner ruled on 2026-09-19 to wire real counts rather than delete
+      the arms; since the arms are already fed by real data, what remains is
+      coverage.
+    - **What "wire real counts" can and cannot reach, from the live schema.**
+      Glow and reactions are already real. `commentCount` can be wired — the
+      `comments` table exists with a `post_id`. **`shareCount` cannot**: there
+      is no shares table anywhere among the 46 public tables, so it has no
+      backing store and can only stay 0 or be removed. Not decided, and not
+      invented.
+    - **Failure class, corrected:** an untested path, not unreachable logic.
+      The original classification was itself an instance of the thing this page
+      keeps recording — a confident reading that was never checked against the
+      other half of the code.
+
+34. **24 of the 25 boundary fixtures set engagement counts production has never
+    produced, so they test a state the app does not reach.** Logged 2026-09-19.
+    **Not fixed.**
+    - The shared fixture at `test/feed_card_boundary_golden_test.dart:243-244`
+      sets `likeCount: 7, shareCount: 2` on every surface it builds — vent,
+      profile and profile_boosted, across both widths, both themes and both
+      animation frames. That is 24 of the 25 images.
+    - **Live data, measured 2026-09-19:** 12 posts, 0 rows in `post_reactions`,
+      0 rows in `comments`. No post has ever had a single reaction. A fixture
+      with 7 likes and 2 shares resembles no row the app has ever loaded.
+    - **What it cost, concretely.** When `_PostPresenceStrip` was suppressed at
+      zero counts (known issue 29), 24 of 25 goldens kept passing, because
+      their invented counts kept the strip on screen. Only
+      `positive_accent_green`, built separately with no counts (`:70-80`),
+      moved. A change that removes an element from **every card in the running
+      app** surfaced as a single image. The fixtures did not catch the change;
+      they concealed its scale, and the prediction made from them was wrong by
+      a factor of seventeen.
+    - **Why this is separate from 33.** 33 is a code path lacking coverage.
+      This is the fixtures encoding a world that does not exist, which silently
+      narrows every golden built on them — including goldens for changes that
+      have nothing to do with counts.
+    - **Not decided:** whether to set the shared fixture to zero counts, making
+      the goldens match production and moving all 24 baselines once; to add a
+      second fixture at each threshold; or both. The Product Owner's stated
+      order is to fix the data path first, then the fixtures, so the thresholds
+      are testable against something real.
+    - **Failure class:** a fixture that disagrees with production hides the
+      change it was meant to catch.
 
 ---
 
