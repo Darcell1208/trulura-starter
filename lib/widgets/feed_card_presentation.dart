@@ -10,13 +10,17 @@ abstract class FeedCardPresentation {
 class FeedCardAction {
   final IconData icon;
   final String label;
-  final int count;
+
+  /// Count beside the action, or null when there is no count to show.
+  /// Null renders no number at all rather than a 0 that can never change --
+  /// the share action has no backing store for a count.
+  final int? count;
   final bool selected;
   final VoidCallback? onTap;
   const FeedCardAction(
       {required this.icon,
       required this.label,
-      required this.count,
+      this.count,
       this.selected = false,
       required this.onTap});
 }

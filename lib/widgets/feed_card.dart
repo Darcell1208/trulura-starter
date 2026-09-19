@@ -761,8 +761,10 @@ class _FeedCardState extends State<FeedCard>
             } : null),
           FeedCardAction(icon: Icons.chat_bubble_outline, label: actions.tertiaryLabel,
             count: post.commentCount, onTap: actions.showTertiary ? () => _openComments(context) : null),
+          // No count: shares have no backing store, so a number here could
+          // only ever be 0. Known issue 33.
           FeedCardAction(icon: Icons.ios_share_outlined, label: _sharing ? 'Sharing' : 'Share',
-            count: post.shareCount, onTap: participation.effectivePermissions.suppressVirality || _sharing
+            count: null, onTap: participation.effectivePermissions.suppressVirality || _sharing
               ? null : () => _handleShare(participation)),
         ],
       ));
@@ -1005,14 +1007,12 @@ class _FeedCardState extends State<FeedCard>
                             // one. The branch logic is left intact rather than
                             // rewritten: when counts become real it should wake
                             // up as written. Build Status known issues 29, 33.
-                            if (_glowCount + _reactCount + post.shareCount >
-                                0) ...[
+                            if (_glowCount + _reactCount > 0) ...[
                               const SizedBox(height: 10),
                               _PostPresenceStrip(
                                 mode: mode,
                                 glowCount: _glowCount,
                                 reactCount: _reactCount,
-                                shareCount: post.shareCount,
                                 moodTag: post.moodTag,
                                 isCreator: post.isCreatorContent ||
                                     post.inferredExperienceMode() ==
@@ -1028,7 +1028,6 @@ class _FeedCardState extends State<FeedCard>
                               reacted: _reacted,
                               reactCount: _reactCount,
                               glowPulseTick: _glowPulseTick,
-                              shareCount: post.shareCount,
                               sharing: _sharing,
                               shareSuppressed: participation
                                   .effectivePermissions.suppressVirality,
@@ -2025,7 +2024,6 @@ class _PostPresenceStrip extends StatelessWidget {
   final TruLuraMode mode;
   final int glowCount;
   final int reactCount;
-  final int shareCount;
   final String? moodTag;
   final bool isCreator;
 
@@ -2033,7 +2031,6 @@ class _PostPresenceStrip extends StatelessWidget {
     required this.mode,
     required this.glowCount,
     required this.reactCount,
-    required this.shareCount,
     required this.moodTag,
     required this.isCreator,
   });
@@ -2043,7 +2040,9 @@ class _PostPresenceStrip extends StatelessWidget {
     final cs = Theme.of(context).colorScheme;
     final t = Theme.of(context).textTheme;
     final palette = kTruLuraPalettes[mode]!;
-    final total = glowCount + reactCount + shareCount;
+    // Two inputs, not three. shareCount was removed: no shares table exists,
+    // so it contributed a permanent zero while implying a third signal.
+    final total = glowCount + reactCount;
     final label = isCreator
         ? 'creator room active'
         : total >= 8
@@ -2168,7 +2167,6 @@ class _EmotionalActionRow extends StatelessWidget {
   final bool reacted;
   final int reactCount;
   final int glowPulseTick;
-  final int shareCount;
   final bool sharing;
   final bool shareSuppressed;
   final VoidCallback onTapGlow;
@@ -2184,7 +2182,6 @@ class _EmotionalActionRow extends StatelessWidget {
     required this.reacted,
     required this.reactCount,
     required this.glowPulseTick,
-    required this.shareCount,
     required this.sharing,
     required this.shareSuppressed,
     required this.onTapGlow,
@@ -2266,7 +2263,7 @@ class _EmotionalActionRow extends StatelessWidget {
                 mode: mode,
                 glyph: TruLuraGlyph.share,
                 label: sharing ? 'Share...' : 'Share',
-                count: shareCount,
+                count: null,
                 badgeTight: true,
                 integratedBadge: true,
                 onTap: shareSuppressed ? null : onTapShare,

@@ -59,7 +59,12 @@ class CompactFeedCardPresentation extends FeedCardPresentation {
                   height: math.max(avatarDiameter, scale.scale(nameSize) * 1.3),
                   child: Row(children: [
                     Semantics(
-                        label: 'View ${data.name} profile',
+                        // nameLabel, not data.name: interpolating a null name
+                        // announces "View null profile" to a screen reader.
+                        // Legal Dart, so analyze cannot catch it.
+                        label: nameLabel == null
+                            ? 'View profile'
+                            : 'View $nameLabel profile',
                         button: data.onProfile != null,
                         child: GestureDetector(
                             onTap: data.onProfile,
@@ -165,13 +170,36 @@ class CompactFeedCardPresentation extends FeedCardPresentation {
                                 size: 20, color: muted))),
                   ])),
               const SizedBox(height: 10),
-              SizedBox(
-                  height: scale.scale(textSize) * 1.4 * previewLines,
-                  child: Text(data.text,
-                      key: const ValueKey('compact-preview'),
-                      maxLines: previewLines,
-                      overflow: TextOverflow.ellipsis,
-                      style: textStyle)),
+              Tooltip(
+                message: 'Read full post',
+                child: Semantics(
+                  button: true,
+                  label: 'Read full post',
+                  child: InkWell(
+                    onTap: () => showDialog<void>(
+                      context: context,
+                      builder: (context) => AlertDialog(
+                        title: const Text('Post'),
+                        scrollable: true,
+                        content: SelectableText(data.text),
+                        actions: [
+                          TextButton(
+                            onPressed: () => Navigator.of(context).pop(),
+                            child: const Text('Close'),
+                          ),
+                        ],
+                      ),
+                    ),
+                    child: SizedBox(
+                        height: scale.scale(textSize) * 1.4 * previewLines,
+                        child: Text(data.text,
+                            key: const ValueKey('compact-preview'),
+                            maxLines: previewLines,
+                            overflow: TextOverflow.ellipsis,
+                            style: textStyle)),
+                  ),
+                ),
+              ),
               const SizedBox(height: 6),
               LayoutBuilder(
                   builder: (context, constraints) => SizedBox(
@@ -185,7 +213,9 @@ class CompactFeedCardPresentation extends FeedCardPresentation {
                                   child: Semantics(
                                       button: true,
                                       enabled: action.onTap != null,
-                                      label: '${action.label}, ${action.count}',
+                                      label: action.count == null
+                                          ? action.label
+                                          : '${action.label}, ${action.count}',
                                       child: Tooltip(
                                           message: action.label,
                                           child: InkWell(
@@ -221,18 +251,21 @@ class CompactFeedCardPresentation extends FeedCardPresentation {
                                                                             : action.selected
                                                                                 ? data.auraColor
                                                                                 : muted),
+                                                                    if (action.count !=
+                                                                        null) ...[
                                                                     const SizedBox(
                                                                         width:
                                                                             5),
                                                                     Text(
                                                                         _count(action
-                                                                            .count),
+                                                                            .count!),
                                                                         style: Theme.of(context)
                                                                             .textTheme
                                                                             .labelMedium!
                                                                             .copyWith(
                                                                                 fontSize: 12,
                                                                                 color: action.onTap == null ? muted.withValues(alpha: 0.35) : muted)),
+                                                                    ],
                                                                   ]))))))))),
                           ]))),
             ]));

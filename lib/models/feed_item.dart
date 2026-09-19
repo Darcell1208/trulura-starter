@@ -80,14 +80,12 @@ class TruFeedInteractionCounts {
   final int glow;
   final int reactions;
   final int comments;
-  final int shares;
   final bool glowedByViewer;
 
   const TruFeedInteractionCounts({
     this.glow = 0,
     this.reactions = 0,
     this.comments = 0,
-    this.shares = 0,
     this.glowedByViewer = false,
   });
 
@@ -100,7 +98,6 @@ class TruFeedInteractionCounts {
       glow: glowCount ?? post.likeCount,
       reactions: post.likeCount,
       comments: post.commentCount,
-      shares: post.shareCount,
       glowedByViewer: glowedByViewer,
     );
   }

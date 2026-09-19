@@ -136,7 +136,7 @@ class FeedDistributionEngine {
 
       // “Quality” boosting: cap engagement so it cannot runaway.
       final engagement =
-          (p.likeCount + p.commentCount * 2 + p.shareCount * 3).toDouble();
+          (p.likeCount + p.commentCount * 2).toDouble();
       final quality = (min(90, engagement) / 90).clamp(0.0, 1.0);
       final rec = recency(p).clamp(0.0, 1.2);
       final governance = _governance.assessPost(
@@ -178,7 +178,7 @@ class FeedDistributionEngine {
         case TruDiscoveryFeedKind.trending:
           // Trending: engagement + recency, but keep it non-toxic.
           final engagement =
-              (p.likeCount + p.shareCount * 2 + p.commentCount).toDouble();
+              (p.likeCount + p.commentCount).toDouble();
           final capped =
               min(80, engagement) / 80; // cap prevents runaway virality.
           final governance = _governance.assessPost(

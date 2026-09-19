@@ -77,7 +77,6 @@ class Post {
   final List<String> safetyFlags;
   final int likeCount;
   final int commentCount;
-  final int shareCount;
   final DateTime createdAt;
   final DateTime updatedAt;
 
@@ -106,7 +105,6 @@ class Post {
     this.safetyFlags = const <String>[],
     this.likeCount = 0,
     this.commentCount = 0,
-    this.shareCount = 0,
     required this.createdAt,
     required this.updatedAt,
   });
@@ -151,7 +149,6 @@ class Post {
     'safetyFlags': safetyFlags,
     'likeCount': likeCount,
     'commentCount': commentCount,
-    'shareCount': shareCount,
     'createdAt': createdAt.toIso8601String(),
     'updatedAt': updatedAt.toIso8601String(),
   };
@@ -184,7 +181,6 @@ class Post {
     safetyFlags: ((json['safetyFlags'] as List?) ?? const []).map((e) => e?.toString() ?? '').where((e) => e.isNotEmpty).toList(growable: false),
     likeCount: json['likeCount'] as int? ?? 0,
     commentCount: json['commentCount'] as int? ?? 0,
-    shareCount: json['shareCount'] as int? ?? 0,
     createdAt: DateTime.parse(json['createdAt'] as String),
     updatedAt: DateTime.parse(json['updatedAt'] as String),
   );
@@ -214,7 +210,6 @@ class Post {
     List<String>? safetyFlags,
     int? likeCount,
     int? commentCount,
-    int? shareCount,
     DateTime? createdAt,
     DateTime? updatedAt,
   }) => Post(
@@ -242,7 +237,6 @@ class Post {
     safetyFlags: safetyFlags ?? this.safetyFlags,
     likeCount: likeCount ?? this.likeCount,
     commentCount: commentCount ?? this.commentCount,
-    shareCount: shareCount ?? this.shareCount,
     createdAt: createdAt ?? this.createdAt,
     updatedAt: updatedAt ?? this.updatedAt,
   );

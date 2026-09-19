@@ -34,7 +34,6 @@ class FeedDemoContentService {
             category: 'Vibe',
             likeCount: 7,
             commentCount: 2,
-            shareCount: 1,
             createdAt: DateTime.now(),
             updatedAt: DateTime.now(),
           ),

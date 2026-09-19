@@ -100,6 +100,56 @@ Build Status known issue 34.
 **This does not license refreshing the 24.** They stay as they are, and the
 standard in the 2026-09-17 note applies unchanged.
 
+## Baseline recapture, 2026-09-19 (second today) — all 28 images
+
+The largest recapture so far, and **the first time the 24 pre-change baselines
+have moved.** Authorised explicitly. `shareCount` was removed from the strip and
+from `Post` (Build Status known issue 33), and the shared fixture's invented
+`likeCount: 7, shareCount: 2` was zeroed (known issue 34).
+
+**Why they moved, and why this is still not a redesign.** Removing `shareCount`
+forced the fixture change — `shareCount: 2` no longer compiles. With the
+fixture's invented counts gone, `total` is 0 on every card, so
+`_PostPresenceStrip` is suppressed exactly as it is in the running app. The
+images changed because the fixtures stopped describing a world that does not
+exist: the data in them moved toward production, not the design away from it.
+
+**Measured before regenerating.** Run without `--update-goldens` first:
+`+31 ~5 -28`. Every one of the 28 failures was confirmed to be a golden
+mismatch and nothing else, by listing all 28 failing test names — 8 of them
+surfaced through a `throwsNothing` wrapper (`Expected: null / Actual:
+FlutterError:<Golden ...>`) rather than a "Pixel test failed" line, and could
+otherwise have hidden a real regression behind a regeneration.
+
+**A measurement trap worth recording.** That pre-regeneration run named only
+the frame-`_0` images. The `_300` frames were **not** unaffected: each test
+compares at frame 0, then pumps to 300ms and compares again, so a failure at
+frame 0 aborts the test before the second comparison ever runs. Those images
+were *unmeasured*, not unchanged — `git status` after regenerating showed all
+of them moved. **A failing golden suite under-reports its own blast radius**;
+only the filesystem gives the true scope.
+
+**Scope, confirmed by git rather than asserted:** exactly 28 modified images —
+the 24 baselines, `positive_accent_green.png`, and the three `../compact_feed`
+images.
+
+**Attribution caveat — these images carry two sessions' changes, not one.** A
+concurrent session's tap-to-open-full-post feature (an `InkWell` +
+`showDialog` wrapping the compact preview, in
+`lib/widgets/compact_feed_card_presentation.dart`) was already in the working
+tree when this blast radius was measured and regenerated. The three
+`../compact_feed` images therefore reflect **both** that feature and the share
+action losing its count; they cannot be attributed to the `shareCount` removal
+alone. The 24 boundary baselines render `FeedCard` directly and are not
+affected by that feature, so those are attributable to the fixture change. If a
+future reader is bisecting a compact-card difference to this date, look for two
+causes, not one.
+
+**The rule still stands.** These baselines are not to be refreshed to accept a
+visual redesign. This recapture qualifies under the standard set in the
+2026-09-17 note: a specific data fact changed, the blast radius was measured
+first, the scope was confirmed by git, and it is recorded here.
+
 ## Valid toolchain
 
 - Flutter 3.44.0 stable, framework 559ffa3f75e7402d65a8def9c28389a9b2e6fe42

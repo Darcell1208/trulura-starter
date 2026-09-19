@@ -71,7 +71,7 @@ class EmotionalGovernanceService {
     final content = '${post.content} ${post.caption ?? ''}'.toLowerCase();
     final mood = (post.moodTag ?? '').toLowerCase();
     final engagement =
-        post.likeCount + post.commentCount * 2 + post.shareCount * 3;
+        post.likeCount + post.commentCount * 2;
     final intensity = post.emotionalIntensityScore.clamp(0, 100) / 100.0;
     final inferred = post.inferredExperienceMode();
 

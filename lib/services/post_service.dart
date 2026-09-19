@@ -463,7 +463,6 @@ class PostService {
           TruExperienceModeX.tryParse(row['experience_mode']?.toString()),
       likeCount: 0,
       commentCount: 0,
-      shareCount: 0,
       createdAt: createdAt,
       updatedAt: createdAt,
     );

@@ -98,6 +98,50 @@ Top blockers, unchanged:
 
 ---
 
+## Review corrections and accepted priority order ? 2026-09-19
+
+The Product Owner accepted the review of 9119cb2..201990a and directed:
+
+- **Withdraw the Vent public-composer finding.** Entry to Sanctuary switches
+  the experience mode; the composer defaults private and anonymous. The
+  ordinary drawer-from-Social path is not the previously reported defect.
+- **Narrow self-verification:** no established cross-account badge effect;
+  locally manufactured verification still gates Dating and Alt/Intimate.
+- **Withdraw #33 and the corresponding #29 claim:** real reaction counts
+  arrive through `_loadGlowState`; the branches are reachable.
+- **#31 remains incomplete:** swallowed service errors still reach the card
+  as cached data or absence. Removing "New member" did not repair that
+  distinction.
+
+First restore access to the full text behind compact previews, retaining the
+compact card. Then address these five in this order, by harm to a real user:
+
+1. Remote ephemeral expiry: sensitive content persists despite a deletion promise.
+2. Retry bypassing block, pause and safety checks: a second attempt defeats protections.
+3. Cross-account cached state (#17): another account's identity and eligibility
+   values can become the current user's state.
+4. Self-verification: locally manufactured values satisfy verification gates.
+5. Fabricated mutual interest in Sync: a probability calculation attributes
+   reciprocal interest to somebody who never expressed it.
+
+**Priority correction accepted by the Product Owner:** the discretionary order
+before real-user exposure was wrong. Work on cosmetic fabrication came ahead
+of false deletion promises and bypassable protections. This corrects how work
+has been prioritized, not only the ordering of the backlog. Removing invented
+presentation was worthwhile, but it did not justify deferring the higher-harm
+failures. This order is now the instruction for subsequent work.
+
+Implementation and validation results are recorded separately from this
+acceptance; acceptance of the ranking does not mean any of the five is fixed.
+
+**Compact truncation regression fixed in the working tree, 2026-09-19:**
+tapping the compact body opens the entire post as selectable text in a
+scrollable dialog, with a Close button. The two-line preview remains. This
+shared presentation covers Home, Profile and Vent. The new interaction test
+passes; the eight existing compact layout, callback and golden tests pass
+without regenerating any baselines. This does not claim browser verification.
+
+
 ## Known issues
 
 **Security / data**
@@ -765,13 +809,10 @@ Top blockers, unchanged:
         (`feed_card.dart:2012`) is the last arm of a four-branch chain at
         `:2006-2012`. Both are keyed on
         `total = glowCount + reactCount + shareCount` (`:1996`).
-      - **Why the other branches are unreachable.** `_fromAuraRow` hardcodes
-        `likeCount: 0, commentCount: 0, shareCount: 0`
-        (`post_service.dart:464-466`), so `total` is structurally 0 on every
-        post, and `mood_tag` is null on all 12 rows, so the
-        "people are reflecting here" arm never fires either. The chains contain
-        real logic that current data can never reach — so the strip is not
-        *written* as a constant, it is one in practice, which is harder to see.
+      - **Withdrawn 2026-09-19:** the claim that these branches are
+        unreachable because `_fromAuraRow` supplies zero counts was wrong.
+        `_loadGlowState` independently fetches real glow, heart and laugh
+        counts. Zero observed engagement is not unreachable logic. See #33.
     - **(2) The body-box header** — a different file entirely.
       `FeedCardVisualSpec.fromPost`'s support branch
       (`feed_card_visual_spec.dart:140-161`) sets
@@ -867,7 +908,7 @@ Top blockers, unchanged:
 
 31. **"New member" renders identically for three different states: still
     loading, no such user, and the lookup threw.** Logged 2026-09-17.
-    **Fixed 2026-09-18.**
+    **Incomplete, corrected 2026-09-19.**
     - `_fallbackIdentityLabel` (`feed_card.dart:128-131`) returns the literal
       `'New member'` for any non-anonymous post.
     - Three paths reach it: the first render before `_loadIdentity` resolves
@@ -887,7 +928,7 @@ Top blockers, unchanged:
       the current user (auth-only setup)."
     - **Failure class:** a failed read rendered as a value — the same shape as
       a default counted as an answer, with the failure path folded in.
-    - **Fixed 2026-09-18, with the three cases actually separated:**
+    - **Partial change 2026-09-18: placeholder removed; state separation incomplete:**
       `_fallbackIdentityLabel` is deleted. `User.publicDisplayNameOrNull`
       returns null where `publicDisplayNameFrom` returned a placeholder, and
       `FeedCardPresentationData.name` and `_FeedHeaderRow.name` are now
@@ -896,12 +937,19 @@ Top blockers, unchanged:
       records which case applies, and only `pending` may show the "Identity
       syncing…" hint — a terminal absent or failed resolution can no longer
       claim something is still on its way.
-    - **A failed read now logs.** The catch calls
-      `truLogStateError('FeedCard._loadIdentity', e, st)`, which routes through
-      `safeError` and drops the fields carrying user content, so the failure is
-      visible without putting a name or a row in the console.
+    - **Only errors that escape the service reach the new card logger.**
+      The catch calls `truLogStateError('FeedCard._loadIdentity', e, st)`.
+      Remote lookup errors swallowed by `getUserById` do not reach it; this
+      catch is not evidence of end-to-end failure classification.
     - **The flash is gone as a consequence rather than as a separate fix.** With
       no placeholder there is nothing to render before the real name arrives.
+
+    - **Correction, 2026-09-19:** `getUserById` catches remote errors and
+      returns cached data or null. A failed lookup can therefore still arrive
+      at FeedCard as `absent`; adding a `failed` enum case did not fix the
+      service contract. The placeholder removal stands, but this issue is not
+      closed. The earlier claim that all three outcomes were separated is
+      withdrawn.
 
 32. **"Emotional Weather" and "Reflection Journey" are inert cards pointing at
     destinations that do not exist.** Logged 2026-09-17. **Fixed 2026-09-18 by
@@ -940,71 +988,16 @@ Top blockers, unchanged:
       destination, is the only portal left. A comment at the call site records
       why, so a portal without a destination is not re-added later.
 
-33. **~~`_PostPresenceStrip`'s branch logic is unreachable rather than
-    absent~~ — wrong. The strip's counts are real and load from the database;
-    they are zero because no post has any engagement.** Logged 2026-09-18,
-    **substantially corrected 2026-09-19.** **Not fixed; see what is actually
-    open, below.**
-    - **Correction, 2026-09-19 — the original claim in this entry was wrong.**
-      It asserted that `_fromAuraRow`'s hardcoded zeros made the strip's
-      branches unreachable. They do not. `_PostPresenceStrip` reads
-      `_glowCount` and `_reactCount`, which `FeedCard._loadGlowState` fills
-      from the live database through `PostService.getGlowCount` and
-      `getReactionCount` — real aggregates over `post_reactions`, not fields
-      carried on the mapped row. The branches are **unreached, not
-      unreachable**, and that is a different problem with a different fix.
-    - **Measured 2026-09-19 against the live database:** 12 posts, **0 rows in
-      `post_reactions`**, 0 rows in `comments`, 0 posts with either. `total` is
-      0 on every card because nothing has been reacted to — the strip behaving
-      correctly, not a defect.
-    - **How the error happened, which is the more useful part.** The conclusion
-      came from reading `_fromAuraRow` and the strip's build in one sitting and
-      assuming the strip's counts came from the model. The async path that
-      actually feeds them was never opened. The field names had two writers;
-      reading one of them looked like reading the answer.
-    - The strip picks between five label arms and four sub-label arms keyed on
-      `total = glowCount + reactCount + shareCount` (`_PostPresenceStrip`'s
-      build, `feed_card.dart`). Four of the five, and three of the four, cannot
-      be selected at all today.
-    - **~~Why:~~ superseded by the correction above.** `_fromAuraRow` does
-      hardcode `likeCount: 0, commentCount: 0, shareCount: 0`
-      (`post_service.dart:464-466`), but those fields do not feed the strip's
-      glow or reaction counts. They remain a real defect elsewhere: they feed
-      `TruFeedInteractionCounts`, Home's initial glow count, and the Trending
-      bias that known issue 27 records as inert. The `mood_tag` half stands —
-      it is null on all 12 rows, so the "people are reflecting here" arm is
-      genuinely unreached.
-    - **What is genuinely open, restated after the correction.** The threshold
-      arms (3 and 8) have never rendered, because no post has ever carried that
-      much engagement. They will render for the first time in production on the
-      day a post gets three reactions, having never been exercised. That is
-      worth keeping — but it is an untested-path problem, not an
-      unreachable-code problem, and it is closed by test coverage at each
-      threshold rather than by changing `_fromAuraRow`.
-    - **The same trap is in the test fixtures, which is how this was found.**
-      The shared boundary fixture sets `likeCount: 7, shareCount: 2`
-      (`test/feed_card_boundary_golden_test.dart:243-244`), so `total` is 9 and
-      the strip renders in 24 of the 25 boundary goldens — the opposite of live
-      data. Only `positive_accent_green`, built separately with no counts
-      (`:70-80`), behaves like production, and it was the single golden that
-      moved when the strip was suppressed. **A fixture that disagrees with
-      production hides the change it was meant to catch**, and it hid this one
-      down to a single image.
-    - **What would close this, corrected:** tests that drive `_glowCount` and
-      `_reactCount` past 3 and past 8 and assert the arm each produces. The
-      Product Owner ruled on 2026-09-19 to wire real counts rather than delete
-      the arms; since the arms are already fed by real data, what remains is
-      coverage.
-    - **What "wire real counts" can and cannot reach, from the live schema.**
-      Glow and reactions are already real. `commentCount` can be wired — the
-      `comments` table exists with a `post_id`. **`shareCount` cannot**: there
-      is no shares table anywhere among the 46 public tables, so it has no
-      backing store and can only stay 0 or be removed. Not decided, and not
-      invented.
-    - **Failure class, corrected:** an untested path, not unreachable logic.
-      The original classification was itself an instance of the thing this page
-      keeps recording — a confident reading that was never checked against the
-      other half of the code.
+33. **Withdrawn 2026-09-19: presence-strip branches are reachable.**
+    The original finding was wrong. `FeedCard._loadGlowState` fetches real
+    glow, heart and laugh counts through PostService and assigns the state
+    used by `_PostPresenceStrip`. `_fromAuraRow`'s initial zeros do not make
+    those branches unreachable. The matching claim in #29 is withdrawn too.
+    The previous session recorded zero live reactions; that describes the
+    observed dataset, not a structural restriction. Threshold-test coverage
+    may be incomplete, but it is not grounds to keep the withdrawn defect
+    open or to assert the code has never been exercised. No count-path change
+    is required to make these branches reachable.
 
 34. **24 of the 25 boundary fixtures set engagement counts production has never
     produced, so they test a state the app does not reach.** Logged 2026-09-19.
@@ -1024,7 +1017,8 @@ Top blockers, unchanged:
       app** surfaced as a single image. The fixtures did not catch the change;
       they concealed its scale, and the prediction made from them was wrong by
       a factor of seventeen.
-    - **Why this is separate from 33.** 33 is a code path lacking coverage.
+    - **Relation to withdrawn #33.** Its unreachable-code claim was wrong;
+      threshold coverage is a separate verification concern.
       This is the fixtures encoding a world that does not exist, which silently
       narrows every golden built on them — including goldens for changes that
       have nothing to do with counts.
@@ -1035,6 +1029,27 @@ Top blockers, unchanged:
       are testable against something real.
     - **Failure class:** a fixture that disagrees with production hides the
       change it was meant to catch.
+    - **First half fixed 2026-09-19, on Product Owner instruction** ("both, in
+      this order — zero the shared fixture counts and recapture once, then add
+      explicit threshold fixtures"). `likeCount: 7` and `shareCount: 2` are
+      removed from the shared boundary fixture, which now matches production:
+      no engagement. Removing `shareCount` from `Post` (issue 33) forced the
+      same change, so the two landed together and recaptured once rather than
+      twice.
+    - **Recapture, measured and confirmed:** run first without
+      `--update-goldens` (`+31 ~5 -28`), all 28 failures verified to be golden
+      mismatches rather than regressions, then regenerated; `git status`
+      reported exactly 28 modified images. Recorded in
+      `test/goldens/feed_boundary/README.md`.
+    - **What the measurement itself taught, and it generalises.** The
+      pre-regeneration run named only the frame-`_0` images, because a test
+      that fails its frame-0 comparison aborts before the 300ms comparison
+      runs. The `_300` images were unmeasured, not unaffected — all of them
+      moved. **A failing golden suite under-reports its own blast radius.**
+      Use `git status` after regenerating, never the failure list, to state
+      scope.
+    - **Still open:** the second half — explicit fixtures at the 3 and 8
+      thresholds, so the strip's arms are exercised against something real.
 
 ---
 
@@ -1394,13 +1409,14 @@ happens locally and nothing reaches anyone else.
 These are called out above the rest because each one asserts something to a
 person that is false, rather than merely being unfinished.
 
-1. **Identity verification is self-service.** **[verified]**
-   [safety_verification_screen.dart:150-173](../lib/screens/settings/safety_verification_screen.dart#L150)
-   has a button captioned "Advance level (stub)" that increments
-   `verificationLevel` and saves it. `SafetyMeterService.meterForUser` reads
-   that value to decide Strong / Standard / Basic, so self-advancing changes
-   what the safety meter tells *other people* about you. This is also why
-   `dmPermission`'s `verifiedOnly` option could not be enforced (`e51d122`).
+1. **Identity verification is self-service, locally.** **[verified in code]**
+   `safety_verification_screen.dart` exposes "Advance level (stub)", saving
+   a higher cached `verificationLevel` and advanced-verification state.
+   These values gate Dating and Alt/Intimate locally. **Correction,
+   2026-09-19:** the claimed cross-account badge effect is withdrawn.
+   Profile persistence does not write verification, and other-user profile
+   mapping does not retrieve it. A local SafetyMeter consumer alone is not
+   evidence that another account sees the self-awarded status.
 2. **Sync manufactures mutual interest.** **[verified]**
    [sync_service.dart:112-116](../lib/services/sync_service/sync_service.dart#L112):
    `chance = 0.12 + (compatibility/100) * 0.58`, then

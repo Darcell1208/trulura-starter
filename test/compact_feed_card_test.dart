@@ -134,7 +134,6 @@ void main() {
                                         moodTag: moods[i],
                                         likeCount: 12 + i * 9,
                                         commentCount: 3 + i,
-                                        shareCount: 1,
                                         createdAt: now,
                                         updatedAt: now);
                                     return TruluraFeedItemRenderer(

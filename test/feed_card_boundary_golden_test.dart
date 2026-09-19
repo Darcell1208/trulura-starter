@@ -240,8 +240,6 @@ void main() {
               category: vent ? 'Vent' : 'Social',
               isAnonymous: vent,
               isBoosted: surface == 'profile_boosted',
-              likeCount: 7,
-              shareCount: 2,
               createdAt: date,
               updatedAt: date,
             );
