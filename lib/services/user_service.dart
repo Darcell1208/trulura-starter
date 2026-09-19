@@ -12,7 +12,43 @@ import 'package:trulura/services/database_service/database_service.dart';
 class UserService {
   // Local cache to keep the app resilient when offline / during early boot.
   static const String _usersKey = 'users_cache';
-  static const String _currentUserKey = 'current_user';
+  /// The pre-2026-09-19 device-global key. Retained only so it can be deleted.
+  /// Never read: see [_purgeLegacyDeviceCache].
+  static const String _legacyCurrentUserKey = 'current_user';
+
+  /// Per-account cache key. Build Status known issue 17: a single
+  /// device-global key meant the next account to sign in on a shared device
+  /// inherited the previous account's privacy controls — profileVisibility,
+  /// allowScreenshots, messageAutoDelete, showVerificationBadge,
+  /// showTrustIndicator — plus age, location, pronouns, verification level and
+  /// trust score. Someone could be running on a stranger's choices without
+  /// ever having made one.
+  static String _currentUserKeyFor(String scope) => 'current_user:$scope';
+
+  /// Which account's cache may be touched right now.
+  ///
+  /// 'local' is the stub path, where no account exists. It is a real scope
+  /// rather than a null case so the local developer flow keeps working without
+  /// reintroducing a shared key for signed-in accounts.
+  String get _cacheScope {
+    final id = _supabaseReady ? AuthService.instance.currentAuthUser?.id : null;
+    return (id == null || id.isEmpty) ? 'local' : id;
+  }
+
+  /// Deletes the old device-global cache if present.
+  ///
+  /// Deleted, never migrated. The value belongs to an account this device can
+  /// no longer identify, and attributing it to whoever signs in next is
+  /// exactly the defect being fixed. Losing a cache costs one refetch; keeping
+  /// it risks handing one person another person's privacy settings.
+  Future<void> _purgeLegacyDeviceCache(SharedPreferences prefs) async {
+    if (prefs.containsKey(_legacyCurrentUserKey)) {
+      await prefs.remove(_legacyCurrentUserKey);
+      debugPrint(
+          'UserService: removed the legacy device-global current_user cache '
+          '(known issue 17); it was not migrated to any account.');
+    }
+  }
 
   bool get _supabaseReady => DatabaseService.instance.isInitialized;
 
@@ -720,18 +756,59 @@ class UserService {
   Future<void> logout() async {
     try {
       final prefs = await SharedPreferences.getInstance();
-      await prefs.remove(_currentUserKey);
+      await _purgeLegacyDeviceCache(prefs);
+      await prefs.remove(_currentUserKeyFor(_cacheScope));
     } catch (e) {
       debugPrint('Failed to logout: $e');
+    }
+  }
+
+  /// Removes every per-account cache on this device.
+  ///
+  /// Known issue 17 also recorded that the cache is *not* cleared when the
+  /// session expires, when AuthService.signOut throws, or when sign-out goes
+  /// through SupabaseAuthManager. Per-account keys mean a surviving cache can
+  /// now only be re-read by the same account, so those paths no longer leak
+  /// across accounts — but a shared device may still accumulate records. This
+  /// exists for a deliberate "forget everything on this device" action and is
+  /// not called automatically.
+  Future<void> clearAllCachedAccounts() async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      await _purgeLegacyDeviceCache(prefs);
+      final keys = prefs
+          .getKeys()
+          .where((k) => k.startsWith('current_user:'))
+          .toList(growable: false);
+      for (final k in keys) {
+        await prefs.remove(k);
+      }
+      debugPrint('UserService: cleared ${keys.length} cached account record(s)');
+    } catch (e) {
+      debugPrint('Failed to clear cached accounts: $e');
     }
   }
 
   Future<User?> _getCachedCurrentUser() async {
     try {
       final prefs = await SharedPreferences.getInstance();
-      final data = prefs.getString(_currentUserKey);
+      await _purgeLegacyDeviceCache(prefs);
+      final scope = _cacheScope;
+      final data = prefs.getString(_currentUserKeyFor(scope));
       if (data == null) return null;
-      return User.fromJson(jsonDecode(data) as Map<String, dynamic>);
+      final cached = User.fromJson(jsonDecode(data) as Map<String, dynamic>);
+      // Second line of defence. The key already scopes by account, so this
+      // should be unreachable — but the harm from reading another account's
+      // record is a privacy failure, not a cosmetic one, so the payload is
+      // checked against the signed-in account rather than trusted because the
+      // key looked right.
+      if (scope != 'local' && cached.id.isNotEmpty && cached.id != scope) {
+        debugPrint('UserService: cached user did not match the signed-in '
+            'account; discarding rather than adopting it (known issue 17)');
+        await prefs.remove(_currentUserKeyFor(scope));
+        return null;
+      }
+      return cached;
     } catch (e) {
       debugPrint('Failed to read cached current user: ${safeError(e)}');
       return null;
@@ -741,7 +818,9 @@ class UserService {
   Future<void> _cacheCurrentUser(User user) async {
     try {
       final prefs = await SharedPreferences.getInstance();
-      await prefs.setString(_currentUserKey, jsonEncode(user.toJson()));
+      await _purgeLegacyDeviceCache(prefs);
+      await prefs.setString(
+          _currentUserKeyFor(_cacheScope), jsonEncode(user.toJson()));
     } catch (e) {
       debugPrint('Failed to cache current user: $e');
     }

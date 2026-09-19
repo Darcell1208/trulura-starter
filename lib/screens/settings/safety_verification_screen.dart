@@ -1,3 +1,4 @@
+import 'package:flutter/foundation.dart' show kDebugMode;
 import 'package:flutter/material.dart';
 import 'package:trulura/compat/provider_compat.dart';
 import 'package:trulura/core/navigation/app_router.dart';
@@ -143,40 +144,68 @@ class _SafetyVerificationScreenState extends State<SafetyVerificationScreen> {
                     ),
                   ),
                   const SizedBox(height: 12),
-                  Row(
-                    children: [
-                      Expanded(
-                        child: OutlinedButton(
-                          onPressed: _loading
-                              ? null
-                              : () async {
-                                  final next = TruVerificationLevel.values[
-                                      (level.index + 1).clamp(
-                                        0,
-                                        TruVerificationLevel.values.length - 1,
-                                      )];
-                                  final updated =
-                                      (me ??
-                                              await UserService()
-                                                  .getCurrentUser())
-                                          ?.copyWith(
-                                            verificationLevel: next,
-                                            updatedAt: DateTime.now(),
-                                          );
-                                  if (updated != null) {
-                                    await UserService().saveUser(updated);
-                                  }
-                                  await app.setHasAdvancedVerification(
-                                    next.index >=
-                                        TruVerificationLevel.level2.index,
-                                  );
-                                  await _load();
-                                },
-                          child: const Text('Advance level (stub)'),
+                  // Build Status known issue 39. This button awarded the next
+                  // verification level to whoever tapped it. That value is not
+                  // cosmetic: it gates Dating and Alt/Intimate
+                  // (experience_mode.dart:528, 553, 565) and produces the
+                  // trust labels other people rely on -- SafetyMeter, and
+                  // "Safe to Meet" / "Highly Trusted" in trust_score_service.
+                  // Four taps made a stranger trustworthy to everyone else.
+                  //
+                  // Restricted to debug builds rather than deleted, so the
+                  // gated modes stay reachable in development. It must never
+                  // ship: a release build has no path that raises a person's
+                  // own verification level, which is correct until a real
+                  // verification flow exists. There is currently no
+                  // authoritative source for this value at all -- see issue 39.
+                  if (kDebugMode)
+                    Row(
+                      children: [
+                        Expanded(
+                          child: OutlinedButton(
+                            onPressed: _loading
+                                ? null
+                                : () async {
+                                    final next = TruVerificationLevel.values[
+                                        (level.index + 1).clamp(
+                                          0,
+                                          TruVerificationLevel.values.length -
+                                              1,
+                                        )];
+                                    final updated =
+                                        (me ??
+                                                await UserService()
+                                                    .getCurrentUser())
+                                            ?.copyWith(
+                                              verificationLevel: next,
+                                              updatedAt: DateTime.now(),
+                                            );
+                                    if (updated != null) {
+                                      await UserService().saveUser(updated);
+                                    }
+                                    await app.setHasAdvancedVerification(
+                                      next.index >=
+                                          TruVerificationLevel.level2.index,
+                                    );
+                                    await _load();
+                                  },
+                            child: const Text(
+                                'DEBUG ONLY: advance level (not real '
+                                'verification)'),
+                          ),
                         ),
-                      ),
-                    ],
-                  ),
+                      ],
+                    )
+                  else
+                    Text(
+                      'Verification is not available yet. Levels above '
+                      'unverified are granted by review, not from this device '
+                      '— nothing here can raise your own level.',
+                      style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                            color: cs.onSurface.withValues(alpha: 0.70),
+                            height: 1.35,
+                          ),
+                    ),
                 ],
               ),
             ),

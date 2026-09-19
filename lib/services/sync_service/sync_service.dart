@@ -84,8 +84,11 @@ class SyncService {
 
   /// Interaction engine: sends Spark/Glow/Aura signals.
   ///
-  /// For local-first MVP, mutuality is inferred probabilistically from
-  /// compatibility + mode intent (so the flow demonstrates “interest → mutual → match”).
+  /// Mutuality is read, never inferred. A signal is mutual only when the other
+  /// person has an existing signal of the same kind pointing back. Until
+  /// 2026-09-19 this was a compatibility-weighted coin flip that could declare
+  /// a match nobody on the other side had asked for — see Build Status known
+  /// issue 40. A one-sided signal is `pending`, and that is the whole answer.
   Future<TruInteractionResult> sendSignal({
     required String userId,
     required String targetUserId,
@@ -110,11 +113,27 @@ class SyncService {
       return TruInteractionResult(status: TruInteractionResultStatus.recorded, signalEvent: event, createdMatch: null);
     }
 
-    // Infer mutuality (demo engine): higher compatibility → higher chance.
-    final base = (report?.overall ?? 72).clamp(0, 100);
-    final chance = (0.12 + (base / 100) * 0.58).clamp(0.08, 0.74);
-    final rnd = math.Random(_hash('$id|mutual'));
-    final isMutual = rnd.nextDouble() < chance;
+    // Mutuality is now READ, not invented. Build Status known issue 40.
+    //
+    // This previously inferred it: `chance = 0.12 + (overall/100) * 0.58`,
+    // then a seeded coin flip. A true result set `mutual` and `createdMatch`
+    // and opened a chat — telling someone that another person had returned
+    // their interest when that person had done nothing at all. Because the
+    // seed was the signal id, the verdict never changed on retry, so it read
+    // as a settled fact rather than a guess.
+    //
+    // Reciprocity now means what it says: the other person has an existing
+    // signal pointing back. On separate devices this is almost always false,
+    // because getSignals reads per-user local storage and this device holds
+    // only its own user's signals — so a one-sided signal stays pending, which
+    // is the truthful answer rather than a flattering one. It becomes true
+    // only when a real reciprocal signal is visible, which is also what will
+    // make this correct unchanged once signals are exchanged through shared
+    // storage.
+    final targetSignals = await getSignals(userId: targetUserId);
+    final isMutual = targetSignals.any(
+      (e) => e.toUserId == userId && e.signal == signal,
+    );
 
     final event = TruInteractionSignalEvent(id: id, fromUserId: userId, toUserId: targetUserId, signal: signal, mutual: isMutual, createdMatch: isMutual, createdAt: now, updatedAt: now);
     await _saveSignals(userId: userId, signals: [...currentSignals, event]);

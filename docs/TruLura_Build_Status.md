@@ -193,10 +193,37 @@ without regenerating any baselines. This does not claim browser verification.
       - **When the row's value is empty:** name, username, temperament and
         identity mode.
       - **When Supabase is not ready:** the entire cached user.
-    - **Status:** not fixed. Scoping the cache to the account is its own change.
-      The row-only username guard that shipped with #16's option 1 (commit
-      `bcc397b`, 2026-09-14) covers one field on one path and must not be read
-      as addressing this.
+    - **Status: fixed 2026-09-19.** The cache is now keyed per account.
+      `current_user` became `current_user:<account id>`, so one account's
+      record is not reachable under another account's key. Reads and writes go
+      through `_currentUserKeyFor(_cacheScope)`; the stub path uses the scope
+      `local`, which keeps development working without restoring a shared key
+      for signed-in accounts.
+    - **The old key is deleted, never migrated.** `_purgeLegacyDeviceCache`
+      removes `current_user` on first touch. Migrating it to the current
+      account was rejected deliberately: the value belongs to an account the
+      device can no longer identify, and attributing it to whoever signs in
+      next *is* the defect. Losing a cache costs one refetch.
+    - **Second line of defence.** Even under a correctly scoped key, a cached
+      record whose `id` does not match the signed-in account is discarded
+      rather than adopted. The key should make this unreachable; the harm is a
+      privacy failure rather than a cosmetic one, so the payload is checked
+      instead of trusted.
+    - **The uncleaned sign-out paths are now contained, not fixed.** A cache
+      surviving an expired session, a throwing `AuthService.signOut`, or
+      `SupabaseAuthManager.signOut` can only be re-read by the same account, so
+      those paths no longer leak across accounts. A shared device may still
+      accumulate per-account records; `clearAllCachedAccounts()` exists for a
+      deliberate "forget everything on this device" action and is not wired to
+      any UI.
+    - **Verified:** `test/account_cache_scope_test.dart` proves the legacy key
+      is deleted, that signing out of one scope leaves another account's record
+      intact, and structurally that the device-global key is never read or
+      written. Checked against `HEAD` before the change: zero occurrences of
+      any `current_user:` key — there was one key for the whole device, so
+      per-account separation did not exist to be tested.
+    - The row-only username guard from #16's option 1 (commit `bcc397b`,
+      2026-09-14) covered one field on one path and was never a fix for this.
 - ~~**Any signed-in user could read every `profiles` row**
   (`profiles_select_authenticated` was `USING (true)`).~~ — **fixed
   2026-09-14.**
@@ -1179,6 +1206,82 @@ without regenerating any baselines. This does not claim browser verification.
     - **Honest limit:** those are *structural* assertions. They show both paths
       run the guard; they do not show the guards are correct. A behavioural test
       needs the full safety stack stubbed and has not been written.
+
+39. **A button in Settings awarded the tapper their next verification level.**
+    Logged 2026-09-08 as "Identity verification is self-service, locally";
+    ranked 4th on 2026-09-19. **Manufacturing path closed 2026-09-19; the
+    absence of any authoritative source is still open.**
+    - `safety_verification_screen.dart` rendered "Advance level (stub)", which
+      incremented `verificationLevel` and saved it. That value is not
+      cosmetic. It gates Dating and Alt/Intimate
+      (`experience_mode.dart:528`, `:553`, `:565`), drives SafetyMeter
+      (`safety_meter_service.dart:18`, `:21`), and produces the trust labels
+      **other people** rely on — "Safe to Meet" and "Highly Trusted"
+      (`trust_score_service.dart:66-67`). Four taps made a stranger
+      trustworthy to everyone else.
+    - **Fixed 2026-09-19** by restricting the control to `kDebugMode`. A
+      release build now contains no path by which a person raises their own
+      verification level, and the screen says so instead of offering a button.
+      Debug-gated rather than deleted so the gated modes stay reachable in
+      development; it must never ship.
+    - **Still open, and it is the larger half.** There is no authoritative
+      source for `verificationLevel` at all. The 2026-09-19 correction
+      established that profile persistence does not write it and other-user
+      profile mapping does not read it, so the value lives only in the local
+      cache and `app_provider.dart:328-329` populates the displayed profile
+      from that cache. Closing the button stops the easy manufacture; it does
+      not give verification a source of truth.
+    - **Not decided:** what actually verifies someone. That is a product
+      question, not an implementation one, and inventing an answer here would
+      repeat the original error in a more respectable form.
+    - **Consequence to be aware of:** with no verification path, every account
+      stays at level0, so the modes those gates protect are unreachable. That
+      is the gate behaving correctly rather than a regression — the previous
+      state was a gate anyone could open.
+
+40. **Sync fabricated mutual interest: a coin flip told people their interest
+    had been returned.** Logged 2026-09-08 as "[verified] Sync manufactures
+    mutual interest"; ranked 5th on 2026-09-19. **Fixed 2026-09-19.**
+    - `sync_service.dart` computed
+      `chance = 0.12 + (overall / 100) * 0.58`, then
+      `Random(_hash('$id|mutual')).nextDouble() < chance`. A true result set
+      `mutual` **and** `createdMatch`, returned status `mutual`, and opened a
+      chat — attributing reciprocal interest to a person who had expressed
+      none.
+    - **Why it read as real rather than random.** The seed was the signal id,
+      so the verdict was deterministic: the same signal always produced the
+      same answer. Retrying never contradicted it, which is exactly what makes
+      a fabricated value look like a retrieved one.
+    - **Fixed** by reading reciprocity instead of inventing it: a signal is
+      mutual only when the target has an existing signal of the same kind
+      pointing back at the sender. The stale doc comment claiming probabilistic
+      inference was corrected in the same change.
+    - **What this means in practice, stated plainly.** `getSignals` reads
+      per-user local storage, so one device holds only its own user's signals.
+      Across two devices reciprocity is therefore almost never visible, and
+      signals will sit at `pending` — **Sync will effectively stop producing
+      matches.** That is the honest state of a feature whose reciprocity has no
+      shared storage, not a regression. The same code becomes correct
+      unchanged once signals are exchanged server-side.
+    - **Verified:** `test/sync_mutuality_test.dart` asserts a one-sided signal
+      returns `pending` with no created match, that a genuine reciprocal signal
+      returns `mutual` — so the path is not merely disabled, it still fires on
+      real reciprocity — and that a Glow does not satisfy a Spark.
+    - **The tests were run against the pre-fix code, and the result is worth
+      recording exactly.** In a worktree at `191e2d9`: **1 passed, 2 failed.**
+      "A genuinely reciprocal signal is mutual" *failed* on the old code — the
+      coin flip returned `pending` for a truly reciprocal pair. "Reciprocity
+      must be the same kind of signal" *failed* — the old code returned
+      `mutual` when a Glow was answered with a Spark, inventing agreement out
+      of two different gestures. But "a one-sided signal stays pending"
+      **passed** on the old code, by coincidence: the flip was deterministic on
+      the signal id, and that particular id happened to land on `pending`.
+    - **Why that coincidence is the useful part.** A deterministic fabrication
+      passes any single test case it happens to agree with. Had only the
+      one-sided test been written, it would have gone green against the
+      defective code and been reported as proof. Two of the three tests catch
+      this defect; one does not, and saying so is the difference between a test
+      suite and a reassurance.
 
 ---
 
