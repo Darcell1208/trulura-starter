@@ -1052,9 +1052,15 @@ without regenerating any baselines. This does not claim browser verification.
       thresholds, so the strip's arms are exercised against something real.
 
 35. **`reports.target_message_id` is `ON DELETE NO ACTION`, so a purge that
-    ignores reports does not merely delete held content — it aborts and takes
-    unrelated expired messages with it.** Logged 2026-09-19. **Not a defect;
+    ignores reports deletes nothing at all — it aborts, and every unrelated
+    expired message survives undeleted.** Logged 2026-09-19. **Not a defect;
     recorded because it changes what a purge must do.**
+    - **Wording corrected 2026-09-19.** This headline first read "it aborts and
+      takes unrelated expired messages with it," which is backwards and
+      contradicted this entry's own body. An aborted statement deletes nothing:
+      the unrelated messages are not destroyed, they **fail to be deleted**.
+      The consequence is a silent failure to keep a deletion promise, not data
+      loss — a different harm, and the one that matters here.
     - `20260908_reports_targets_and_status.sql` sets the message and
       conversation target FKs to `NO ACTION` deliberately, reasoning that
       "CASCADE would destroy the report when the reported content is deleted,
@@ -1080,7 +1086,99 @@ without regenerating any baselines. This does not claim browser verification.
       nothing in the app deletes messages today and so nothing has ever hit it.
     - **Where this is handled:** the purge predicate in
       `supabase/migrations/20260919_message_expiry_with_report_hold.sql`
-      (drafted, not applied).
+      (applied 2026-09-19).
+    - **Resolved 2026-09-19 by the option-four ruling.** The FK is now
+      `ON DELETE CASCADE`
+      (`20260919b_report_cascade_with_durable_record.sql`), so a closed report
+      no longer blocks its message. **The abort is gone, and with it the safety
+      net**: previously a purge that wrongly targeted a held message failed
+      loudly; now it would silently delete the message and cascade away its
+      open report. The purge predicate is the only remaining protection, so it
+      is verified directly — see the hold probe recorded under issue 38.
+
+36. **`reports.reported_by_user_id` is `ON DELETE CASCADE`, so a reporter
+    deleting their account destroys their own open reports.** Logged
+    2026-09-19. **Partially mitigated; the cascade itself is unchanged.**
+    - Verified live: `reports_reported_by_user_id_fkey` is
+      `REFERENCES profiles(id) ON DELETE CASCADE`, while all four `target_*`
+      FKs are `NO ACTION`. The asymmetry is recorded as intentional in
+      `20260908_reports_targets_and_status.sql`, but its consequence for open
+      reports is not.
+    - **The harm:** evidence disappears through an ordinary, unrelated user
+      action. Someone can report harassment and then delete their account — a
+      plausible sequence for a person leaving *because* of the harassment — and
+      the open report goes with them. No moderator action is required for the
+      evidence to vanish, and nothing records that it ever existed.
+    - **Mitigated, not fixed, 2026-09-19.** The `record_report_removal` trigger
+      fires `before delete` on *every* report row, not only the expiry cascade,
+      so the fact of the report, who it named, its reason and its status now
+      survive in `moderation_events`. What is still lost is the live report
+      itself: it leaves the queue, so a reviewer will never see it.
+    - **Not decided:** whether the cascade should become `SET NULL` on the
+      reporter (keeping an anonymous open report in the queue) or stay as-is.
+      That is a product call about whether a report outlives the person who
+      made it.
+    - **Cross-reference:** issue 37 is the other half of the same weakness —
+      together they meant a report could lose both its reporter and its subject.
+
+37. **A message report records who filed it but not who was reported.** Logged
+    2026-09-19. **Fixed 2026-09-19.**
+    - `reports_exactly_one_target` permits exactly one non-null `target_*`
+      column, so a report naming a message carries `target_user_id` **NULL**.
+      The author was knowable only by joining `target_message_id` to
+      `messages.sender_id`.
+    - **Why that was broken independently of expiry.** Any deletion of the
+      message — not just an expiry sweep — left a report that could not name
+      its subject. The 2026-09-08 migration argued a report must never point at
+      something unresolvable; the author was unresolvable by construction the
+      moment the message went.
+    - **Fixed** by `target_message_author_id`
+      (`20260919b_report_cascade_with_durable_record.sql`), a non-target column
+      populated at file time by a `before insert or update` trigger reading
+      `messages.sender_id`. A trigger rather than client code so no present or
+      future caller can omit it, and `SECURITY DEFINER` so the lookup is not
+      blocked by `messages` RLS.
+    - **Verified end to end** on 2026-09-19 in a rolled-back transaction: a
+      report inserted against a real message came back with
+      `target_message_author_id` equal to that message's `sender_id`, with the
+      insert supplying no author value.
+    - **Cross-reference:** this is what makes issue 36's durable record able to
+      name whom a report was against. Without it the record would say only that
+      *a* report existed.
+
+38. **Retry bypassed every send protection: a second attempt delivered what the
+    first was refused.** Logged 2026-09-19. **Fixed 2026-09-19.**
+    - `_sendMessage` ran three gauntlets before a message left the device: a
+      paused-chat check, the communication-safety filter (content refusal,
+      possible-doxxing, crisis resources, confirm prompts, and AuraShield
+      signal recording), and a block check against the recipient.
+      `_retryPending` ran **none of them**. It built a `Message` and called
+      `saveMessage` directly.
+    - **The user-visible path.** A send refused for any of those reasons left a
+      failed pending item in the thread with a **Retry** button beside it.
+      Tapping Retry delivered the message. Blocking someone, a moderator
+      pausing a chat, and the safety filter were all defeated by one tap, with
+      no warning that a protection had been overridden.
+    - **Why it happened, which is the part worth keeping.** The checks were not
+      wrong. There were simply two delivery paths, and the second was added
+      later and never reconciled with the first. The defect was drift, not a
+      faulty rule.
+    - **Fixed** by extracting every check into `_passesSendGuards(text)` and
+      every delivery into `_deliver(tempId, text)`, so there is exactly one
+      guard and exactly one place a message leaves the device. Both
+      `_sendMessage` and `_retryPending` call the guard first and refuse on
+      false; a refused retry stays failed rather than being silently dropped.
+    - **Verified, and the test was proven against the old code.**
+      `test/send_guard_regression_test.dart` asserts one delivery site, that
+      both paths call the guard before delivering, and that the guard still
+      names pause, block and the safety filter individually. Checked against
+      `HEAD` before the fix: two `saveMessage` call sites and zero references to
+      the guard in `_retryPending` — so both assertions would have failed on the
+      defective code. The test catches this regression rather than merely
+      passing.
+    - **Honest limit:** those are *structural* assertions. They show both paths
+      run the guard; they do not show the guards are correct. A behavioural test
+      needs the full safety stack stubbed and has not been written.
 
 ---
 

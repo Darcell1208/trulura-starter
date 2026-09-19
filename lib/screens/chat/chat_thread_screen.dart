@@ -211,11 +211,69 @@ class _ChatThreadScreenState extends State<ChatThreadScreen> {
     final text = _messageController.text.trim();
     if (text.isEmpty || _currentUserId == null || _isSending) return;
 
+    if (!await _passesSendGuards(text)) return;
+
+    final tempId = 'p_${DateTime.now().microsecondsSinceEpoch}';
+    final pending = _PendingMessage(tempId: tempId, content: text);
+
+    setState(() {
+      _pending.add(pending);
+      _isSending = true;
+      _messageController.clear();
+    });
+
+    try {
+      await _deliver(tempId, text);
+    } catch (e) {
+      truLogStateError('ChatThread._sendMessage', e);
+      if (!mounted) return;
+      setState(() {
+        final i = _pending.indexWhere((x) => x.tempId == tempId);
+        if (i >= 0) {
+          _pending[i] = _pending[i].copyWith(state: _PendingState.failed);
+        }
+      });
+    } finally {
+      if (mounted) setState(() => _isSending = false);
+    }
+  }
+
+  /// Every check a message must pass before it leaves this device.
+  ///
+  /// Extracted 2026-09-19 so the retry path runs exactly the same gauntlet as
+  /// the first attempt. Before that `_retryPending` ran **none** of these: a
+  /// message refused because the chat was paused, because the safety filter
+  /// stopped it, or because the recipient was blocked, could still be
+  /// delivered by tapping Retry. A second attempt defeated the protection that
+  /// stopped the first. Build Status known issue 38.
+  ///
+  /// Returns true when the send may proceed, and shows its own refusal message
+  /// when it may not. Any new guard belongs here, not in a caller, or the two
+  /// paths drift apart again.
+  Future<bool> _passesSendGuards(String text) async {
     // If chat is paused (manual or moderation), block sending.
     if (((_chatStatus ?? '').toLowerCase() == 'paused')) {
-      ScaffoldMessenger.of(context)
-          .showSnackBar(const SnackBar(content: Text('This chat is paused.')));
-      return;
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text('This chat is paused.')));
+      }
+      return false;
+    }
+
+    // Local enforcement: if the other user is blocked, prevent send.
+    // We infer the other user from Sync match when available.
+    final match = _syncMatch;
+    final otherId = match == null
+        ? _otherUserId
+        : (match.viewerUserId == _currentUserId
+            ? match.targetUserId
+            : match.viewerUserId);
+    if (otherId != null && await _blocks.isBlocked(otherId)) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
+            content: Text('You blocked this user. Unblock to message.')));
+      }
+      return false;
     }
 
     // Lightweight communication protections.
@@ -253,69 +311,38 @@ class _ChatThreadScreenState extends State<ChatThreadScreen> {
           ScaffoldMessenger.of(context).showSnackBar(SnackBar(
               content: Text(effective.blockReason ?? 'Message blocked.')));
         }
-        return;
+        return false;
       }
       if (effective.needsUserConfirm) {
         final ok = await _confirmSend(effective.prompt);
-        if (ok != true) return;
+        if (ok != true) return false;
       }
     }
 
-    final tempId = 'p_${DateTime.now().microsecondsSinceEpoch}';
-    final pending = _PendingMessage(tempId: tempId, content: text);
+    return true;
+  }
 
-    setState(() {
-      _pending.add(pending);
-      _isSending = true;
-      _messageController.clear();
-    });
-
-    try {
-      // Local enforcement: if the other user is blocked, prevent send.
-      // We infer the other user from Sync match when available.
-      final match = _syncMatch;
-      final otherId = match == null
-          ? _otherUserId
-          : (match.viewerUserId == _currentUserId
-              ? match.targetUserId
-              : match.viewerUserId);
-      if (otherId != null && await _blocks.isBlocked(otherId)) {
-        if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
-              content: Text('You blocked this user. Unblock to message.')));
-        }
-        setState(() => _pending.removeWhere((p) => p.tempId == tempId));
-        return;
-      }
-
-      final message = Message(
-        id: DateTime.now().millisecondsSinceEpoch.toString(),
-        chatId: widget.chatId,
-        senderId: _currentUserId!,
-        content: text,
-        timestamp: DateTime.now(),
-        expiresAt: _prefs.ephemeralTtl.duration == null
-            ? null
-            : DateTime.now().add(_prefs.ephemeralTtl.duration!),
-        createdAt: DateTime.now(),
-        updatedAt: DateTime.now(),
-      );
-      await _chatService.saveMessage(message);
-      if (!mounted) return;
-      setState(() => _pending.removeWhere((p) => p.tempId == tempId));
-      await _loadMessages();
-    } catch (e) {
-      truLogStateError('ChatThread._sendMessage', e);
-      if (!mounted) return;
-      setState(() {
-        final i = _pending.indexWhere((p) => p.tempId == tempId);
-        if (i >= 0) {
-          _pending[i] = _pending[i].copyWith(state: _PendingState.failed);
-        }
-      });
-    } finally {
-      if (mounted) setState(() => _isSending = false);
-    }
+  /// Puts one message on the wire. Callers MUST have passed
+  /// [_passesSendGuards] first — this performs no checks of its own, which is
+  /// the whole point: there is exactly one guard and exactly one delivery, so
+  /// a new call site cannot accidentally get delivery without checks.
+  Future<void> _deliver(String tempId, String text) async {
+    final message = Message(
+      id: DateTime.now().millisecondsSinceEpoch.toString(),
+      chatId: widget.chatId,
+      senderId: _currentUserId!,
+      content: text,
+      timestamp: DateTime.now(),
+      expiresAt: _prefs.ephemeralTtl.duration == null
+          ? null
+          : DateTime.now().add(_prefs.ephemeralTtl.duration!),
+      createdAt: DateTime.now(),
+      updatedAt: DateTime.now(),
+    );
+    await _chatService.saveMessage(message);
+    if (!mounted) return;
+    setState(() => _pending.removeWhere((p) => p.tempId == tempId));
+    await _loadMessages();
   }
 
   Future<bool?> _confirmSend(String prompt) {
@@ -379,27 +406,30 @@ class _ChatThreadScreenState extends State<ChatThreadScreen> {
     final idx = _pending.indexWhere((p) => p.tempId == tempId);
     if (idx < 0 || _currentUserId == null) return;
     final p = _pending[idx];
+
+    // The same gauntlet as the first attempt. Build Status known issue 38:
+    // this path previously ran none of it, so a message the paused-chat check,
+    // the safety filter or the block check had already refused could be
+    // delivered simply by tapping Retry. A refusal must survive a second
+    // attempt, or it is not a refusal.
+    if (!await _passesSendGuards(p.content)) {
+      if (!mounted) return;
+      setState(() {
+        final i = _pending.indexWhere((x) => x.tempId == tempId);
+        if (i >= 0) {
+          _pending[i] = _pending[i].copyWith(state: _PendingState.failed);
+        }
+        _isSending = false;
+      });
+      return;
+    }
+
     setState(() {
       _pending[idx] = p.copyWith(state: _PendingState.sending);
       _isSending = true;
     });
     try {
-      final message = Message(
-        id: DateTime.now().millisecondsSinceEpoch.toString(),
-        chatId: widget.chatId,
-        senderId: _currentUserId!,
-        content: p.content,
-        timestamp: DateTime.now(),
-        expiresAt: _prefs.ephemeralTtl.duration == null
-            ? null
-            : DateTime.now().add(_prefs.ephemeralTtl.duration!),
-        createdAt: DateTime.now(),
-        updatedAt: DateTime.now(),
-      );
-      await _chatService.saveMessage(message);
-      if (!mounted) return;
-      setState(() => _pending.removeWhere((x) => x.tempId == tempId));
-      await _loadMessages();
+      await _deliver(tempId, p.content);
     } catch (e) {
       truLogStateError('ChatThread._retryPending', e);
       if (!mounted) return;

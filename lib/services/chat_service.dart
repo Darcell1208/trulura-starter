@@ -258,12 +258,22 @@ class ChatService {
 
   Message _messageFromRow(Map<String, dynamic> row) {
     final created = _dateFrom(row['created_at']);
+    // Deliberately NOT _dateFrom. That helper exists to repair
+    // messages.created_at, which is `timestamp without time zone` and arrives
+    // with no offset. expires_at is `timestamptz` and arrives with one, which
+    // DateTime.parse already reads correctly; passing it through _dateFrom
+    // would re-interpret an already-correct instant.
+    final rawExpiry = row['expires_at'];
+    final expiresAt = rawExpiry == null
+        ? null
+        : DateTime.tryParse(rawExpiry.toString())?.toUtc();
     return Message(
       id: row['id'].toString(),
       chatId: row['conversation_id'].toString(),
       senderId: row['sender_id'].toString(),
       content: (row['content'] ?? '').toString(),
       timestamp: created,
+      expiresAt: expiresAt,
       createdAt: created,
       updatedAt: created,
     );
@@ -430,12 +440,21 @@ class ChatService {
   Future<List<Message>> _getRemoteMessagesByChatId(String chatId) async {
     final rows = await DatabaseService.instance.client
         .from('messages')
-        .select('id, conversation_id, sender_id, content, created_at')
+        .select('id, conversation_id, sender_id, content, created_at, expires_at')
         .eq('conversation_id', chatId)
         .order('created_at', ascending: true);
+    final now = DateTime.now().toUtc();
     return (rows as List)
         .whereType<Map<String, dynamic>>()
         .map(_messageFromRow)
+        // An expired message is hidden from everyone, including its sender.
+        // The scheduled purge deletes it, but two windows exist where the row
+        // is still present and must not be shown: between expiry and the next
+        // sweep, and for as long as an open report holds it (the hold retains
+        // it for review, it does not un-expire it). Product Owner ruling
+        // DR-EXP-2: hidden, retained server-side, with no per-message signal
+        // that would reveal a report exists.
+        .where((m) => m.expiresAt == null || !now.isAfter(m.expiresAt!))
         .toList(growable: false);
   }
 
@@ -647,6 +666,16 @@ class ChatService {
         'conversation_id': message.chatId,
         'sender_id': message.senderId,
         'content': message.content,
+        // expires_at IS sent, unlike created_at above, and the difference is
+        // the column type rather than an inconsistency. created_at is
+        // `timestamp without time zone`, so a client ISO string would be
+        // stored as though the device's wall clock were UTC. expires_at is
+        // `timestamptz`, so an ISO-8601 string carrying its offset is
+        // unambiguous -- the server converts it. Sent as UTC regardless.
+        //
+        // null means "does not expire", which is the setting being off. The
+        // purge only ever deletes rows where this is non-null and past.
+        'expires_at': message.expiresAt?.toUtc().toIso8601String(),
       });
       return;
     }

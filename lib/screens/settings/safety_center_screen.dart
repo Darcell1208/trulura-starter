@@ -205,7 +205,12 @@ class _SafetyCenterScreenState extends State<SafetyCenterScreen> {
                   const SizedBox(height: 10),
                   _SwitchRow(
                     title: 'Allow self-destruct messages',
-                    subtitle: 'Enable time-limited messages in private threads.',
+                    // Both halves, per DR-EXP-1. Do not shorten this to the
+                    // disappearance half alone.
+                    subtitle: 'Time-limited messages in private threads. They '
+                        'disappear for everyone once the time is up — unless '
+                        'the message is reported, in which case it is kept '
+                        'until the report has been reviewed.',
                     value: p.ephemeralMessagingEnabled,
                     onChanged: (v) async {
                       await _svc.setEphemeralMessagingEnabled(v);

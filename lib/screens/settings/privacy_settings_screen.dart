@@ -102,7 +102,12 @@ class _PrivacySettingsScreenState extends State<PrivacySettingsScreen> {
                   const SizedBox(height: 10),
                   _SettingRow(
                     title: 'Self-destruct messages',
-                    subtitle: 'Auto-delete sensitive exchanges after a short window.',
+                    // Both halves, per DR-EXP-1: a control that promises
+                    // disappearance while reporting quietly preserves content
+                    // is a broken promise made silently.
+                    subtitle: 'Messages disappear for everyone when the time '
+                        'you set runs out. If a message is reported, it is '
+                        'kept until the report has been reviewed.',
                     trailing: TruToggle(
                       value: me?.messageAutoDelete ?? false,
                       onChanged: (v) async {

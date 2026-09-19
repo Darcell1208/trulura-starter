@@ -102,6 +102,57 @@ claim. Had a local copy existed, E would have needed re-examination.
 
 ---
 
+## DR-EXP-3 — Releasing the hold when a report closes
+
+**Product Owner, verbatim, 2026-09-19:**
+
+> "Ruling: option four. Cascade the report, write a contentless durable record
+> to moderation_events first — that a report existed, against whom, and how it
+> closed. No content retained anywhere.
+>
+> One addition: capture the author on the report at file time in its own
+> column, populated from messages.sender_id. Not a target, so it doesn't
+> collide with reports_exactly_one_target. Without it the durable record can't
+> name who was reported.
+>
+> No snapshotting. It turns a bounded hold into indefinite retention of the
+> content we promised would vanish, in a table with no expiry of its own."
+
+*Note (Claude):* implemented in
+`supabase/migrations/20260919b_report_cascade_with_durable_record.sql`, applied
+2026-09-19.
+
+**Why CASCADE is acceptable now when 2026-09-08 rejected it.** That migration's
+objection was that CASCADE "would destroy the report when the reported content
+is deleted, which is exactly when the report matters most." That held while
+nothing survived the deletion. The `record_report_removal` trigger now writes a
+contentless record *before* the report row goes, so what survives is the fact of
+the report, whom it named, its reason and how it closed — everything except the
+content the user was promised would disappear.
+
+**A safety net was removed, and that is worth stating plainly.** Before this,
+an expiry sweep that wrongly targeted a held message failed loudly on the
+foreign key and deleted nothing. With CASCADE it would instead delete the
+message *and* silently cascade away its open report. The purge predicate is now
+the only thing standing between an open report and its evidence, which is why it
+is verified directly rather than assumed — see the hold probe under known issue
+35.
+
+**Verified end to end, 2026-09-19**, in rolled-back transactions against the
+live database:
+
+- A report inserted against a real message came back with
+  `target_message_author_id` equal to that message's `sender_id`, with the
+  insert supplying no author — so the trigger populates it, not the caller.
+- With the report `dismissed`, the purge deleted the message (`purged=1`), the
+  report cascaded away, and `moderation_events` gained exactly one contentless
+  row: `report_removed:dismissed || reason=other report_id=… had_message_target=true`.
+- With reports `queued`, `reviewing`, and an open report on the *conversation*,
+  the purge deleted nothing (`purged=0`), all three messages survived, and no
+  durable record was written.
+
+---
+
 ## Closed — the local-copy question that preceded DR-EXP-2
 
 **Question:** does the sender's device retain a copy of a remote message? The
