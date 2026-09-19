@@ -1,5 +1,27 @@
--- NOT YET APPLIED. Drafted 2026-09-19 for review; do not run without reading
--- the ordering note at the bottom -- applying this out of order breaks sends.
+-- APPLIED 2026-09-19 to project wzcuxarslnbvaosuqduu, after Product Owner
+-- review, as migration `message_expiry_with_report_hold`.
+--
+-- SAFE TO REPLAY, with one caveat. Every statement is idempotent:
+-- `add column if not exists`, `create index if not exists`, and
+-- `create or replace function`. Re-running changes nothing and destroys
+-- nothing. The caveat is the usual one for `add column if not exists`: if some
+-- other session has since altered expires_at's type or given it a default,
+-- this file will report success and silently leave that alteration in place.
+-- Verify with the read-back query in section 3 rather than trusting the exit
+-- status.
+--
+-- VERIFIED AFTER APPLYING, against the live database:
+--   * expires_at exists as timestamptz, nullable, no default
+--   * purge_expired_messages() exists and is SECURITY DEFINER
+--   * EXECUTE is granted to none of public, anon, authenticated
+--   * messages_expires_at_idx exists
+--   * purge_expired_messages() was executed for real and returned 0, with all
+--     6 existing rows carrying a null expiry. Null means never-expires, proven
+--     on live data rather than argued from the predicate.
+--
+-- STILL NOT DONE: nothing calls this function on a schedule. pg_cron is not
+-- installed on this project. Until a schedule exists, expiry remains unbuilt
+-- and the UI must not promise it. See the ordering note at the bottom.
 --
 -- WHY THIS EXISTS
 --
