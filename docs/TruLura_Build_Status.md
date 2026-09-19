@@ -1051,6 +1051,37 @@ without regenerating any baselines. This does not claim browser verification.
     - **Still open:** the second half — explicit fixtures at the 3 and 8
       thresholds, so the strip's arms are exercised against something real.
 
+35. **`reports.target_message_id` is `ON DELETE NO ACTION`, so a purge that
+    ignores reports does not merely delete held content — it aborts and takes
+    unrelated expired messages with it.** Logged 2026-09-19. **Not a defect;
+    recorded because it changes what a purge must do.**
+    - `20260908_reports_targets_and_status.sql` sets the message and
+      conversation target FKs to `NO ACTION` deliberately, reasoning that
+      "CASCADE would destroy the report when the reported content is deleted,
+      which is exactly when the report matters most," and noting that
+      consequently "a reported message cannot be hard-deleted while its report
+      stands."
+    - **The consequence that was not spelled out there.** A bulk
+      `delete from messages where expires_at <= now()` does not skip the
+      reported row and delete the rest. It raises a foreign key violation, and
+      because the statement is atomic, **every other expired message in that
+      sweep survives too**. One held message silently disables the entire
+      expiry mechanism for everyone until someone notices.
+    - **So the hold is enforced by the schema whether policy asks for it or
+      not.** Excluding held messages from the purge predicate is required for
+      the purge to function at all — it is not only the implementation of the
+      2026-09-19 ruling, it is the only way the sweep can succeed. A future
+      author who "simplifies" the predicate by dropping the report checks will
+      not get a policy regression; they will get an expiry system that stops
+      working the first time anyone reports anything.
+    - **Failure class:** a correctness requirement that reads like a policy
+      preference. The note in the 2026-09-08 migration records the intent; this
+      entry records the operational consequence, which is easy to miss because
+      nothing in the app deletes messages today and so nothing has ever hit it.
+    - **Where this is handled:** the purge predicate in
+      `supabase/migrations/20260919_message_expiry_with_report_hold.sql`
+      (drafted, not applied).
+
 ---
 
 ## Irreversible cleanup, deferred
