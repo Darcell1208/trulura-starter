@@ -53,3 +53,6 @@ No source exports, personal chat transcripts, credential files or unapproved SQL
 Both account completion and profile setup save birthday through Supabase Auth metadata with account and response checks. The router now directs legacy age-only accounts to completion without rewriting their profile. Five duplicate account-setup routes were removed so each main tab retains its intended initial destination. Local routing, input validation and mocked save tests passed (19 in the latest selected run; overlapping earlier tests).
 
 No live migration or live end-to-end verification was performed. Birthday correction/review controls, trusted server age enforcement, offline behavior, and age-up handling remain unfinished. Existing metadata is self-reported, not provider-verified evidence. The legacy integer age fallback remains for reading older records; it does not satisfy birthday completion.
+## Full web compile check
+
+On October 9, 2026, flutter build web --no-pub completed successfully after the birthday and routing changes. This confirms a full web compilation; it does not establish live Supabase save behavior, browser interaction correctness, or a deployed release. No accessible TruLura browser session was available for live testing. The earlier analyzer limitation remains separate.
