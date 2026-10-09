@@ -710,33 +710,7 @@ class _HomeFeedScreenState extends State<HomeFeedScreen>
       );
     } else {
       final headerChildren = <Widget>[
-        TruluraFeedLane(
-          padding: const EdgeInsets.fromLTRB(16, 4, 16, 0),
-          child: _AmbientIntelligenceStrip(
-            kind: activeKind,
-            lowEnergy: app.isLowEnergyContext,
-            personalization: _quizPersonalization,
-          ),
-        ),
-        const SizedBox(height: 6),
-        TruluraFeedLane(
-          padding: const EdgeInsets.fromLTRB(16, 2, 16, 0),
-          child: _SocialEcosystemStrip(
-            kind: activeKind,
-            postCount: _posts.length,
-            lowEnergy: app.isLowEnergyContext,
-          ),
-        ),
-        const SizedBox(height: 8),
-        TruluraFeedLane(
-          padding: const EdgeInsets.fromLTRB(16, 2, 16, 0),
-          maxWidth: kTruluraFeedMaxWidth + 44,
-          child: _WorldspaceCurrentCard(
-            kind: activeKind,
-            lowEnergy: app.isLowEnergyContext,
-          ),
-        ),
-        const SizedBox(height: 6),
+        // Presence and activity panels await real data; do not simulate counts.
         if (_quizPersonalization.hasResults)
           TruluraFeedLane(
             padding: const EdgeInsets.fromLTRB(16, 4, 16, 0),
@@ -1175,7 +1149,7 @@ class _AuraSignalStrip extends StatelessWidget {
               crossAxisAlignment: WrapCrossAlignment.center,
               children: [
                 Text(
-                  'Live tuning',
+                  'Your preferences',
                   style: t.labelLarge?.copyWith(fontWeight: FontWeight.w900),
                 ),
                 for (final chip in chips.take(4))
@@ -1972,9 +1946,6 @@ class _FeedTabViewState extends State<_FeedTabView>
       final post = posts[i];
       final isBoostedSlot =
           boostedSet.contains(post.id) || (allowBoost && i != 0 && i % 9 == 0);
-      if (i == 0) {
-        items.add(const _FeedAiAwarenessItem());
-      }
       if (showLives && i != 0 && i % liveInterval == 0) {
         items.add(const _FeedLiveRowItem());
       }
