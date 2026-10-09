@@ -974,75 +974,71 @@ class _AuraWorldHero extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final data = (
-      overline: 'My emotional universe',
-      title: 'Map your emotional universe.',
-      subtitle:
-          'Aura is where emotional weather, aura pulse, emotional orbit, mood evolution, and reflection journey become one personal world.',
-      glyph: TruLuraGlyph.aura,
-      primary: TruLuraBrandColors.nebulaIndigo,
-      secondary: TruLuraTokens.auraPink,
-      focal: 'Aura pulse',
-      value: 'Radiant',
-    );
-    return TruWorldStage(
-      overline: data.overline,
-      title: data.title,
-      subtitle: data.subtitle,
-      glyph: data.glyph,
-      primary: data.primary,
-      secondary: data.secondary,
-      focalLabel: data.focal,
-      focalValue: data.value,
-      atmosphereLabel: 'Aura = emotional universe',
-      heroLabel: 'Emotional universe',
-      identityLabel: 'Identity',
-      identityValue: 'Self-expression orbit',
-      interactionLabel: 'Reflect, tune, check in',
-      contentLabel: 'Community enters after reflection',
-      guidance: [
-        TruWorldAction(
-          label: 'Begin Reflection',
-          glyph: TruLuraGlyph.edit,
-          primary: true,
-          accent: data.primary,
-          onTap: () => TruNavigation.pushWithReturnTo(
-            context,
-            AppRoutes.createPost,
+    final theme = Theme.of(context).textTheme;
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(8, 12, 8, 16),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Container(
+                padding: const EdgeInsets.all(10),
+                decoration: BoxDecoration(
+                  shape: BoxShape.circle,
+                  color: TruLuraTokens.auraViolet.withValues(alpha: 0.12),
+                  boxShadow: [BoxShadow(
+                    color: TruLuraTokens.auraViolet.withValues(alpha: 0.2),
+                    blurRadius: 28,
+                    spreadRadius: 3,
+                  )],
+                ),
+                child: const TruLuraIcon(glyph: TruLuraGlyph.aura),
+              ),
+              const SizedBox(width: 12),
+              Expanded(child: Text('Your Aura', style: theme.titleLarge)),
+            ],
           ),
-        ),
-        TruWorldAction(
-          label: 'Tune Aura',
-          glyph: TruLuraGlyph.filter,
-          accent: data.secondary,
-          onTap: () => context.push(AppRoutes.feedPersonalization),
-        ),
-        TruWorldAction(
-          label: 'Track Mood',
-          glyph: TruLuraGlyph.insights,
-          accent: TruLuraTokens.auraCyan,
-          onTap: () => context.push(AppRoutes.onboardingVibe),
-        ),
-      ],
-      // Only portals that actually go somewhere. "Emotional Weather" and
-      // "Reflection Journey" were removed on 2026-09-18 (Build Status known
-      // issue 32): neither passed an onTap, and no screen or route existed for
-      // either, so they were inert cards advertising features that do not
-      // exist. Do not re-add a portal without a destination -- a decorative
-      // rail entry is indistinguishable from a broken one to anyone using it.
-      portals: [
-        TruRealmPortal(
-          title: 'Aura Pulse',
-          subtitle: 'The living signal of your current emotional world.',
-          glyph: TruLuraGlyph.groups,
-          accent: data.secondary,
-          onTap: () => context.go(AppRoutes.homeTab('explore')),
-        ),
-      ],
+          const SizedBox(height: 10),
+          Text('Check in, share a thought, or see what’s happening.',
+            style: theme.bodyMedium?.copyWith(color: TruLuraTokens.textSecondary)),
+          const SizedBox(height: 14),
+          Wrap(
+            spacing: 8,
+            runSpacing: 8,
+            children: [
+              TruWorldAction(
+                label: 'Share a thought',
+                glyph: TruLuraGlyph.edit,
+                primary: true,
+                accent: TruLuraTokens.auraViolet,
+                onTap: () => TruNavigation.pushWithReturnTo(context, AppRoutes.createPost),
+              ),
+              TruWorldAction(
+                label: 'Choose mood',
+                glyph: TruLuraGlyph.insights,
+                accent: TruLuraTokens.auraCyan,
+                onTap: () => context.push(AppRoutes.onboardingVibe),
+              ),
+              TruWorldAction(
+                label: 'Feed settings',
+                glyph: TruLuraGlyph.filter,
+                accent: TruLuraTokens.auraPink,
+                onTap: () => context.push(AppRoutes.feedPersonalization),
+              ),
+              TruWorldAction(
+                label: 'Explore',
+                glyph: TruLuraGlyph.explore,
+                accent: TruLuraTokens.auraCyan,
+                onTap: () => context.go(AppRoutes.homeTab('explore')),
+              ),
+            ],
+          ),
+        ],
+      ),
     );
   }
 }
-
 double _auraFeedBottomPadding(BuildContext context) {
   final bottomInset = MediaQuery.paddingOf(context).bottom;
   return kTruluraBottomNavClearance + bottomInset;
