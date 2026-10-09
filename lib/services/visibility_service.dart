@@ -55,9 +55,13 @@ class VisibilityService {
 
     // 4) Post-level privacy.
     if (priv == 'private') return const TruVisibilityDecision.denied('Private post.');
-    if (priv == 'friends') {
+    if (priv == 'friends' || priv == 'followers') {
       // Friends graph not implemented yet, so treat as not visible by default.
       return const TruVisibilityDecision.denied('Friends-only post (not available yet).');
+    }
+
+    if (priv != 'public') {
+      return const TruVisibilityDecision.denied('Unrecognized post privacy.');
     }
 
     // 5) Trust/identity tier access (viewer-based).
