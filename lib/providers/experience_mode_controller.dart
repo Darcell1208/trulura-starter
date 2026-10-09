@@ -55,6 +55,10 @@ class ExperienceModeController extends ChangeNotifier {
       _modes = await _service.getModes(userId: _user?.id);
       _activeMode = await _service.getActiveMode(userId: _user?.id);
 
+      if (!stateOf(TruExperienceMode.dating).isEnabled) {
+        _modes[TruExperienceMode.altIntimate] = stateOf(TruExperienceMode.altIntimate)
+            .copyWith(isEnabled: false, updatedAt: DateTime.now());
+      }
       // Bridge v1 existing app toggles into the new system.
       if (_app.creatorModeEnabled) {
         _modes[TruExperienceMode.creator] = stateOf(TruExperienceMode.creator)
@@ -77,7 +81,10 @@ class ExperienceModeController extends ChangeNotifier {
     }
   }
 
-  ModeLock lockFor(TruExperienceMode mode) => mode.lockStatus(
+  ModeLock lockFor(TruExperienceMode mode) =>
+      mode == TruExperienceMode.altIntimate && !stateOf(TruExperienceMode.dating).isEnabled
+          ? const ModeLock(locked: true, reason: 'Enable dating to access alternative dating.', actionLabel: 'Dating')
+          : mode.lockStatus(
         user: _user,
         creatorOnboardingComplete: _app.creatorOnboardingComplete,
         creatorApproved: _app.creatorApproved,
@@ -193,6 +200,10 @@ class ExperienceModeController extends ChangeNotifier {
           .copyWith(isEnabled: false, updatedAt: now);
     }
 
+    if (!enabled && mode == TruExperienceMode.dating) {
+      next[TruExperienceMode.altIntimate] = stateOf(TruExperienceMode.altIntimate)
+          .copyWith(isEnabled: false, updatedAt: now);
+    }
     next[mode] = current.copyWith(isEnabled: enabled, updatedAt: now);
     // Ensure at least Social remains.
     next[TruExperienceMode.social] = stateOf(TruExperienceMode.social)
@@ -203,7 +214,7 @@ class ExperienceModeController extends ChangeNotifier {
     await _service.setModes(_modes, userId: _user?.id);
 
     // If the active mode was turned off, fall back.
-    if (!enabled && mode == _activeMode) {
+    if (!stateOf(_activeMode).isEnabled || lockFor(_activeMode).locked) {
       _activeMode = TruExperienceMode.social;
       notifyListeners();
       await _service.setActiveMode(_activeMode, userId: _user?.id);
