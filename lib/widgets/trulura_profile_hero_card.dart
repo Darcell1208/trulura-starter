@@ -1,3 +1,4 @@
+import 'dart:math' as math;
 import 'package:flutter/material.dart';
 import 'package:trulura/compat/provider_compat.dart';
 import 'package:trulura/models/user.dart';
@@ -40,91 +41,119 @@ class TruluraProfileHeroCard extends StatelessWidget {
     final identityAccent = _identityAccent(mood, intent);
     return SizedBox(
       width: double.infinity,
-      child: Padding(
-        padding: const EdgeInsets.fromLTRB(20, 20, 20, 28),
-        child: Column(
-          children: [
-            Row(children: [
-              Text('YOUR PROFILE',
-                  style: Theme.of(context).textTheme.labelSmall?.copyWith(
-                      letterSpacing: 2.4,
-                      color: cs.onSurface.withValues(alpha: 0.65))),
-              const Spacer(),
-              IconButton(
-                  onPressed: onOpenSettings,
-                  tooltip: 'Settings',
-                  icon: const Icon(Icons.tune_rounded, size: 20)),
-            ]),
-            const SizedBox(height: 8),
-            BreathingGlow(
-              enabled: !app.softModeEnabled &&
-                  !MediaQuery.disableAnimationsOf(context),
-              glowColor: identityAccent,
-              maxBlur: 38,
-              minBlur: 24,
-              maxAlpha: 0.26,
-              minAlpha: 0.16,
-              child: Container(
-                padding: const EdgeInsets.all(9),
-                decoration: BoxDecoration(
-                    shape: BoxShape.circle,
-                    border: Border.all(
-                        color: identityAccent.withValues(alpha: 0.45)),
-                    gradient: SweepGradient(colors: [
-                      identityAccent.withValues(alpha: 0.2),
-                      Colors.transparent,
-                      TruLuraTokens.auraCyan.withValues(alpha: 0.18),
-                      identityAccent.withValues(alpha: 0.2)
-                    ])),
-                child: AuraAvatar(
-                    image: avatarPath, compatibility: auraStrength, size: 108),
+      child: DecoratedBox(
+        decoration: BoxDecoration(
+          borderRadius: BorderRadius.circular(32),
+          border:
+              Border.all(color: const Color(0xFFBB83FF).withValues(alpha: 0.4)),
+          boxShadow: [
+            BoxShadow(
+                color: const Color(0xFF7728FF).withValues(alpha: 0.18),
+                blurRadius: 30)
+          ],
+        ),
+        child: ClipRRect(
+          borderRadius: BorderRadius.circular(32),
+          child: CustomPaint(
+            painter: const _ProfileNebulaPainter(),
+            child: Padding(
+              padding: const EdgeInsets.fromLTRB(20, 16, 20, 28),
+              child: Column(
+                children: [
+                  Row(children: [
+                    Text('YOUR PROFILE',
+                        style: Theme.of(context).textTheme.labelSmall?.copyWith(
+                            letterSpacing: 2.4,
+                            color: cs.onSurface.withValues(alpha: 0.65))),
+                    const Spacer(),
+                    IconButton(
+                        onPressed: onOpenSettings,
+                        tooltip: 'Settings',
+                        icon: const Icon(Icons.tune_rounded, size: 20)),
+                  ]),
+                  const SizedBox(height: 8),
+                  BreathingGlow(
+                    enabled: !app.softModeEnabled &&
+                        !MediaQuery.disableAnimationsOf(context),
+                    glowColor: identityAccent,
+                    maxBlur: 58,
+                    minBlur: 38,
+                    maxAlpha: 0.55,
+                    minAlpha: 0.35,
+                    child: Container(
+                      padding: const EdgeInsets.all(5),
+                      decoration: BoxDecoration(
+                          shape: BoxShape.circle,
+                          border: Border.all(
+                              color: const Color(0xFFE4CFFF)
+                                  .withValues(alpha: 0.9),
+                              width: 1.5),
+                          gradient: SweepGradient(colors: [
+                            const Color(0xFFF6B9FF),
+                            const Color(0xFFB454FF),
+                            const Color(0xFF69DFFF),
+                            const Color(0xFFF6B9FF)
+                          ])),
+                      child: AuraAvatar(
+                          image: avatarPath,
+                          compatibility: auraStrength,
+                          size: 132),
+                    ),
+                  ),
+                  const SizedBox(height: 22),
+                  Text(name,
+                      textAlign: TextAlign.center,
+                      style: Theme.of(context)
+                          .textTheme
+                          .headlineMedium
+                          ?.copyWith(
+                              fontWeight: FontWeight.w600,
+                              letterSpacing: -0.6)),
+                  if ((handle ?? '').trim().isNotEmpty) ...[
+                    const SizedBox(height: 6),
+                    Text(handle!,
+                        textAlign: TextAlign.center,
+                        style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                            color: cs.onSurface.withValues(alpha: 0.6))),
+                  ],
+                  if (bio.trim().isNotEmpty) ...[
+                    const SizedBox(height: 18),
+                    ConstrainedBox(
+                        constraints: const BoxConstraints(maxWidth: 380),
+                        child: Text(bio,
+                            textAlign: TextAlign.center,
+                            style: Theme.of(context)
+                                .textTheme
+                                .bodyLarge
+                                ?.copyWith(
+                                    height: 1.5,
+                                    color:
+                                        cs.onSurface.withValues(alpha: 0.88)))),
+                  ],
+                  const SizedBox(height: 22),
+                  Wrap(
+                      alignment: WrapAlignment.center,
+                      spacing: 8,
+                      runSpacing: 8,
+                      children: [
+                        _IdentityChip(
+                            label: vibe,
+                            glyph: TruLuraGlyph.spark,
+                            accent: identityAccent),
+                        _IdentityChip(
+                            label: intent,
+                            glyph: TruLuraGlyph.aura,
+                            accent: TruLuraTokens.auraCyan),
+                        _EnergyIndicator(
+                            label: mood.isEmpty
+                                ? 'Reflective'
+                                : mood[0].toUpperCase() + mood.substring(1),
+                            accent: identityAccent),
+                      ]),
+                ],
               ),
             ),
-            const SizedBox(height: 22),
-            Text(name,
-                textAlign: TextAlign.center,
-                style: Theme.of(context).textTheme.headlineMedium?.copyWith(
-                    fontWeight: FontWeight.w600, letterSpacing: -0.6)),
-            if ((handle ?? '').trim().isNotEmpty) ...[
-              const SizedBox(height: 6),
-              Text(handle!,
-                  textAlign: TextAlign.center,
-                  style: Theme.of(context)
-                      .textTheme
-                      .bodyMedium
-                      ?.copyWith(color: cs.onSurface.withValues(alpha: 0.6))),
-            ],
-            if (bio.trim().isNotEmpty) ...[
-              const SizedBox(height: 18),
-              ConstrainedBox(
-                  constraints: const BoxConstraints(maxWidth: 380),
-                  child: Text(bio,
-                      textAlign: TextAlign.center,
-                      style: Theme.of(context).textTheme.bodyLarge?.copyWith(
-                          height: 1.5,
-                          color: cs.onSurface.withValues(alpha: 0.88)))),
-            ],
-            const SizedBox(height: 22),
-            Wrap(
-                alignment: WrapAlignment.center,
-                spacing: 8,
-                runSpacing: 8,
-                children: [
-                  _IdentityChip(
-                      label: vibe,
-                      glyph: TruLuraGlyph.spark,
-                      accent: identityAccent),
-                  _IdentityChip(
-                      label: intent,
-                      glyph: TruLuraGlyph.aura,
-                      accent: TruLuraTokens.auraCyan),
-                  _EnergyIndicator(
-                      label: mood.isEmpty
-                          ? 'Reflective'
-                          : mood[0].toUpperCase() + mood.substring(1),
-                      accent: identityAccent),
-                ]),
-          ],
+          ),
         ),
       ),
     );
@@ -443,4 +472,92 @@ class _AuraSignaturePill extends StatelessWidget {
     if (score >= 68) return 'Warm aura rhythm';
     return 'Soft aura opening';
   }
+}
+
+/// Stable star positions keep the atmosphere calm while the existing halo breathes.
+class _ProfileNebulaPainter extends CustomPainter {
+  const _ProfileNebulaPainter();
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    final rect = Offset.zero & size;
+    canvas.drawRect(
+        rect,
+        Paint()
+          ..shader = const LinearGradient(
+            begin: Alignment.topLeft,
+            end: Alignment.bottomRight,
+            colors: [Color(0xFF100724), Color(0xFF171044), Color(0xFF090B24)],
+          ).createShader(rect));
+    final random = math.Random(42);
+    // Many overlapping translucent clouds give the field texture and depth.
+    for (var i = 0; i < 54; i++) {
+      final x = random.nextDouble() * size.width;
+      final y = size.height * (0.08 + 0.52 * (1 - x / size.width)) +
+          random.nextDouble() * 100 -
+          50;
+      final radius = 35 + random.nextDouble() * 100;
+      final color = [
+        const Color(0xFF8E31DE),
+        const Color(0xFF245CFF),
+        const Color(0xFFDE4EC3)
+      ][i % 3];
+      canvas.drawCircle(
+          Offset(x, y),
+          radius,
+          Paint()
+            ..shader = RadialGradient(
+              colors: [
+                color.withValues(alpha: 0.09),
+                color.withValues(alpha: 0)
+              ],
+            ).createShader(
+                Rect.fromCircle(center: Offset(x, y), radius: radius)));
+    }
+    for (var i = 0; i < 230; i++) {
+      final point = Offset(
+          random.nextDouble() * size.width, random.nextDouble() * size.height);
+      final alpha = point.dy > size.height * 0.62
+          ? 0.18
+          : 0.25 + random.nextDouble() * 0.5;
+      final color =
+          i % 3 == 0 ? const Color(0xFFD89CFF) : const Color(0xFFBADEFF);
+      canvas.drawCircle(
+          point,
+          i % 19 == 0 ? 1.3 : 0.35 + random.nextDouble() * 0.55,
+          Paint()..color = color.withValues(alpha: alpha));
+      if (i % 47 == 0 && point.dy < size.height * 0.6) {
+        final glow = Rect.fromCircle(center: point, radius: 13);
+        canvas.drawCircle(
+            point,
+            13,
+            Paint()
+              ..shader = RadialGradient(
+                colors: [
+                  color.withValues(alpha: 0.5),
+                  color.withValues(alpha: 0)
+                ],
+              ).createShader(glow));
+        final paint = Paint()
+          ..color = color.withValues(alpha: 0.7)
+          ..strokeWidth = 0.6;
+        canvas.drawLine(
+            point - const Offset(4, 0), point + const Offset(4, 0), paint);
+        canvas.drawLine(
+            point - const Offset(0, 6), point + const Offset(0, 6), paint);
+      }
+    }
+    canvas.drawRect(
+        rect,
+        Paint()
+          ..shader = const LinearGradient(
+            begin: Alignment.topCenter,
+            end: Alignment.bottomCenter,
+            colors: [Colors.transparent, Color(0x000B081D), Color(0xD90B081D)],
+            stops: [0, 0.4, 1],
+          ).createShader(rect));
+  }
+
+  @override
+  bool shouldRepaint(covariant _ProfileNebulaPainter oldDelegate) => false;
 }
