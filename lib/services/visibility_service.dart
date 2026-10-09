@@ -15,7 +15,19 @@ class VisibilityService {
   }
 
   TruVisibilityDecision canViewPost({required Post post, required TruParticipationContext ctx, required User? viewer}) {
-    // Author can always view their own content.
+    final adultMode = post.inferredExperienceMode();
+    if (adultMode.isAdultIntent) {
+      final requiredLevel = adultMode == TruExperienceMode.altIntimate
+          ? TruVerificationLevel.level3
+          : adultMode == TruExperienceMode.luxe
+              ? TruVerificationLevel.level2
+              : TruVerificationLevel.level1;
+      if (viewer == null || viewer.age < 18 ||
+          viewer.verificationLevel.index < requiredLevel.index) {
+        return const TruVisibilityDecision.denied('Adult content requires age 18+ and verification.');
+      }
+    }
+    // Ownership never bypasses adult age or verification requirements.
     if (viewer != null && post.userId == viewer.id) return const TruVisibilityDecision.allowed();
 
     final inferred = post.inferredExperienceMode();
