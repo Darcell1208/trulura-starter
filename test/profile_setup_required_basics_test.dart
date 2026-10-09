@@ -25,13 +25,14 @@ void main() {
       child: const MaterialApp(home: ProfileSetupScreen()),
     ));
     await tester.pumpAndSettle();
+    expect(find.text('YYYY-MM-DD (required)'), findsOneWidget);
     expect(find.text('Your gender (required)'), findsOneWidget);
     expect(find.text('Location (optional)'), findsOneWidget);
     expect(find.text('Pronouns (optional)'), findsOneWidget);
     await tester.ensureVisible(find.text('Finish later'));
     await tester.tap(find.text('Finish later'));
     await tester.pump();
-    expect(find.text('Enter your name, username, age and gender to continue.'), findsOneWidget);
+    expect(find.text('Enter your name, username, birthday and gender to continue.'), findsOneWidget);
     expect(find.byType(ProfileSetupScreen), findsOneWidget);
   });
 }

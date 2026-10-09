@@ -48,7 +48,7 @@ class _ProfileSetupScreenState extends State<ProfileSetupScreen> {
 
   final _displayName = TextEditingController();
   final _username = TextEditingController();
-  final _age = TextEditingController();
+  final _birthday = TextEditingController();
   final _gender = TextEditingController();
   final _location = TextEditingController();
   final _pronouns = TextEditingController();
@@ -90,7 +90,7 @@ class _ProfileSetupScreenState extends State<ProfileSetupScreen> {
   void dispose() {
     _displayName.dispose();
     _username.dispose();
-    _age.dispose();
+    _birthday.dispose();
     _gender.dispose();
     _location.dispose();
     _pronouns.dispose();
@@ -112,7 +112,7 @@ class _ProfileSetupScreenState extends State<ProfileSetupScreen> {
           ? ''
           : user.name;
       _username.text = (user?.username ?? '').toLowerCase();
-      _age.text = user == null || user.age <= 0 ? '' : '${user.age}';
+      _birthday.text = user == null ? '' : UserService().accountBirthday(user.id);
       _gender.text = user == null ? '' : UserService().accountGender(user.id);
       _location.text = user?.location ?? '';
       _pronouns.text = user?.pronouns ?? '';
@@ -245,7 +245,7 @@ class _ProfileSetupScreenState extends State<ProfileSetupScreen> {
   String _progressMessage() {
     return switch (_step) {
       0 =>
-        'Add the basics people should see first: name, username, age, location, photo, and bio.',
+        'Complete your basics: name, username, birthday and gender. Location, photo and bio are optional.',
       1 => 'Choose the identity layer that sets your current tone.',
       2 =>
         'Set intent, social preference, and interests so discovery feels accurate.',
@@ -257,8 +257,8 @@ class _ProfileSetupScreenState extends State<ProfileSetupScreen> {
 
   // Zero represents unknown age; never substitute an adult age.
   int? get _enteredAge {
-    final value = int.tryParse(_age.text.trim());
-    return value != null && value > 0 ? value : null;
+    final value = UserService.accountAge({'trulura_birth_date': _birthday.text.trim()});
+    return value > 0 ? value : null;
   }
 
   Future<void> _finish() async {
@@ -271,7 +271,7 @@ class _ProfileSetupScreenState extends State<ProfileSetupScreen> {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
             content:
-                Text('Enter your name, username, age and gender to continue.')),
+                Text('Enter your name, username, birthday and gender to continue.')),
       );
       return;
     }
@@ -297,7 +297,7 @@ class _ProfileSetupScreenState extends State<ProfileSetupScreen> {
     setState(() => _saving = true);
     try {
       final app = context.read<AppProvider>();
-      await UserService().saveAccountAge(draft.id, draft.age);
+      await UserService().saveAccountBirthday(draft.id, _birthday.text.trim());
       await UserService().saveAccountGender(draft.id, _gender.text);
       await UserService().saveUser(draft, requireRemoteSuccess: true);
       await app.refreshCurrentUserFromSupabase();
@@ -528,10 +528,10 @@ class _ProfileSetupScreenState extends State<ProfileSetupScreen> {
         ],
         const SizedBox(height: 12),
         _Field(
-          controller: _age,
-          label: 'Age',
-          hint: 'Your age (required)',
-          keyboardType: TextInputType.number,
+          controller: _birthday,
+          label: 'Birthday',
+          hint: 'YYYY-MM-DD (required)',
+          keyboardType: TextInputType.datetime,
           onChanged: (_) => setState(() {}),
         ),
         const SizedBox(height: 12),

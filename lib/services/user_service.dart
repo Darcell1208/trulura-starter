@@ -66,6 +66,12 @@ class UserService {
     }
   }
 
+  String accountBirthday(String userId) {
+    if (!_supabaseReady || _client.auth.currentUser?.id != userId) return '';
+    final metadata = _client.auth.currentUser?.userMetadata;
+    final value = metadata?['trulura_birth_date'];
+    return value is String && accountAge(metadata) > 0 ? value : '';
+  }
   String accountGender(String userId) {
     if (!_supabaseReady || _client.auth.currentUser?.id != userId) return '';
     final value = _client.auth.currentUser?.userMetadata?['trulura_gender'];
