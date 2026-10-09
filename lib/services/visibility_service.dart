@@ -17,6 +17,9 @@ class VisibilityService {
   TruVisibilityDecision canViewPost({required Post post, required TruParticipationContext ctx, required User? viewer}) {
     final adultMode = post.inferredExperienceMode();
     if (adultMode.isAdultIntent) {
+      if (ctx.isYouthContext || !_isPostInModeWorld(post: post, ctx: ctx)) {
+        return const TruVisibilityDecision.denied('Adult content stays in its permitted space.');
+      }
       final requiredLevel = adultMode == TruExperienceMode.altIntimate
           ? TruVerificationLevel.level3
           : adultMode == TruExperienceMode.luxe

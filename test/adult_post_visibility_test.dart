@@ -15,6 +15,13 @@ void main() {
         expect(const VisibilityService().canViewPost(post:post,ctx:ctx,viewer:viewer).allowed,isFalse);
         final adult = User.fromJson({'id':'author','age':18}).copyWith(verificationLevel:TruVerificationLevel.level3);
         expect(const VisibilityService().canViewPost(post:post,ctx:ctx,viewer:adult).allowed,isTrue);
+        for (final outside in [TruExperienceMode.social, TruExperienceMode.friendship, TruExperienceMode.creator, TruExperienceMode.vent, TruExperienceMode.youth]) {
+          final outsidePermissions = outside.basePermissions();
+          final outsideContext = TruParticipationContext(activeMode:outside,passiveModes:[],restrictedModes:[],activePermissions:outsidePermissions,effectivePermissions:outsidePermissions);
+          expect(const VisibilityService().canViewPost(post:post,ctx:outsideContext,viewer:adult).allowed,isFalse, reason:'Owner must not bypass $outside containment');
+        }
+        final verifiedTeen = User.fromJson({'id':'author','age':17}).copyWith(verificationLevel:TruVerificationLevel.level3);
+        expect(const VisibilityService().canViewPost(post:post,ctx:ctx,viewer:verifiedTeen).allowed,isFalse);
       });
     }
   }
