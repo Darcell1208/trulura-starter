@@ -688,10 +688,10 @@ class _ProfileScreenState extends State<ProfileScreen>
         const SizedBox(height: 14),
         _EmotionalNeedsCard(
           needs: [
-            'clear intent',
-            'gentle consistency',
-            'room to regulate',
-            'playful emotional honesty',
+            'Clear intent',
+            'Gentle consistency',
+            'Room to regulate',
+            'Playful emotional honesty',
           ],
           communicationStyle:
               'Warm signals land best when they feel specific, unforced, and paced with care.',

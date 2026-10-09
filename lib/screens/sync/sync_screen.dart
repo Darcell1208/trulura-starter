@@ -1576,7 +1576,7 @@ class _PreviewMatchSignal extends StatelessWidget {
                 runSpacing: 8,
                 children: const [
                   _SyncMiniPill(label: 'warm rhythm'),
-                  _SyncMiniPill(label: 'clear intent'),
+                  _SyncMiniPill(label: 'Clear intent'),
                   _SyncMiniPill(label: 'slow pacing'),
                 ],
               ),
