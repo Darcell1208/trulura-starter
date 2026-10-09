@@ -1,3 +1,4 @@
+import 'package:trulura/services/user_service.dart';
 import 'package:trulura/features/onboarding/account_age_screen.dart';
 import 'dart:ui';
 
@@ -77,10 +78,11 @@ class AppRouter {
         if (location == AppRoutes.post) return AppRoutes.createPost;
         if (location == AppRoutes.aiCompanion) return AppRoutes.aiCompanionHub;
 
-        // Required age supersedes the former auth-only rule. Optional
+        // Require birthday completion for legacy age-only accounts too. Optional
         // interests, Vibe and dating intent remain outside this gate.
         if (isAuthed &&
-            appProvider.currentUser!.age <= 0 &&
+            (appProvider.currentUser!.age <= 0 ||
+                UserService().accountBirthday(appProvider.currentUser!.id).isEmpty) &&
             path != '/onboarding/account-age' &&
             path != AppRoutes.splash &&
             path != AppRoutes.softMode &&

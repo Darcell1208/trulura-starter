@@ -5,7 +5,7 @@ This checkpoint records current PO direction and implemented scope. It supplemen
 ## Current direction
 
 - Social platform first; dating optional.
-- Birthday required. The existing build currently collects an integer age; birthday collection/migration remains work.
+- Birthday required. Both setup forms now collect and save a date of birth. Account age is derived from it when available; legacy age-only accounts are redirected to birthday completion. Birthday remains self-reported and is not adult ID verification.
 - ID verification is for adults accessing strictly 18+ areas, including dating and TruLuxe. No teen ID requirement was approved.
 - Alt/dom/fantasy belongs inside dating and inherits the adult boundary. This placement does not approve every historical Alt feature or content/monetization proposal.
 - Teen Vent must be separate from adult Vent. Failure of an adult verification check never establishes teen eligibility.
@@ -47,3 +47,9 @@ Dart analysis remains inconclusive because the analyzer crashes on shutdown dele
 5. Resume onboarding, Sync/Vent feature and visual reconciliation against accepted mockups; verify dead controls, media persistence/reels/video, then confirmed monetization implementation. Money policy and full recovery artifacts remain in the chat recovery workspace; they have not all been copied or implemented in this repository.
 
 No source exports, personal chat transcripts, credential files or unapproved SQL drafts are included in this GitHub checkpoint. Future claims of completion must distinguish source recovery, PO confirmation, code implementation, database deployment and observed behavior.
+
+## Birthday and navigation follow-up
+
+Both account completion and profile setup save birthday through Supabase Auth metadata with account and response checks. The router now directs legacy age-only accounts to completion without rewriting their profile. Five duplicate account-setup routes were removed so each main tab retains its intended initial destination. Local routing, input validation and mocked save tests passed (19 in the latest selected run; overlapping earlier tests).
+
+No live migration or live end-to-end verification was performed. Birthday correction/review controls, trusted server age enforcement, offline behavior, and age-up handling remain unfinished. Existing metadata is self-reported, not provider-verified evidence. The legacy integer age fallback remains for reading older records; it does not satisfy birthday completion.
