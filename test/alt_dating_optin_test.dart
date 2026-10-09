@@ -33,9 +33,21 @@ void main() {
     final controller = ExperienceModeController(appProvider:app);
     await controller.initialize();
     expect(await controller.setActiveMode(TruExperienceMode.altIntimate,confirmed:true),isFalse);
+    void expectAltBlocked() {
+      final permissions = controller.permissionsFor(TruExperienceMode.altIntimate);
+      expect([
+        permissions.messaging, permissions.matching, permissions.monetization,
+        permissions.anonymousUse, permissions.groups, permissions.live,
+        permissions.events,
+      ], everyElement(TruPermissionLevel.blocked));
+      expect(permissions.allowRomanticEscalation, isFalse);
+    }
+    expectAltBlocked();
     await controller.setEnabled(TruExperienceMode.dating,true);
     expect(await controller.setActiveMode(TruExperienceMode.altIntimate,confirmed:true),isTrue);
+    expect(controller.permissionsFor(TruExperienceMode.altIntimate).matching, isNot(TruPermissionLevel.blocked));
     await controller.setEnabled(TruExperienceMode.dating,false);
+    expectAltBlocked();
     expect(controller.stateOf(TruExperienceMode.altIntimate).isEnabled,isFalse);
     expect(controller.activeMode,TruExperienceMode.social);
     expect(app.useMode, 'social');

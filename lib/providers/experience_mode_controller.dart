@@ -93,8 +93,25 @@ class ExperienceModeController extends ChangeNotifier {
         hasLuxeSubscription: _app.hasLuxeSubscription,
       );
 
-  ModePermissions permissionsFor(TruExperienceMode mode) =>
-      TruExperienceModePolicy.permissionsFor(
+  ModePermissions permissionsFor(TruExperienceMode mode) {
+    if (mode == TruExperienceMode.altIntimate &&
+        !stateOf(TruExperienceMode.dating).isEnabled) {
+      final base = mode.basePermissions();
+      return ModePermissions(
+        messaging: TruPermissionLevel.blocked,
+        matching: TruPermissionLevel.blocked,
+        monetization: TruPermissionLevel.blocked,
+        anonymousUse: TruPermissionLevel.blocked,
+        feedKind: base.feedKind,
+        interaction: base.interaction,
+        allowRomanticEscalation: false,
+        suppressVirality: true,
+        groups: TruPermissionLevel.blocked,
+        live: TruPermissionLevel.blocked,
+        events: TruPermissionLevel.blocked,
+      );
+    }
+    return TruExperienceModePolicy.permissionsFor(
         mode: mode,
         user: _user,
         creatorOnboardingComplete: _app.creatorOnboardingComplete,
@@ -103,6 +120,8 @@ class ExperienceModeController extends ChangeNotifier {
         hasLuxeInvite: _app.hasLuxeInvite,
         hasLuxeSubscription: _app.hasLuxeSubscription,
       );
+
+  }
 
   TruParticipationContext get participationContext {
     final restricted = <TruExperienceMode>[];
