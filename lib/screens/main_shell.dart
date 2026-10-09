@@ -183,7 +183,8 @@ class _MainShellState extends State<MainShell> {
 
     return Scaffold(
       key: _scaffoldKey,
-      extendBody: true,
+      // Reserve the navigation bar's actual height on every main tab.
+      extendBody: false,
       drawer: const TruLuraSideDrawer(),
       appBar: AppBar(
         centerTitle: true,
