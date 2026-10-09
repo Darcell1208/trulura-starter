@@ -87,7 +87,13 @@ class _MainShellState extends State<MainShell> {
     if (!shouldOpen || _lastOpenedMenuRoute == route) return;
     _lastOpenedMenuRoute = route;
     WidgetsBinding.instance.addPostFrameCallback((_) {
-      if (!mounted) return;
+      if (!mounted || GoRouterState.of(context).uri.toString() != route) return;
+      // Consume the one-time request so refresh does not reopen the drawer.
+      final uri = Uri.parse(route);
+      final query = Map<String, String>.from(uri.queryParameters)
+        ..remove(TruNavigation.openMenuParam)
+        ..remove('menuPulse');
+      context.replace(uri.replace(queryParameters: query).toString());
       _scaffoldKey.currentState?.openDrawer();
     });
   }
