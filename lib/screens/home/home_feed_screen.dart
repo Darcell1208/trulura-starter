@@ -949,33 +949,51 @@ class _AuraWorldHero extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context).textTheme;
-    return Padding(
-      padding: const EdgeInsets.fromLTRB(8, 12, 8, 16),
+    return Container(
+      margin: const EdgeInsets.symmetric(vertical: 12),
+      padding: const EdgeInsets.all(20),
+      decoration: BoxDecoration(
+        borderRadius: BorderRadius.circular(24),
+        gradient: const LinearGradient(
+            begin: Alignment.topLeft,
+            end: Alignment.bottomRight,
+            colors: [Color(0xFF211438), Color(0xFF101529), Color(0xFF080C19)]),
+        border:
+            Border.all(color: const Color(0xFFAA83EC).withValues(alpha: 0.35)),
+        boxShadow: [
+          BoxShadow(
+              color: const Color(0xFF7847C7).withValues(alpha: 0.12),
+              blurRadius: 24)
+        ],
+      ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Row(
-            children: [
-              Container(
-                padding: const EdgeInsets.all(10),
-                decoration: BoxDecoration(
-                  shape: BoxShape.circle,
-                  color: TruLuraTokens.auraViolet.withValues(alpha: 0.12),
-                  boxShadow: [BoxShadow(
-                    color: TruLuraTokens.auraViolet.withValues(alpha: 0.2),
-                    blurRadius: 28,
-                    spreadRadius: 3,
-                  )],
-                ),
-                child: const TruLuraIcon(glyph: TruLuraGlyph.aura),
-              ),
-              const SizedBox(width: 12),
-              Expanded(child: Text('Your Aura', style: theme.titleLarge)),
-            ],
-          ),
-          const SizedBox(height: 10),
-          Text('Check in, share a thought, or see what’s happening.',
-            style: theme.bodyMedium?.copyWith(color: TruLuraTokens.textSecondary)),
+          Row(children: [
+            const ExcludeSemantics(
+                child: SizedBox(
+                    width: 76,
+                    height: 76,
+                    child: CustomPaint(painter: _HomeAuraOrbPainter()))),
+            const SizedBox(width: 18),
+            Expanded(
+                child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                  Text('YOUR AURA',
+                      style: theme.labelSmall?.copyWith(
+                          letterSpacing: 2.4, color: const Color(0xFFC4B4DB))),
+                  const SizedBox(height: 6),
+                  Text('A little more you.',
+                      style: theme.headlineSmall?.copyWith(
+                          fontWeight: FontWeight.w500,
+                          color: const Color(0xFFF6EBFF))),
+                  const SizedBox(height: 6),
+                  Text('Check in, connect, and share your world.',
+                      style: theme.bodyMedium
+                          ?.copyWith(color: TruLuraTokens.textSecondary)),
+                ])),
+          ]),
           const SizedBox(height: 14),
           Wrap(
             spacing: 8,
@@ -986,7 +1004,8 @@ class _AuraWorldHero extends StatelessWidget {
                 glyph: TruLuraGlyph.edit,
                 primary: true,
                 accent: TruLuraTokens.auraViolet,
-                onTap: () => TruNavigation.pushWithReturnTo(context, AppRoutes.createPost),
+                onTap: () => TruNavigation.pushWithReturnTo(
+                    context, AppRoutes.createPost),
               ),
               TruWorldAction(
                 label: 'Choose mood',
@@ -1013,6 +1032,79 @@ class _AuraWorldHero extends StatelessWidget {
     );
   }
 }
+
+/// A fixed dimensional orb keeps the decorative treatment motion-safe.
+class _HomeAuraOrbPainter extends CustomPainter {
+  const _HomeAuraOrbPainter();
+  @override
+  void paint(Canvas canvas, Size size) {
+    final center = Offset(size.width / 2, size.height / 2);
+    final radius = size.shortestSide * 0.36;
+    final rect = Rect.fromCircle(center: center, radius: radius);
+    canvas.drawCircle(
+        center,
+        radius * 1.4,
+        Paint()
+          ..shader = RadialGradient(
+            colors: [
+              const Color(0xFF9A54FF).withValues(alpha: 0.45),
+              Colors.transparent
+            ],
+          ).createShader(
+              Rect.fromCircle(center: center, radius: radius * 1.4)));
+    canvas.drawCircle(
+        center,
+        radius,
+        Paint()
+          ..shader = const RadialGradient(
+            center: Alignment(-0.4, -0.45),
+            radius: 1.15,
+            colors: [
+              Color(0xFF6892DC),
+              Color(0xFF372271),
+              Color(0xFF0B153B),
+              Color(0xFF060817)
+            ],
+            stops: [0, 0.28, 0.68, 1],
+          ).createShader(rect));
+    canvas.drawCircle(
+        center,
+        radius,
+        Paint()
+          ..style = PaintingStyle.stroke
+          ..strokeWidth = 2.1
+          ..shader = const SweepGradient(colors: [
+            Color(0xFF6BCFFF),
+            Color(0xFF684CCF),
+            Color(0xFFFFBA83),
+            Color(0xFFEFA7FF),
+            Color(0xFF6BCFFF)
+          ]).createShader(rect));
+    final sheen = Rect.fromCircle(
+        center: center.translate(-radius * 0.32, -radius * 0.48),
+        radius: radius * 0.4);
+    canvas.drawOval(
+        sheen,
+        Paint()
+          ..shader = RadialGradient(colors: [
+            Colors.white.withValues(alpha: 0.5),
+            Colors.transparent
+          ]).createShader(sheen));
+    for (var i = 0; i < 15; i++) {
+      final x = ((i * 37) % 49 - 24) / 30.0;
+      final y = ((i * 19) % 43 - 21) / 30.0;
+      if (x * x + y * y < 0.8)
+        canvas.drawCircle(
+            center + Offset(x * radius, y * radius),
+            i % 4 == 0 ? 1 : 0.55,
+            Paint()..color = const Color(0xFFCCE4FF).withValues(alpha: 0.65));
+    }
+  }
+
+  @override
+  bool shouldRepaint(covariant _HomeAuraOrbPainter oldDelegate) => false;
+}
+
 double _auraFeedBottomPadding(BuildContext context) {
   final bottomInset = MediaQuery.paddingOf(context).bottom;
   return kTruluraBottomNavClearance + bottomInset;
@@ -2289,10 +2381,10 @@ class _FeedTabViewState extends State<_FeedTabView>
                 visualSpec: FeedCardVisualSpec.fromPost(
                   post,
                   context.watch<TruLuraModeController>().mode,
-                // Ring is aura glow, never mood; the chip carries mood. Passed
-                // explicitly because fromPost's accentB varies by mood branch.
-                // Same tone Vent and Profile paint (TruLuraHaloAvatar, aura);
-                // the compact ring is one colour, so it takes the tone's first.
+                  // Ring is aura glow, never mood; the chip carries mood. Passed
+                  // explicitly because fromPost's accentB varies by mood branch.
+                  // Same tone Vent and Profile paint (TruLuraHaloAvatar, aura);
+                  // the compact ring is one colour, so it takes the tone's first.
                 ).withPresentation(const CompactFeedCardPresentation(),
                     accentB: TruLuraModeTone.aura
                         .resolve(Theme.of(context).colorScheme)
