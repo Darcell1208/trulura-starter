@@ -11,7 +11,25 @@ import 'package:trulura/services/database_service/database_service.dart';
 
 class UserService {
   /// Self-reported account age, separate from identity verification.
-  static int accountAge(Map<String, dynamic>? metadata) {
+  static int accountAge(Map<String, dynamic>? metadata, {DateTime? today}) {
+    if (metadata?.containsKey('trulura_birth_date') ?? false) {
+      final raw = metadata!['trulura_birth_date'];
+      if (raw is! String || !RegExp(r'^\d{4}-\d{2}-\d{2}$').hasMatch(raw)) {
+        return 0;
+      }
+      final birth = DateTime.tryParse(raw);
+      if (birth == null ||
+          birth.year != int.parse(raw.substring(0, 4)) ||
+          birth.month != int.parse(raw.substring(5, 7)) ||
+          birth.day != int.parse(raw.substring(8, 10))) return 0;
+      final now = today ?? DateTime.now();
+      final date = DateTime(now.year, now.month, now.day);
+      if (birth.isAfter(date)) return 0;
+      var age = date.year - birth.year;
+      if (date.month < birth.month ||
+          (date.month == birth.month && date.day < birth.day)) age--;
+      return age;
+    }
     final value = metadata?['trulura_age'];
     return value is int && value > 0 ? value : 0;
   }
