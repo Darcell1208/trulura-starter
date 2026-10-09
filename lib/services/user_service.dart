@@ -34,6 +34,22 @@ class UserService {
     return value is int && value > 0 ? value : 0;
   }
 
+  Future<void> saveAccountBirthday(String userId, String birthday) async {
+    final age = accountAge({'trulura_birth_date': birthday});
+    if (age <= 0) throw ArgumentError('Enter a valid birthday.');
+    if (!_supabaseReady || _client.auth.currentUser?.id != userId) {
+      throw StateError('Sign in again to save your birthday.');
+    }
+    final result = await _client.auth.updateUser(sb.UserAttributes(data: {
+      'trulura_birth_date': birthday,
+      'trulura_age': age,
+    }));
+    if (_client.auth.currentUser?.id != userId ||
+        result.user?.id != userId ||
+        result.user?.userMetadata?['trulura_birth_date'] != birthday) {
+      throw StateError('Your birthday could not be confirmed as saved.');
+    }
+  }
   /// Required account data must not silently fall back to a device cache.
   Future<void> saveAccountAge(String userId, int age) async {
     if (age <= 0) throw ArgumentError.value(age, 'age');

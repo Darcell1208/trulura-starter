@@ -81,6 +81,26 @@ void main() {
     expect(prefs.containsKey('current_user:$other'), isFalse);
   }
 
+  test('birthday save sends date and confirms the returned account receipt', () async {
+    handler = (request) async {
+      final body = jsonDecode(request.body) as Map<String, dynamic>;
+      expect(body['data']['trulura_birth_date'], '2000-01-15');
+      return response(request, authUser(member, Map<String, dynamic>.from(body['data'])));
+    };
+    await UserService().saveAccountBirthday(member, '2000-01-15');
+  });
+  test('birthday save rejects a missing receipt', () async {
+    handler = (request) async => response(request, authUser(member));
+    await expectLater(UserService().saveAccountBirthday(member, '2000-01-15'), throwsStateError);
+  });
+  test('birthday save rejects the wrong signed-in account before sending', () async {
+    await expectLater(UserService().saveAccountBirthday(other, '2000-01-15'), throwsStateError);
+    expect(requests, isEmpty);
+  });
+  test('birthday save surfaces backend rejection', () async {
+    handler = (request) async => response(request, {'message': 'Denied'}, 403);
+    await expectLater(UserService().saveAccountBirthday(member, '2000-01-15'), throwsA(isA<sb.AuthException>()));
+  });
   test('backend rejection surfaces and does not cache an unsaved profile',
       () async {
     handler = (request) async =>
