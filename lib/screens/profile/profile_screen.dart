@@ -288,9 +288,7 @@ class _ProfileScreenState extends State<ProfileScreen>
           );
     final baseBio = (layer?.bio?.trim().isNotEmpty ?? false)
         ? layer!.bio!.trim()
-        : ((user?.bio?.trim().isNotEmpty ?? false)
-            ? user!.bio!.trim()
-            : '✨ Living my best life | Coffee addict ☕️');
+        : ((user?.bio?.trim().isNotEmpty ?? false) ? user!.bio!.trim() : '');
 
     final name = baseName;
     final handle =
@@ -1400,26 +1398,6 @@ class _ProfileChamberPainter extends CustomPainter {
       ).createShader(rect);
     canvas.drawRect(rect, lowerFog);
 
-    final ringPaint = Paint()
-      ..style = PaintingStyle.stroke
-      ..strokeWidth = 1.0
-      ..blendMode = BlendMode.plus
-      ..color = accentA.withValues(alpha: 0.055 + breath * 0.030);
-    final heroCenter = Offset(size.width * 0.50, size.height * 0.18);
-    for (var i = 0; i < 4; i++) {
-      canvas.drawOval(
-        Rect.fromCenter(
-          center: heroCenter.translate(
-            math.sin(progress * math.pi * 2 + i) * 6,
-            i * 10.0,
-          ),
-          width: size.width * (0.56 + i * 0.14 + breath * 0.03),
-          height: 110 + i * 42 + breath * 18,
-        ),
-        ringPaint,
-      );
-    }
-
     final particlePaint = Paint()..blendMode = BlendMode.plus;
     final particleCount = restorative
         ? 10
@@ -1458,45 +1436,6 @@ class _ProfileChamberPainter extends CustomPainter {
         stops: const [0.0, 0.36, 0.52, 1.0],
       ).createShader(rect);
     canvas.drawRect(rect, temperature);
-
-    final phrases = _floatingPhrases;
-    for (var i = 0; i < phrases.length; i++) {
-      final alpha = (restorative ? 0.035 : 0.050) +
-          math.sin(progress * math.pi * 2 * motion + i) * 0.014;
-      final painter = TextPainter(
-        text: TextSpan(
-          text: phrases[i],
-          style: TextStyle(
-            color: Colors.white.withValues(alpha: alpha.clamp(0.028, 0.07)),
-            fontSize: 11 + (i % 2),
-            fontWeight: FontWeight.w700,
-            letterSpacing: 0,
-          ),
-        ),
-        textDirection: TextDirection.ltr,
-      )..layout(maxWidth: size.width * 0.46);
-      final x = size.width * (i.isEven ? 0.08 : 0.58) +
-          math.sin(progress * math.pi * 2 + i) * 10;
-      final y = size.height * (0.24 + i * 0.17) - progress * (8 + i * 2) % 22;
-      painter.paint(canvas, Offset(x, y));
-    }
-  }
-
-  List<String> get _floatingPhrases {
-    final key = '$vibe $identity'.toLowerCase();
-    if (key.contains('dating') || key.contains('spark')) {
-      return const ['warm pull', 'soft courage', 'signal open'];
-    }
-    if (key.contains('creator')) {
-      return const ['creative field', 'bright archive', 'alive in color'];
-    }
-    if (key.contains('calm') || key.contains('heal')) {
-      return const ['safe breath', 'steady light', 'held gently'];
-    }
-    if (key.contains('old') || key.contains('reflect')) {
-      return const ['deep signal', 'quiet knowing', 'inner layer'];
-    }
-    return const ['living aura', 'open room', 'soft presence'];
   }
 
   @override
@@ -1555,7 +1494,10 @@ class _EmotionalIdentityStatement extends StatelessWidget {
                   )),
               const SizedBox(height: 8),
               Text(
-                '$vibe energy in $identity mode, tuned for $primaryIntent with $socialStyle pacing.',
+                primaryIntent.trim().toLowerCase() ==
+                        identity.trim().toLowerCase()
+                    ? '$vibe · $identity · $socialStyle'
+                    : '$vibe · $identity · $primaryIntent · $socialStyle',
                 style: t.bodyMedium?.copyWith(
                   color: cs.onSurface.withValues(alpha: 0.80),
                   height: 1.42,
@@ -1606,75 +1548,45 @@ class _ProfileIdentityStory extends StatelessWidget {
         TruLuraTokens.auraPink
       ),
     ];
-    return SizedBox(
-      height: 118,
-      child: ListView.separated(
-        primary: false,
-        scrollDirection: Axis.horizontal,
-        padding: const EdgeInsets.symmetric(horizontal: 2),
-        itemCount: items.length,
-        separatorBuilder: (_, __) => const SizedBox(width: 12),
-        itemBuilder: (context, index) {
-          final item = items[index];
-          return SizedBox(
-            width: 220,
-            child: Stack(
-              children: [
-                Positioned(
-                  left: 14,
-                  top: 12,
-                  bottom: 12,
-                  child: Container(
-                    width: 1,
-                    color: item.$4.withValues(alpha: 0.28),
-                  ),
-                ),
-                Padding(
-                  padding: const EdgeInsets.fromLTRB(28, 10, 10, 10),
+    return LayoutBuilder(builder: (context, constraints) {
+      final columns = constraints.maxWidth < 360 ? 1 : 2;
+      final width = (constraints.maxWidth - (columns - 1) * 16) / columns;
+      return Padding(
+        padding: const EdgeInsets.symmetric(vertical: 12),
+        child: Wrap(spacing: 16, runSpacing: 20, children: [
+          for (final item in items)
+            SizedBox(
+                width: width,
+                child: Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 12),
                   child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Row(
-                        children: [
-                          TruLuraIcon(
-                            glyph: item.$3,
-                            size: 18,
-                            color: item.$4,
-                          ),
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Row(children: [
+                          TruLuraIcon(glyph: item.$3, size: 16, color: item.$4),
                           const SizedBox(width: 8),
                           Expanded(
-                            child: Text(
-                              item.$1,
-                              style: Theme.of(context)
-                                  .textTheme
-                                  .labelLarge
-                                  ?.copyWith(
-                                    color: TruLuraTokens.textPrimary,
-                                    fontWeight: FontWeight.w900,
-                                  ),
-                            ),
-                          ),
-                        ],
-                      ),
-                      const SizedBox(height: 9),
-                      Text(
-                        item.$2,
-                        maxLines: 3,
-                        overflow: TextOverflow.ellipsis,
-                        style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                              color: TruLuraTokens.textSecondary,
-                              height: 1.35,
-                            ),
-                      ),
-                    ],
-                  ),
-                ),
-              ],
-            ),
-          );
-        },
-      ),
-    );
+                              child: Text(item.$1,
+                                  style:
+                                      Theme.of(context).textTheme.labelLarge)),
+                        ]),
+                        const SizedBox(height: 7),
+                        Text(
+                            item.$2.isEmpty
+                                ? ''
+                                : item.$2[0].toUpperCase() +
+                                    item.$2.substring(1),
+                            style: Theme.of(context)
+                                .textTheme
+                                .bodySmall
+                                ?.copyWith(
+                                    color: TruLuraTokens.textSecondary,
+                                    height: 1.4)),
+                      ]),
+                )),
+        ]),
+      );
+    });
   }
 }
 

@@ -38,160 +38,94 @@ class TruluraProfileHeroCard extends StatelessWidget {
     final intent =
         (user?.intents.isNotEmpty ?? false) ? user!.intents.first : 'Social';
     final identityAccent = _identityAccent(mood, intent);
-    return Padding(
-      padding: const EdgeInsets.fromLTRB(4, 20, 4, 18),
-      child: Stack(
-        clipBehavior: Clip.none,
-        children: [
-          Positioned(
-            top: 28,
-            left: 0,
-            right: 0,
-            height: 260,
-            child: IgnorePointer(
-              child: DecoratedBox(
+    return SizedBox(
+      width: double.infinity,
+      child: Padding(
+        padding: const EdgeInsets.fromLTRB(20, 20, 20, 28),
+        child: Column(
+          children: [
+            Row(children: [
+              Text('YOUR PROFILE',
+                  style: Theme.of(context).textTheme.labelSmall?.copyWith(
+                      letterSpacing: 2.4,
+                      color: cs.onSurface.withValues(alpha: 0.65))),
+              const Spacer(),
+              IconButton(
+                  onPressed: onOpenSettings,
+                  tooltip: 'Settings',
+                  icon: const Icon(Icons.tune_rounded, size: 20)),
+            ]),
+            const SizedBox(height: 8),
+            BreathingGlow(
+              enabled: !app.softModeEnabled &&
+                  !MediaQuery.disableAnimationsOf(context),
+              glowColor: identityAccent,
+              maxBlur: 38,
+              minBlur: 24,
+              maxAlpha: 0.26,
+              minAlpha: 0.16,
+              child: Container(
+                padding: const EdgeInsets.all(9),
                 decoration: BoxDecoration(
-                  gradient: RadialGradient(
-                    colors: [
-                      identityAccent.withValues(alpha: 0.18),
-                      TruLuraTokens.auraCyan.withValues(alpha: 0.06),
+                    shape: BoxShape.circle,
+                    border: Border.all(
+                        color: identityAccent.withValues(alpha: 0.45)),
+                    gradient: SweepGradient(colors: [
+                      identityAccent.withValues(alpha: 0.2),
                       Colors.transparent,
-                    ],
-                  ),
-                ),
+                      TruLuraTokens.auraCyan.withValues(alpha: 0.18),
+                      identityAccent.withValues(alpha: 0.2)
+                    ])),
+                child: AuraAvatar(
+                    image: avatarPath, compatibility: auraStrength, size: 108),
               ),
             ),
-          ),
-          Positioned.fill(
-            child: IgnorePointer(
-              child: CustomPaint(
-                painter: _HeroAuraFieldPainter(
-                  accent: identityAccent,
-                  secondary: TruLuraTokens.auraCyan,
-                ),
-              ),
-            ),
-          ),
-          Positioned(
-            left: 2,
-            top: 2,
-            child: _EnergyIndicator(
-              label: mood,
-              accent: identityAccent,
-            ),
-          ),
-          Positioned(
-            top: 0,
-            right: 0,
-            child: IconButton(
-              onPressed: onOpenSettings,
-              icon: TruLuraIcon(
-                  glyph: TruLuraGlyph.filter,
-                  size: 20,
-                  active: true,
-                  color: cs.onSurface.withValues(alpha: 0.84)),
-              tooltip: 'Settings',
-            ),
-          ),
-          Column(
-            children: [
-              const SizedBox(height: 10),
-              BreathingGlow(
-                enabled: !app.softModeEnabled,
-                glowColor: identityAccent,
-                maxBlur: 58,
-                minBlur: 24,
-                maxAlpha: 0.30,
-                minAlpha: 0.10,
-                child: Stack(
-                  alignment: Alignment.center,
-                  clipBehavior: Clip.none,
-                  children: [
-                    SizedBox(
-                      width: 148,
-                      height: 148,
-                      child: CustomPaint(
-                        painter: _AvatarAuraRingPainter(
-                          accent: identityAccent,
-                          secondary: TruLuraTokens.auraCyan,
-                        ),
-                      ),
-                    ),
-                    AuraAvatar(
-                      image: avatarPath,
-                      compatibility: auraStrength,
-                      size: 108,
-                    ),
-                  ],
-                ),
-              ),
-              const SizedBox(height: 16),
-              Text(
-                name,
+            const SizedBox(height: 22),
+            Text(name,
                 textAlign: TextAlign.center,
-                maxLines: 2,
-                overflow: TextOverflow.ellipsis,
-                style: Theme.of(context)
-                    .textTheme
-                    .headlineSmall
-                    ?.copyWith(fontWeight: FontWeight.w900),
-              ),
-              const SizedBox(height: 4),
-              if ((handle ?? '').trim().isNotEmpty) ...[
-                Text(
-                  handle!,
+                style: Theme.of(context).textTheme.headlineMedium?.copyWith(
+                    fontWeight: FontWeight.w600, letterSpacing: -0.6)),
+            if ((handle ?? '').trim().isNotEmpty) ...[
+              const SizedBox(height: 6),
+              Text(handle!,
                   textAlign: TextAlign.center,
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                  style: Theme.of(context).textTheme.titleSmall?.copyWith(
-                      color: cs.onSurface.withValues(alpha: 0.70),
-                      fontWeight: FontWeight.w800),
-                ),
-                const SizedBox(height: 10),
-              ] else
-                const SizedBox(height: 8),
-              _AuraSignaturePill(strength: auraStrength),
-              const SizedBox(height: 10),
-              Wrap(
+                  style: Theme.of(context)
+                      .textTheme
+                      .bodyMedium
+                      ?.copyWith(color: cs.onSurface.withValues(alpha: 0.6))),
+            ],
+            if (bio.trim().isNotEmpty) ...[
+              const SizedBox(height: 18),
+              ConstrainedBox(
+                  constraints: const BoxConstraints(maxWidth: 380),
+                  child: Text(bio,
+                      textAlign: TextAlign.center,
+                      style: Theme.of(context).textTheme.bodyLarge?.copyWith(
+                          height: 1.5,
+                          color: cs.onSurface.withValues(alpha: 0.88)))),
+            ],
+            const SizedBox(height: 22),
+            Wrap(
                 alignment: WrapAlignment.center,
                 spacing: 8,
                 runSpacing: 8,
                 children: [
                   _IdentityChip(
-                    label: vibe,
-                    glyph: TruLuraGlyph.spark,
-                    accent: identityAccent,
-                  ),
+                      label: vibe,
+                      glyph: TruLuraGlyph.spark,
+                      accent: identityAccent),
                   _IdentityChip(
-                    label: intent,
-                    glyph: TruLuraGlyph.aura,
-                    accent: TruLuraTokens.auraCyan,
-                  ),
-                  _IdentityChip(
-                    label: 'emotional weather',
-                    glyph: TruLuraGlyph.moon,
-                    accent: TruLuraBrandColors.glowGold,
-                  ),
-                ],
-              ),
-              const SizedBox(height: 9),
-              _PresenceRhythmStrip(
-                accent: identityAccent,
-                mood: mood,
-                intent: intent,
-              ),
-              const SizedBox(height: 10),
-              Text(
-                bio,
-                textAlign: TextAlign.center,
-                maxLines: 3,
-                overflow: TextOverflow.ellipsis,
-                style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                    height: 1.4, color: cs.onSurface.withValues(alpha: 0.80)),
-              ),
-            ],
-          ),
-        ],
+                      label: intent,
+                      glyph: TruLuraGlyph.aura,
+                      accent: TruLuraTokens.auraCyan),
+                  _EnergyIndicator(
+                      label: mood.isEmpty
+                          ? 'Reflective'
+                          : mood[0].toUpperCase() + mood.substring(1),
+                      accent: identityAccent),
+                ]),
+          ],
+        ),
       ),
     );
   }
