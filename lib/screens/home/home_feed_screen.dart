@@ -1246,7 +1246,7 @@ class _AuraSignalStrip extends StatelessWidget {
                 ),
                 for (final chip in chips.take(4))
                   TruLuraGlowPill(
-                    label: chip,
+                    label: chip.trim()[0].toUpperCase() + chip.trim().substring(1),
                     selected: chip == personalization.emotionalTone,
                     padding: const EdgeInsets.symmetric(
                       horizontal: 10,
