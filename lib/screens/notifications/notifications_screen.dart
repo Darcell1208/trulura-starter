@@ -58,66 +58,9 @@ class NotificationsScreen extends StatefulWidget {
 class _NotificationsScreenState extends State<NotificationsScreen> {
   _NotificationFilter _filter = _NotificationFilter.all;
 
-  static const List<_NotificationDemo> _items = [
-    _NotificationDemo(
-      kind: _NotificationKind.glow,
-      group: 'Today',
-      title: 'Darcell received a Glow',
-      body: 'Your vibe update is getting soft attention.',
-      time: '2m',
-    ),
-    _NotificationDemo(
-      kind: _NotificationKind.reply,
-      group: 'Today',
-      title: 'New reply on your post',
-      body: 'Someone added a thoughtful response to your Aura post.',
-      time: '18m',
-    ),
-    _NotificationDemo(
-      kind: _NotificationKind.sync,
-      group: 'Priority',
-      title: 'Compatibility suggestion ready',
-      body: 'A new Sync-style suggestion is staged for review.',
-      time: 'Now',
-      priority: true,
-    ),
-    _NotificationDemo(
-      kind: _NotificationKind.quiz,
-      group: 'Earlier',
-      title: 'Quiz result interaction',
-      body: 'Your shared result helped tune a community prompt.',
-      time: '1h',
-    ),
-    _NotificationDemo(
-      kind: _NotificationKind.follow,
-      group: 'Earlier',
-      title: 'New follower',
-      body: 'A profile with similar energy followed your public layer.',
-      time: '3h',
-    ),
-    _NotificationDemo(
-      kind: _NotificationKind.community,
-      group: 'Earlier',
-      title: 'Community invite',
-      body: 'A supportive circle invited you to join the conversation.',
-      time: 'Yesterday',
-    ),
-    _NotificationDemo(
-      kind: _NotificationKind.event,
-      group: 'Earlier',
-      title: 'Event reminder',
-      body: 'A saved community event starts later today.',
-      time: 'Yesterday',
-    ),
-    _NotificationDemo(
-      kind: _NotificationKind.safety,
-      group: 'Priority',
-      title: 'Private safety signal',
-      body: 'Sensitive alerts will appear quietly here when needed.',
-      time: 'Private',
-      priority: true,
-    ),
-  ];
+  // Populate only from authenticated account notifications once the service is wired.
+  // Illustrative design activity must never appear as a user's real alerts.
+  static const List<_NotificationDemo> _items = [];
 
   bool _matches(_NotificationDemo item) {
     return switch (_filter) {
@@ -205,9 +148,8 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
           if (groups.isEmpty)
             TruStatePanel(
               glyph: TruLuraGlyph.info,
-              title: 'No ${_filter.label.toLowerCase()} yet',
-              message:
-                  'When this part of your social graph lights up, the newest signals will appear here.',
+              title: 'Notifications are not connected yet',
+              message: 'Live alerts are not available in this build yet.',
             )
           else ...[
             for (final group in groups) ...[
