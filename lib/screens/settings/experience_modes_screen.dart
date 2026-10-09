@@ -102,8 +102,19 @@ class ExperienceModesScreen extends StatelessWidget {
               const SizedBox(height: 12),
               const _ModeSkeleton(),
             ] else ...[
-              for (final m in TruExperienceMode.values) ...[
+              for (final m in TruExperienceMode.values.where((mode) => mode != TruExperienceMode.altIntimate)) ...[
                 ExperienceModeCard(mode: m),
+                if (m == TruExperienceMode.dating)
+                  ExpansionTile(
+                    title: const Text('Alternative dating'),
+                    subtitle: const Text('Alt, dom and fantasy preferences · 18+'),
+                    children: const [
+                      Padding(
+                        padding: EdgeInsets.only(left: 12, bottom: 12),
+                        child: ExperienceModeCard(mode: TruExperienceMode.altIntimate),
+                      ),
+                    ],
+                  ),
                 const SizedBox(height: 12),
               ]
             ],
