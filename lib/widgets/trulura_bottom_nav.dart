@@ -206,7 +206,7 @@ class TruLuraBottomNav extends StatelessWidget {
                                 child: _NavItem(
                                   mode: resolvedMode,
                                   selected: index == 3,
-                                  label: 'Identity',
+                                  label: 'Profile',
                                   glyph: TruLuraGlyph.person,
                                   onTap: onOpenProfile ?? () => handleTap(3),
                                   assetPath:

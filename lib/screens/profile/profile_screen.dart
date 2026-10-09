@@ -539,11 +539,20 @@ class _ProfileScreenState extends State<ProfileScreen>
         text: identity,
       ),
     );
-    if (u?.intents.isNotEmpty ?? false) {
+    // Keep distinct intents without repeating the active identity label.
+    final displayedIntents = <String>[];
+    final seenIntents = <String>{identity.trim().toLowerCase()};
+    for (final intent in u?.intents ?? const <String>[]) {
+      final value = intent.trim();
+      if (value.isNotEmpty && seenIntents.add(value.toLowerCase())) {
+        displayedIntents.add(value);
+      }
+    }
+    if (displayedIntents.isNotEmpty) {
       details.add(
         _ProfileInfoRow(
           icon: TruLuraGlyph.heartOutline,
-          text: u!.intents.join(' • '),
+          text: displayedIntents.join(' • '),
         ),
       );
     }
@@ -1691,14 +1700,14 @@ class _ProfileWeatherBand extends StatelessWidget {
       return 'warm signal bloom';
     }
     if (key.contains('creator')) return 'cinematic expression field';
-    return 'reflective identity drift';
+    return 'Reflective identity drift';
   }
 
   String get _soundHook {
     final key = '$vibe $mood'.toLowerCase();
     if (key.contains('calm') || key.contains('heal')) return 'soft chime bed';
     if (key.contains('spark') || key.contains('flirt')) return 'light pulse';
-    return 'quiet shimmer';
+    return 'Quiet shimmer';
   }
 
   @override
