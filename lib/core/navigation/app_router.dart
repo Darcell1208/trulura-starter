@@ -222,9 +222,7 @@ class AppRouter {
           branches: [
             StatefulShellBranch(
               routes: [
-                GoRoute(
-                    path: '/onboarding/account-age',
-                    builder: (_, __) => const AccountAgeScreen()),
+
                 GoRoute(
                   path: AppRoutes.home,
                   name: 'home',
@@ -242,9 +240,7 @@ class AppRouter {
             ),
             StatefulShellBranch(
               routes: [
-                GoRoute(
-                    path: '/onboarding/account-age',
-                    builder: (_, __) => const AccountAgeScreen()),
+
                 GoRoute(
                   path: AppRoutes.messages,
                   name: 'messages',
@@ -255,9 +251,7 @@ class AppRouter {
                     name: 'messages',
                   ),
                   routes: [
-                    GoRoute(
-                        path: '/onboarding/account-age',
-                        builder: (_, __) => const AccountAgeScreen()),
+
                     // Declared before 'thread/:id' for readability only; go_router
                     // matches on the literal segment, so 'new' cannot be captured
                     // as a thread id.
@@ -287,9 +281,7 @@ class AppRouter {
             ),
             StatefulShellBranch(
               routes: [
-                GoRoute(
-                    path: '/onboarding/account-age',
-                    builder: (_, __) => const AccountAgeScreen()),
+
                 GoRoute(
                   path: AppRoutes.notifications,
                   name: 'notifications',
@@ -304,9 +296,7 @@ class AppRouter {
             ),
             StatefulShellBranch(
               routes: [
-                GoRoute(
-                    path: '/onboarding/account-age',
-                    builder: (_, __) => const AccountAgeScreen()),
+
                 GoRoute(
                   path: AppRoutes.profile,
                   name: 'profile',
