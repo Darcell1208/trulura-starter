@@ -3,6 +3,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'package:trulura/models/experience/experience_mode.dart';
 import 'package:trulura/models/user.dart';
 import 'package:trulura/providers/app_provider.dart';
+import 'package:trulura/services/app_settings_service.dart';
 import 'package:trulura/providers/experience_mode_controller.dart';
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
@@ -18,6 +19,8 @@ void main() {
     await controller.setEnabled(TruExperienceMode.dating,false);
     expect(controller.stateOf(TruExperienceMode.altIntimate).isEnabled,isFalse);
     expect(controller.activeMode,TruExperienceMode.social);
+    expect(app.useMode, 'social');
+    expect(await AppSettingsService().getUseMode(userId:'adult'), 'social');
     expect(controller.passiveModes, isNot(contains(TruExperienceMode.altIntimate)));
     final restored = ExperienceModeController(appProvider:app);
     await restored.initialize();

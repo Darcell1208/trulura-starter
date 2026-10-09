@@ -231,6 +231,8 @@ class ExperienceModeController extends ChangeNotifier {
       // Dating-enabled implies dating intent, but do NOT force dating-only.
       if (enabled) {
         await _app.setUseMode('both');
+      } else {
+        await _app.setUseMode('social');
       }
     }
   }
