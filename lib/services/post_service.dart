@@ -54,7 +54,7 @@ class PostService {
       case 'private':
         return 'private';
       default:
-        return 'public';
+        return 'private';
     }
   }
 
