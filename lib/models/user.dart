@@ -30,6 +30,7 @@ class User {
 
   /// Verification / trust indicators (user-controlled visibility).
   final TruVerificationLevel verificationLevel;
+
   /// Internal-only trust score (0-100). Never show exact number publicly.
   final int trustScore;
   final TruRiskLevel riskLevel;
@@ -69,7 +70,6 @@ class User {
     this.expressionPromptAnswer,
     this.expressionVibeTag,
     this.expressionShortPost,
-
     this.activeIdentityMode = TruIdentityMode.social,
     this.anonymousOverlayEnabled = false,
     this.temperament = TruTemperament.oldSoul,
@@ -82,47 +82,44 @@ class User {
     this.allowScreenshots = true,
     this.messageAutoDelete = false,
     this.profileVisibility = TruProfileVisibility.public,
-
     required this.createdAt,
     required this.updatedAt,
     this.hydratedSnapshot,
   });
 
   Map<String, dynamic> toJson() => {
-    'id': id,
-    'name': name,
-    'username': username,
-    'email': email,
-    'bio': bio,
-    'profileImage': profileImage,
-    'age': age,
-    'location': location,
-    'pronouns': pronouns,
-    'languages': languages,
-    'intents': intents,
-    'moodTags': moodTags,
-    'interests': interests,
-    'socialPreference': socialPreference,
-    'expressionPromptAnswer': expressionPromptAnswer,
-    'expressionVibeTag': expressionVibeTag,
-    'expressionShortPost': expressionShortPost,
-
-    'activeIdentityMode': activeIdentityMode.name,
-    'anonymousOverlayEnabled': anonymousOverlayEnabled,
-    'temperament': temperament.name,
-    'verificationLevel': verificationLevel.name,
-    'trustScore': trustScore,
-    'riskLevel': riskLevel.name,
-    'trustLastUpdated': trustLastUpdated?.toIso8601String(),
-    'showVerificationBadge': showVerificationBadge,
-    'showTrustIndicator': showTrustIndicator,
-    'allowScreenshots': allowScreenshots,
-    'messageAutoDelete': messageAutoDelete,
-    'profileVisibility': profileVisibility.name,
-
-    'createdAt': createdAt.toIso8601String(),
-    'updatedAt': updatedAt.toIso8601String(),
-  };
+        'id': id,
+        'name': name,
+        'username': username,
+        'email': email,
+        'bio': bio,
+        'profileImage': profileImage,
+        'age': age,
+        'location': location,
+        'pronouns': pronouns,
+        'languages': languages,
+        'intents': intents,
+        'moodTags': moodTags,
+        'interests': interests,
+        'socialPreference': socialPreference,
+        'expressionPromptAnswer': expressionPromptAnswer,
+        'expressionVibeTag': expressionVibeTag,
+        'expressionShortPost': expressionShortPost,
+        'activeIdentityMode': activeIdentityMode.name,
+        'anonymousOverlayEnabled': anonymousOverlayEnabled,
+        'temperament': temperament.name,
+        'verificationLevel': verificationLevel.name,
+        'trustScore': trustScore,
+        'riskLevel': riskLevel.name,
+        'trustLastUpdated': trustLastUpdated?.toIso8601String(),
+        'showVerificationBadge': showVerificationBadge,
+        'showTrustIndicator': showTrustIndicator,
+        'allowScreenshots': allowScreenshots,
+        'messageAutoDelete': messageAutoDelete,
+        'profileVisibility': profileVisibility.name,
+        'createdAt': createdAt.toIso8601String(),
+        'updatedAt': updatedAt.toIso8601String(),
+      };
 
   static List<String> _stringListFromJson(dynamic raw) {
     if (raw is List) {
@@ -146,110 +143,111 @@ class User {
   }
 
   factory User.fromJson(Map<String, dynamic> json) => User(
-    id: (json['id'] as String?) ?? '',
-    name: (json['name'] as String?) ?? (json['display_name'] as String?) ?? '',
-    username: (json['username'] as String?) ?? '',
-    email: (json['email'] as String?) ?? '',
-    bio: (json['bio'] as String?) ?? '',
-    profileImage: (json['profileImage'] as String?) ??
-        (json['profile_photo_url'] as String?) ??
-        (json['avatar_url'] as String?) ??
-        '',
-    age: (json['age'] as int?) ?? 18,
-    location: json['location'] as String?,
-    pronouns: json['pronouns'] as String?,
-    languages: _stringListFromJson(json['languages']),
-    intents: _stringListFromJson(json['intents']),
-    moodTags: vibeFromJson(json),
-    interests: _stringListFromJson(json['interests']),
-    socialPreference: ((json['socialPreference'] as String?) ??
-                (json['social_preference'] as String?))
-            ?.trim()
-            .isEmpty ??
-        true
-        ? null
-        : (((json['socialPreference'] as String?) ??
-                (json['social_preference'] as String?))
-            ?.trim()),
-    expressionPromptAnswer:
-        (((json['expressionPromptAnswer'] as String?) ??
-                    (json['expression_prompt_answer'] as String?))
-                ?.trim()
-                .isEmpty ??
-            true)
+        id: (json['id'] as String?) ?? '',
+        name: (json['name'] as String?) ??
+            (json['display_name'] as String?) ??
+            '',
+        username: (json['username'] as String?) ?? '',
+        email: (json['email'] as String?) ?? '',
+        bio: (json['bio'] as String?) ?? '',
+        profileImage: (json['profileImage'] as String?) ??
+            (json['profile_photo_url'] as String?) ??
+            (json['avatar_url'] as String?) ??
+            '',
+        age: (json['age'] as int?) ?? 0,
+        location: json['location'] as String?,
+        pronouns: json['pronouns'] as String?,
+        languages: _stringListFromJson(json['languages']),
+        intents: _stringListFromJson(json['intents']),
+        moodTags: vibeFromJson(json),
+        interests: _stringListFromJson(json['interests']),
+        socialPreference: ((json['socialPreference'] as String?) ??
+                        (json['social_preference'] as String?))
+                    ?.trim()
+                    .isEmpty ??
+                true
+            ? null
+            : (((json['socialPreference'] as String?) ??
+                    (json['social_preference'] as String?))
+                ?.trim()),
+        expressionPromptAnswer: (((json['expressionPromptAnswer'] as String?) ??
+                        (json['expression_prompt_answer'] as String?))
+                    ?.trim()
+                    .isEmpty ??
+                true)
             ? null
             : (((json['expressionPromptAnswer'] as String?) ??
                     (json['expression_prompt_answer'] as String?))
                 ?.trim()),
-    expressionVibeTag:
-        (((json['expressionVibeTag'] as String?) ??
-                    (json['expression_vibe_tag'] as String?))
-                ?.trim()
-                .isEmpty ??
-            true)
+        expressionVibeTag: (((json['expressionVibeTag'] as String?) ??
+                        (json['expression_vibe_tag'] as String?))
+                    ?.trim()
+                    .isEmpty ??
+                true)
             ? null
             : (((json['expressionVibeTag'] as String?) ??
                     (json['expression_vibe_tag'] as String?))
                 ?.trim()),
-    expressionShortPost:
-        (((json['expressionShortPost'] as String?) ??
-                    (json['expression_short_post'] as String?))
-                ?.trim()
-                .isEmpty ??
-            true)
+        expressionShortPost: (((json['expressionShortPost'] as String?) ??
+                        (json['expression_short_post'] as String?))
+                    ?.trim()
+                    .isEmpty ??
+                true)
             ? null
             : (((json['expressionShortPost'] as String?) ??
                     (json['expression_short_post'] as String?))
                 ?.trim()),
 
-    activeIdentityMode: TruIdentityModeX.tryParse(
-            (json['activeIdentityMode'] ?? json['active_identity_mode'])
-                as String?) ??
-        TruIdentityMode.social,
-    anonymousOverlayEnabled:
-        (json['anonymousOverlayEnabled'] as bool?) ??
-        (json['anonymous_overlay_enabled'] as bool?) ??
-        false,
-    // Three keys, newest first. 'temperament' is what this writes now;
-    // 'vibeLabel' is the old local-cache key and 'vibe_status' the old column,
-    // both read so an existing cache or an un-migrated database still hydrates.
-    // Reading an older NAME for the same concept is fine -- what the decision
-    // record forbids is reading a DIFFERENT concept's storage as a fallback.
-    temperament: TruTemperamentX.tryParse(
-            (json['temperament'] ?? json['vibeLabel'] ?? json['vibe_status'])
-                as String?) ??
-        TruTemperament.oldSoul,
-    verificationLevel: TruVerificationLevelX.tryParse(
-            (json['verificationLevel'] ?? json['verification_level'])
-                as String?) ??
-        TruVerificationLevel.level0,
-    trustScore: (json['trustScore'] as int?) ?? 70,
-    riskLevel: TruRiskLevelX.tryParse(json['riskLevel'] as String?) ?? TruRiskLevel.low,
-    trustLastUpdated: (json['trustLastUpdated'] as String?) == null ? null : DateTime.tryParse(json['trustLastUpdated'] as String),
-    showVerificationBadge:
-        (json['showVerificationBadge'] as bool?) ??
-        (json['show_verification_badge'] as bool?) ??
-        true,
-    showTrustIndicator:
-        (json['showTrustIndicator'] as bool?) ??
-        (json['show_trust_indicator'] as bool?) ??
-        true,
-    allowScreenshots:
-        (json['allowScreenshots'] as bool?) ??
-        (json['allow_screenshots'] as bool?) ??
-        true,
-    messageAutoDelete:
-        (json['messageAutoDelete'] as bool?) ??
-        (json['message_auto_delete'] as bool?) ??
-        false,
-    profileVisibility: TruProfileVisibilityX.tryParse(
-            (json['profileVisibility'] ?? json['profile_visibility'])
-                as String?) ??
-        TruProfileVisibility.public,
+        activeIdentityMode: TruIdentityModeX.tryParse(
+                (json['activeIdentityMode'] ?? json['active_identity_mode'])
+                    as String?) ??
+            TruIdentityMode.social,
+        anonymousOverlayEnabled: (json['anonymousOverlayEnabled'] as bool?) ??
+            (json['anonymous_overlay_enabled'] as bool?) ??
+            false,
+        // Three keys, newest first. 'temperament' is what this writes now;
+        // 'vibeLabel' is the old local-cache key and 'vibe_status' the old column,
+        // both read so an existing cache or an un-migrated database still hydrates.
+        // Reading an older NAME for the same concept is fine -- what the decision
+        // record forbids is reading a DIFFERENT concept's storage as a fallback.
+        temperament: TruTemperamentX.tryParse((json['temperament'] ??
+                json['vibeLabel'] ??
+                json['vibe_status']) as String?) ??
+            TruTemperament.oldSoul,
+        verificationLevel: TruVerificationLevelX.tryParse(
+                (json['verificationLevel'] ?? json['verification_level'])
+                    as String?) ??
+            TruVerificationLevel.level0,
+        trustScore: (json['trustScore'] as int?) ?? 70,
+        riskLevel: TruRiskLevelX.tryParse(json['riskLevel'] as String?) ??
+            TruRiskLevel.low,
+        trustLastUpdated: (json['trustLastUpdated'] as String?) == null
+            ? null
+            : DateTime.tryParse(json['trustLastUpdated'] as String),
+        showVerificationBadge: (json['showVerificationBadge'] as bool?) ??
+            (json['show_verification_badge'] as bool?) ??
+            true,
+        showTrustIndicator: (json['showTrustIndicator'] as bool?) ??
+            (json['show_trust_indicator'] as bool?) ??
+            true,
+        allowScreenshots: (json['allowScreenshots'] as bool?) ??
+            (json['allow_screenshots'] as bool?) ??
+            true,
+        messageAutoDelete: (json['messageAutoDelete'] as bool?) ??
+            (json['message_auto_delete'] as bool?) ??
+            false,
+        profileVisibility: TruProfileVisibilityX.tryParse(
+                (json['profileVisibility'] ?? json['profile_visibility'])
+                    as String?) ??
+            TruProfileVisibility.public,
 
-    createdAt: DateTime.tryParse((json['createdAt'] ?? json['created_at'] ?? '').toString()) ?? DateTime.now(),
-    updatedAt: DateTime.tryParse((json['updatedAt'] ?? json['updated_at'] ?? '').toString()) ?? DateTime.now(),
-  );
+        createdAt: DateTime.tryParse(
+                (json['createdAt'] ?? json['created_at'] ?? '').toString()) ??
+            DateTime.now(),
+        updatedAt: DateTime.tryParse(
+                (json['updatedAt'] ?? json['updated_at'] ?? '').toString()) ??
+            DateTime.now(),
+      );
 
   User copyWith({
     String? id,
@@ -269,7 +267,6 @@ class User {
     String? expressionPromptAnswer,
     String? expressionVibeTag,
     String? expressionShortPost,
-
     TruIdentityMode? activeIdentityMode,
     bool? anonymousOverlayEnabled,
     TruTemperament? temperament,
@@ -282,46 +279,46 @@ class User {
     bool? allowScreenshots,
     bool? messageAutoDelete,
     TruProfileVisibility? profileVisibility,
-
     DateTime? createdAt,
     DateTime? updatedAt,
-  }) => User(
-    id: id ?? this.id,
-    name: name ?? this.name,
-    username: username ?? this.username,
-    email: email ?? this.email,
-    bio: bio ?? this.bio,
-    profileImage: profileImage ?? this.profileImage,
-    age: age ?? this.age,
-    location: location ?? this.location,
-    pronouns: pronouns ?? this.pronouns,
-    languages: languages ?? this.languages,
-    intents: intents ?? this.intents,
-    moodTags: moodTags ?? this.moodTags,
-    interests: interests ?? this.interests,
-    socialPreference: socialPreference ?? this.socialPreference,
-    expressionPromptAnswer:
-        expressionPromptAnswer ?? this.expressionPromptAnswer,
-    expressionVibeTag: expressionVibeTag ?? this.expressionVibeTag,
-    expressionShortPost: expressionShortPost ?? this.expressionShortPost,
-
-    activeIdentityMode: activeIdentityMode ?? this.activeIdentityMode,
-    anonymousOverlayEnabled: anonymousOverlayEnabled ?? this.anonymousOverlayEnabled,
-    temperament: temperament ?? this.temperament,
-    verificationLevel: verificationLevel ?? this.verificationLevel,
-    trustScore: trustScore ?? this.trustScore,
-    riskLevel: riskLevel ?? this.riskLevel,
-    trustLastUpdated: trustLastUpdated ?? this.trustLastUpdated,
-    showVerificationBadge: showVerificationBadge ?? this.showVerificationBadge,
-    showTrustIndicator: showTrustIndicator ?? this.showTrustIndicator,
-    allowScreenshots: allowScreenshots ?? this.allowScreenshots,
-    messageAutoDelete: messageAutoDelete ?? this.messageAutoDelete,
-    profileVisibility: profileVisibility ?? this.profileVisibility,
-
-    createdAt: createdAt ?? this.createdAt,
-    updatedAt: updatedAt ?? this.updatedAt,
-    hydratedSnapshot: hydratedSnapshot,
-  );
+  }) =>
+      User(
+        id: id ?? this.id,
+        name: name ?? this.name,
+        username: username ?? this.username,
+        email: email ?? this.email,
+        bio: bio ?? this.bio,
+        profileImage: profileImage ?? this.profileImage,
+        age: age ?? this.age,
+        location: location ?? this.location,
+        pronouns: pronouns ?? this.pronouns,
+        languages: languages ?? this.languages,
+        intents: intents ?? this.intents,
+        moodTags: moodTags ?? this.moodTags,
+        interests: interests ?? this.interests,
+        socialPreference: socialPreference ?? this.socialPreference,
+        expressionPromptAnswer:
+            expressionPromptAnswer ?? this.expressionPromptAnswer,
+        expressionVibeTag: expressionVibeTag ?? this.expressionVibeTag,
+        expressionShortPost: expressionShortPost ?? this.expressionShortPost,
+        activeIdentityMode: activeIdentityMode ?? this.activeIdentityMode,
+        anonymousOverlayEnabled:
+            anonymousOverlayEnabled ?? this.anonymousOverlayEnabled,
+        temperament: temperament ?? this.temperament,
+        verificationLevel: verificationLevel ?? this.verificationLevel,
+        trustScore: trustScore ?? this.trustScore,
+        riskLevel: riskLevel ?? this.riskLevel,
+        trustLastUpdated: trustLastUpdated ?? this.trustLastUpdated,
+        showVerificationBadge:
+            showVerificationBadge ?? this.showVerificationBadge,
+        showTrustIndicator: showTrustIndicator ?? this.showTrustIndicator,
+        allowScreenshots: allowScreenshots ?? this.allowScreenshots,
+        messageAutoDelete: messageAutoDelete ?? this.messageAutoDelete,
+        profileVisibility: profileVisibility ?? this.profileVisibility,
+        createdAt: createdAt ?? this.createdAt,
+        updatedAt: updatedAt ?? this.updatedAt,
+        hydratedSnapshot: hydratedSnapshot,
+      );
 
   /// True only for a User read back from a profiles row (or a copy of one).
   bool get isHydrated => hydratedSnapshot != null;

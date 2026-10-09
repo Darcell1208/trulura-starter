@@ -23,18 +23,20 @@ class AppSettingsService {
   static const _hasBackgroundVerificationGlobalKey =
       'has_background_verification_global';
   static const _hasLuxeInviteGlobalKey = 'has_luxe_invite_global';
-  static const _hasLuxeSubscriptionGlobalKey =
-      'has_luxe_subscription_global';
+  static const _hasLuxeSubscriptionGlobalKey = 'has_luxe_subscription_global';
   static const _showLivesInFeedGlobalKey = 'show_lives_in_feed_global';
-  static const _livesInFeedFrequencyGlobalKey = 'lives_in_feed_frequency_global';
+  static const _livesInFeedFrequencyGlobalKey =
+      'lives_in_feed_frequency_global';
 
   static const _glowScaleGlobalKey = 'glow_scale_global';
 
   // Feed personalization (Section 4)
   static const _feedContentIntensityGlobalKey = 'feed_content_intensity_global';
   static const _feedCreatorWeightGlobalKey = 'feed_creator_weight_global';
-  static const _feedRomanticVisibilityGlobalKey = 'feed_romantic_visibility_global';
-  static const _feedEmotionalSensitivityGlobalKey = 'feed_emotional_sensitivity_global';
+  static const _feedRomanticVisibilityGlobalKey =
+      'feed_romantic_visibility_global';
+  static const _feedEmotionalSensitivityGlobalKey =
+      'feed_emotional_sensitivity_global';
   static const _feedTabOrderGlobalKey = 'feed_tab_order_global';
 
   // Section 7: intelligent distribution user controls
@@ -43,24 +45,26 @@ class AppSettingsService {
   static const _feedMutedMoodsGlobalKey = 'feed_muted_moods_global';
 
   // Section 7 (expanded): UI + smart switching controls
-  static const _smartFeedSwitchingEnabledGlobalKey = 'smart_feed_switching_enabled_global';
-  static const _moodAdaptiveUiEnabledGlobalKey = 'mood_adaptive_ui_enabled_global';
-  static const _transparencyExplainersEnabledGlobalKey = 'transparency_explainers_enabled_global';
-  static const _lowEnergyFeedEnabledGlobalKey = 'low_energy_feed_enabled_global';
+  static const _smartFeedSwitchingEnabledGlobalKey =
+      'smart_feed_switching_enabled_global';
+  static const _moodAdaptiveUiEnabledGlobalKey =
+      'mood_adaptive_ui_enabled_global';
+  static const _transparencyExplainersEnabledGlobalKey =
+      'transparency_explainers_enabled_global';
+  static const _lowEnergyFeedEnabledGlobalKey =
+      'low_energy_feed_enabled_global';
 
   static const _useModeGlobalKey = 'use_mode_global';
   static const _fullSyncModeEnabledGlobalKey = 'full_sync_mode_enabled_global';
   static const _askVibeAtStartupGlobalKey = 'ask_vibe_at_startup_global';
   static const _askIntentAtStartupGlobalKey = 'ask_intent_at_startup_global';
-  static const _rememberMoodIntentGlobalKey =
-      'remember_mood_intent_global';
+  static const _rememberMoodIntentGlobalKey = 'remember_mood_intent_global';
   static const _appearanceModeGlobalKey = 'appearance_mode_global';
   // Future extension point:
   // - background theme packs
   // - softer neutral variants
   // - personalized palette presets
-  static const _dismissedHomePromptsGlobalKey =
-      'dismissed_home_prompts_global';
+  static const _dismissedHomePromptsGlobalKey = 'dismissed_home_prompts_global';
   static const _dismissedHomePromptsStatusesGlobalKey =
       'dismissed_home_prompts_statuses_global';
   static const _interestQuizCompletedGlobalKey =
@@ -107,7 +111,8 @@ class AppSettingsService {
     try {
       final prefs = await SharedPreferences.getInstance();
       if (userId != null) {
-        final perUser = prefs.getBool(_userKey('smart_feed_switching_enabled', userId));
+        final perUser =
+            prefs.getBool(_userKey('smart_feed_switching_enabled', userId));
         if (perUser != null) return perUser;
       }
       return prefs.getBool(_smartFeedSwitchingEnabledGlobalKey) ?? true;
@@ -117,10 +122,13 @@ class AppSettingsService {
     }
   }
 
-  Future<void> setSmartFeedSwitchingEnabled(bool enabled, {String? userId}) async {
+  Future<void> setSmartFeedSwitchingEnabled(bool enabled,
+      {String? userId}) async {
     try {
       final prefs = await SharedPreferences.getInstance();
-      if (userId != null) await prefs.setBool(_userKey('smart_feed_switching_enabled', userId), enabled);
+      if (userId != null)
+        await prefs.setBool(
+            _userKey('smart_feed_switching_enabled', userId), enabled);
       await prefs.setBool(_smartFeedSwitchingEnabledGlobalKey, enabled);
     } catch (e) {
       debugPrint('Failed to set Smart Feed Switching enabled: $e');
@@ -131,7 +139,8 @@ class AppSettingsService {
     try {
       final prefs = await SharedPreferences.getInstance();
       if (userId != null) {
-        final perUser = prefs.getBool(_userKey('mood_adaptive_ui_enabled', userId));
+        final perUser =
+            prefs.getBool(_userKey('mood_adaptive_ui_enabled', userId));
         if (perUser != null) return perUser;
       }
       return prefs.getBool(_moodAdaptiveUiEnabledGlobalKey) ?? true;
@@ -144,7 +153,9 @@ class AppSettingsService {
   Future<void> setMoodAdaptiveUiEnabled(bool enabled, {String? userId}) async {
     try {
       final prefs = await SharedPreferences.getInstance();
-      if (userId != null) await prefs.setBool(_userKey('mood_adaptive_ui_enabled', userId), enabled);
+      if (userId != null)
+        await prefs.setBool(
+            _userKey('mood_adaptive_ui_enabled', userId), enabled);
       await prefs.setBool(_moodAdaptiveUiEnabledGlobalKey, enabled);
     } catch (e) {
       debugPrint('Failed to set Mood-adaptive UI enabled: $e');
@@ -155,7 +166,8 @@ class AppSettingsService {
     try {
       final prefs = await SharedPreferences.getInstance();
       if (userId != null) {
-        final perUser = prefs.getBool(_userKey('transparency_explainers_enabled', userId));
+        final perUser =
+            prefs.getBool(_userKey('transparency_explainers_enabled', userId));
         if (perUser != null) return perUser;
       }
       return prefs.getBool(_transparencyExplainersEnabledGlobalKey) ?? true;
@@ -165,10 +177,13 @@ class AppSettingsService {
     }
   }
 
-  Future<void> setTransparencyExplainersEnabled(bool enabled, {String? userId}) async {
+  Future<void> setTransparencyExplainersEnabled(bool enabled,
+      {String? userId}) async {
     try {
       final prefs = await SharedPreferences.getInstance();
-      if (userId != null) await prefs.setBool(_userKey('transparency_explainers_enabled', userId), enabled);
+      if (userId != null)
+        await prefs.setBool(
+            _userKey('transparency_explainers_enabled', userId), enabled);
       await prefs.setBool(_transparencyExplainersEnabledGlobalKey, enabled);
     } catch (e) {
       debugPrint('Failed to set Transparency explainers enabled: $e');
@@ -179,7 +194,8 @@ class AppSettingsService {
     try {
       final prefs = await SharedPreferences.getInstance();
       if (userId != null) {
-        final perUser = prefs.getBool(_userKey('low_energy_feed_enabled', userId));
+        final perUser =
+            prefs.getBool(_userKey('low_energy_feed_enabled', userId));
         if (perUser != null) return perUser;
       }
       return prefs.getBool(_lowEnergyFeedEnabledGlobalKey) ?? false;
@@ -192,7 +208,9 @@ class AppSettingsService {
   Future<void> setLowEnergyFeedEnabled(bool enabled, {String? userId}) async {
     try {
       final prefs = await SharedPreferences.getInstance();
-      if (userId != null) await prefs.setBool(_userKey('low_energy_feed_enabled', userId), enabled);
+      if (userId != null)
+        await prefs.setBool(
+            _userKey('low_energy_feed_enabled', userId), enabled);
       await prefs.setBool(_lowEnergyFeedEnabledGlobalKey, enabled);
     } catch (e) {
       debugPrint('Failed to set Low Energy feed enabled: $e');
@@ -203,7 +221,8 @@ class AppSettingsService {
     try {
       final prefs = await SharedPreferences.getInstance();
       if (userId != null) {
-        final perUser = prefs.getDouble(_userKey('feed_content_intensity', userId));
+        final perUser =
+            prefs.getDouble(_userKey('feed_content_intensity', userId));
         if (perUser != null) return _clamp01(perUser);
       }
       return _clamp01(prefs.getDouble(_feedContentIntensityGlobalKey) ?? 0.65);
@@ -217,7 +236,8 @@ class AppSettingsService {
     try {
       final prefs = await SharedPreferences.getInstance();
       final v = _clamp01(value);
-      if (userId != null) await prefs.setDouble(_userKey('feed_content_intensity', userId), v);
+      if (userId != null)
+        await prefs.setDouble(_userKey('feed_content_intensity', userId), v);
       await prefs.setDouble(_feedContentIntensityGlobalKey, v);
     } catch (e) {
       debugPrint('Failed to set Feed content intensity: $e');
@@ -228,7 +248,8 @@ class AppSettingsService {
     try {
       final prefs = await SharedPreferences.getInstance();
       if (userId != null) {
-        final perUser = prefs.getDouble(_userKey('feed_creator_weight', userId));
+        final perUser =
+            prefs.getDouble(_userKey('feed_creator_weight', userId));
         if (perUser != null) return _clamp01(perUser);
       }
       return _clamp01(prefs.getDouble(_feedCreatorWeightGlobalKey) ?? 0.35);
@@ -242,7 +263,8 @@ class AppSettingsService {
     try {
       final prefs = await SharedPreferences.getInstance();
       final v = _clamp01(value);
-      if (userId != null) await prefs.setDouble(_userKey('feed_creator_weight', userId), v);
+      if (userId != null)
+        await prefs.setDouble(_userKey('feed_creator_weight', userId), v);
       await prefs.setDouble(_feedCreatorWeightGlobalKey, v);
     } catch (e) {
       debugPrint('Failed to set Feed creator weight: $e');
@@ -253,10 +275,12 @@ class AppSettingsService {
     try {
       final prefs = await SharedPreferences.getInstance();
       if (userId != null) {
-        final perUser = prefs.getDouble(_userKey('feed_romantic_visibility', userId));
+        final perUser =
+            prefs.getDouble(_userKey('feed_romantic_visibility', userId));
         if (perUser != null) return _clamp01(perUser);
       }
-      return _clamp01(prefs.getDouble(_feedRomanticVisibilityGlobalKey) ?? 0.55);
+      return _clamp01(
+          prefs.getDouble(_feedRomanticVisibilityGlobalKey) ?? 0.55);
     } catch (e) {
       debugPrint('Failed to get Feed romantic visibility: $e');
       return 0.55;
@@ -267,7 +291,8 @@ class AppSettingsService {
     try {
       final prefs = await SharedPreferences.getInstance();
       final v = _clamp01(value);
-      if (userId != null) await prefs.setDouble(_userKey('feed_romantic_visibility', userId), v);
+      if (userId != null)
+        await prefs.setDouble(_userKey('feed_romantic_visibility', userId), v);
       await prefs.setDouble(_feedRomanticVisibilityGlobalKey, v);
     } catch (e) {
       debugPrint('Failed to set Feed romantic visibility: $e');
@@ -278,21 +303,26 @@ class AppSettingsService {
     try {
       final prefs = await SharedPreferences.getInstance();
       if (userId != null) {
-        final perUser = prefs.getDouble(_userKey('feed_emotional_sensitivity', userId));
+        final perUser =
+            prefs.getDouble(_userKey('feed_emotional_sensitivity', userId));
         if (perUser != null) return _clamp01(perUser);
       }
-      return _clamp01(prefs.getDouble(_feedEmotionalSensitivityGlobalKey) ?? 0.55);
+      return _clamp01(
+          prefs.getDouble(_feedEmotionalSensitivityGlobalKey) ?? 0.55);
     } catch (e) {
       debugPrint('Failed to get Feed emotional sensitivity: $e');
       return 0.55;
     }
   }
 
-  Future<void> setFeedEmotionalSensitivity(double value, {String? userId}) async {
+  Future<void> setFeedEmotionalSensitivity(double value,
+      {String? userId}) async {
     try {
       final prefs = await SharedPreferences.getInstance();
       final v = _clamp01(value);
-      if (userId != null) await prefs.setDouble(_userKey('feed_emotional_sensitivity', userId), v);
+      if (userId != null)
+        await prefs.setDouble(
+            _userKey('feed_emotional_sensitivity', userId), v);
       await prefs.setDouble(_feedEmotionalSensitivityGlobalKey, v);
     } catch (e) {
       debugPrint('Failed to set Feed emotional sensitivity: $e');
@@ -319,7 +349,8 @@ class AppSettingsService {
     try {
       final prefs = await SharedPreferences.getInstance();
       if (userId != null) {
-        final perUser = prefs.getDouble(_userKey('feed_discovery_balance', userId));
+        final perUser =
+            prefs.getDouble(_userKey('feed_discovery_balance', userId));
         if (perUser != null) return _clamp01(perUser);
       }
       return _clamp01(prefs.getDouble(_feedDiscoveryBalanceGlobalKey) ?? 0.45);
@@ -333,7 +364,8 @@ class AppSettingsService {
     try {
       final prefs = await SharedPreferences.getInstance();
       final v = _clamp01(value);
-      if (userId != null) await prefs.setDouble(_userKey('feed_discovery_balance', userId), v);
+      if (userId != null)
+        await prefs.setDouble(_userKey('feed_discovery_balance', userId), v);
       await prefs.setDouble(_feedDiscoveryBalanceGlobalKey, v);
     } catch (e) {
       debugPrint('Failed to set Feed discovery balance: $e');
@@ -344,7 +376,8 @@ class AppSettingsService {
     try {
       final prefs = await SharedPreferences.getInstance();
       if (userId != null) {
-        final perUser = prefs.getStringList(_userKey('feed_muted_topics', userId));
+        final perUser =
+            prefs.getStringList(_userKey('feed_muted_topics', userId));
         if (perUser != null) return perUser;
       }
       return prefs.getStringList(_feedMutedTopicsGlobalKey) ?? const <String>[];
@@ -357,8 +390,13 @@ class AppSettingsService {
   Future<void> setFeedMutedTopics(List<String> value, {String? userId}) async {
     try {
       final prefs = await SharedPreferences.getInstance();
-      final sanitized = value.map((e) => e.trim()).where((e) => e.isNotEmpty).toList(growable: false);
-      if (userId != null) await prefs.setStringList(_userKey('feed_muted_topics', userId), sanitized);
+      final sanitized = value
+          .map((e) => e.trim())
+          .where((e) => e.isNotEmpty)
+          .toList(growable: false);
+      if (userId != null)
+        await prefs.setStringList(
+            _userKey('feed_muted_topics', userId), sanitized);
       await prefs.setStringList(_feedMutedTopicsGlobalKey, sanitized);
     } catch (e) {
       debugPrint('Failed to set Feed muted topics: $e');
@@ -369,7 +407,8 @@ class AppSettingsService {
     try {
       final prefs = await SharedPreferences.getInstance();
       if (userId != null) {
-        final perUser = prefs.getStringList(_userKey('feed_muted_moods', userId));
+        final perUser =
+            prefs.getStringList(_userKey('feed_muted_moods', userId));
         if (perUser != null) return perUser;
       }
       return prefs.getStringList(_feedMutedMoodsGlobalKey) ?? const <String>[];
@@ -382,8 +421,13 @@ class AppSettingsService {
   Future<void> setFeedMutedMoods(List<String> value, {String? userId}) async {
     try {
       final prefs = await SharedPreferences.getInstance();
-      final sanitized = value.map((e) => e.trim()).where((e) => e.isNotEmpty).toList(growable: false);
-      if (userId != null) await prefs.setStringList(_userKey('feed_muted_moods', userId), sanitized);
+      final sanitized = value
+          .map((e) => e.trim())
+          .where((e) => e.isNotEmpty)
+          .toList(growable: false);
+      if (userId != null)
+        await prefs.setStringList(
+            _userKey('feed_muted_moods', userId), sanitized);
       await prefs.setStringList(_feedMutedMoodsGlobalKey, sanitized);
     } catch (e) {
       debugPrint('Failed to set Feed muted moods: $e');
@@ -393,8 +437,11 @@ class AppSettingsService {
   Future<void> setFeedTabOrder(List<String> order, {String? userId}) async {
     try {
       final prefs = await SharedPreferences.getInstance();
-      final sanitized = order.where((e) => e.trim().isNotEmpty).toList(growable: false);
-      if (userId != null) await prefs.setStringList(_userKey('feed_tab_order', userId), sanitized);
+      final sanitized =
+          order.where((e) => e.trim().isNotEmpty).toList(growable: false);
+      if (userId != null)
+        await prefs.setStringList(
+            _userKey('feed_tab_order', userId), sanitized);
       await prefs.setStringList(_feedTabOrderGlobalKey, sanitized);
     } catch (e) {
       debugPrint('Failed to set Feed tab order: $e');
@@ -419,7 +466,8 @@ class AppSettingsService {
   Future<void> setGlowScale(double value, {String? userId}) async {
     try {
       final prefs = await SharedPreferences.getInstance();
-      if (userId != null) await prefs.setDouble(_userKey('glow_scale', userId), value);
+      if (userId != null)
+        await prefs.setDouble(_userKey('glow_scale', userId), value);
       await prefs.setDouble(_glowScaleGlobalKey, value);
     } catch (e) {
       debugPrint('Failed to set Glow Scale: $e');
@@ -432,20 +480,23 @@ class AppSettingsService {
       if (userId != null) {
         final key = _userKey('use_mode', userId);
         final perUser = prefs.getString(key);
-        if (perUser != null) return perUser;
+        return const ['social', 'dating', 'both'].contains(perUser)
+            ? perUser!
+            : 'social';
       }
-      return prefs.getString(_useModeGlobalKey) ?? 'both';
+      return 'social';
     } catch (e) {
       debugPrint('Failed to get Use Mode: $e');
-      return 'both';
+      return 'social';
     }
   }
 
   Future<void> setUseMode(String value, {String? userId}) async {
     try {
       final prefs = await SharedPreferences.getInstance();
-      if (userId != null) await prefs.setString(_userKey('use_mode', userId), value);
-      await prefs.setString(_useModeGlobalKey, value);
+      if (userId != null)
+        await prefs.setString(_userKey('use_mode', userId), value);
+      if (userId == null) await prefs.setString(_useModeGlobalKey, value);
     } catch (e) {
       debugPrint('Failed to set Use Mode: $e');
     }
@@ -469,7 +520,9 @@ class AppSettingsService {
   Future<void> setFullSyncModeEnabled(bool enabled, {String? userId}) async {
     try {
       final prefs = await SharedPreferences.getInstance();
-      if (userId != null) await prefs.setBool(_userKey('full_sync_mode_enabled', userId), enabled);
+      if (userId != null)
+        await prefs.setBool(
+            _userKey('full_sync_mode_enabled', userId), enabled);
       await prefs.setBool(_fullSyncModeEnabledGlobalKey, enabled);
     } catch (e) {
       debugPrint('Failed to set Full Sync Mode enabled: $e');
@@ -676,7 +729,8 @@ class AppSettingsService {
           if (promptId.trim().isNotEmpty) promptId.trim(): 'permanent',
       };
     } catch (e) {
-      debugPrint('Failed to get dismissed home prompt statuses: ${safeError(e)}');
+      debugPrint(
+          'Failed to get dismissed home prompt statuses: ${safeError(e)}');
       return const <String, String>{};
     }
   }
@@ -715,8 +769,8 @@ class AppSettingsService {
       final prefs = await SharedPreferences.getInstance();
       final localCompleted = userId != null
           ? (prefs.getBool(
-                  _userKey('interest_quiz_completed', userId),
-                ) ??
+                _userKey('interest_quiz_completed', userId),
+              ) ??
               prefs.getBool(_interestQuizCompletedGlobalKey) ??
               false)
           : (prefs.getBool(_interestQuizCompletedGlobalKey) ?? false);
@@ -1072,7 +1126,8 @@ class AppSettingsService {
   Future<void> setShowLivesInFeed(bool enabled, {String? userId}) async {
     try {
       final prefs = await SharedPreferences.getInstance();
-      if (userId != null) await prefs.setBool(_userKey('show_lives_in_feed', userId), enabled);
+      if (userId != null)
+        await prefs.setBool(_userKey('show_lives_in_feed', userId), enabled);
       await prefs.setBool(_showLivesInFeedGlobalKey, enabled);
     } catch (e) {
       debugPrint('Failed to set Show Lives in Feed: $e');
@@ -1100,7 +1155,9 @@ class AppSettingsService {
   Future<void> setLivesInFeedFrequency(String value, {String? userId}) async {
     try {
       final prefs = await SharedPreferences.getInstance();
-      if (userId != null) await prefs.setString(_userKey('lives_in_feed_frequency', userId), value);
+      if (userId != null)
+        await prefs.setString(
+            _userKey('lives_in_feed_frequency', userId), value);
       await prefs.setString(_livesInFeedFrequencyGlobalKey, value);
     } catch (e) {
       debugPrint('Failed to set Lives in Feed frequency: $e');

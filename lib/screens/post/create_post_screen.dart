@@ -190,6 +190,14 @@ class _CreatePostScreenState extends State<CreatePostScreen> with RouteAware {
       _isPosting = true;
     });
 
+    if (!DatabaseService.instance.isInitialized) {
+      setState(() {
+        _errorText =
+            'Posting is unavailable right now. Your text is still here; try again when connected.';
+        _isPosting = false;
+      });
+      return;
+    }
     final currentAuthUser = DatabaseService.instance.client.auth.currentUser;
     if (currentAuthUser == null) {
       setState(() {
@@ -237,14 +245,14 @@ class _CreatePostScreenState extends State<CreatePostScreen> with RouteAware {
       String friendly = 'Your post couldn’t be published right now. Try again.';
       if (msg.contains('PGRST204')) {
         friendly =
-            'Backend schema mismatch (missing column). Please sync your posts table columns.';
+            'Posting is temporarily unavailable. Your text is still here. Please try again later.';
       } else if (msg.contains('42501') || msg.toLowerCase().contains('rls')) {
         friendly =
-            'Not allowed by privacy rules (RLS). Check posts RLS for inserts.';
+            'Your account cannot post here right now. Your text is still here.';
       } else if (msg.contains('23503') &&
           msg.toLowerCase().contains('profiles')) {
         friendly =
-            'Posting is blocked by a backend foreign key to profiles. Remove that FK (auth-only) or create a profile row.';
+            'Your profile is not ready for posting yet. Your text is still here; finish account setup and try again.';
       }
       setState(() => _errorText = friendly);
     } finally {

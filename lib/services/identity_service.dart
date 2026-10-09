@@ -133,16 +133,34 @@ class IdentityService {
     }
   }
 
+  Future<void> _requireDatingAge() async {
+    final uid = _uid;
+    final user = await UserService().getCurrentUser();
+    if (uid == null ||
+        _uid != uid ||
+        user?.id != uid ||
+        (user?.age ?? 0) < 18) {
+      throw StateError('Dating requires an account with age 18 or older.');
+    }
+  }
+
   Future<void> setActiveMode(TruIdentityMode mode) async {
+    if (mode == TruIdentityMode.dating) await _requireDatingAge();
     final uid = _uid;
     if (uid == null) return;
     final prefs = await _getPrefsFor(uid);
-    final active = prefs.activeModes.contains(mode) ? prefs.activeModes : <TruIdentityMode>[...prefs.activeModes, mode];
-    await _setPrefsFor(uid, prefs.copyWith(activeMode: mode, activeModes: active));
-    await _applyToCachedUser((u) => u.copyWith(activeIdentityMode: mode, updatedAt: DateTime.now()));
+    final active = prefs.activeModes.contains(mode)
+        ? prefs.activeModes
+        : <TruIdentityMode>[...prefs.activeModes, mode];
+    await _setPrefsFor(
+        uid, prefs.copyWith(activeMode: mode, activeModes: active));
+    await _applyToCachedUser(
+        (u) => u.copyWith(activeIdentityMode: mode, updatedAt: DateTime.now()));
   }
 
-  Future<void> setModeEnabled({required TruIdentityMode mode, required bool enabled}) async {
+  Future<void> setModeEnabled(
+      {required TruIdentityMode mode, required bool enabled}) async {
+    if (enabled && mode == TruIdentityMode.dating) await _requireDatingAge();
     final uid = _uid;
     if (uid == null) return;
     final prefs = await _getPrefsFor(uid);
@@ -154,9 +172,13 @@ class IdentityService {
     }
     final nextList = set.toList(growable: false);
     final nextActive = prefs.activeMode;
-    final activeMode = set.contains(nextActive) ? nextActive : (nextList.isNotEmpty ? nextList.first : TruIdentityMode.social);
-    await _setPrefsFor(uid, prefs.copyWith(activeModes: nextList, activeMode: activeMode));
-    await _applyToCachedUser((u) => u.copyWith(activeIdentityMode: activeMode, updatedAt: DateTime.now()));
+    final activeMode = set.contains(nextActive)
+        ? nextActive
+        : (nextList.isNotEmpty ? nextList.first : TruIdentityMode.social);
+    await _setPrefsFor(
+        uid, prefs.copyWith(activeModes: nextList, activeMode: activeMode));
+    await _applyToCachedUser((u) =>
+        u.copyWith(activeIdentityMode: activeMode, updatedAt: DateTime.now()));
   }
 
   Future<void> setAnonymousOverlay(bool enabled) async {
@@ -164,7 +186,8 @@ class IdentityService {
     if (uid == null) return;
     final prefs = await _getPrefsFor(uid);
     await _setPrefsFor(uid, prefs.copyWith(anonymousOverlayEnabled: enabled));
-    await _applyToCachedUser((u) => u.copyWith(anonymousOverlayEnabled: enabled, updatedAt: DateTime.now()));
+    await _applyToCachedUser((u) => u.copyWith(
+        anonymousOverlayEnabled: enabled, updatedAt: DateTime.now()));
   }
 
   Future<void> setVibeLabel(TruTemperament label) async {
@@ -172,10 +195,12 @@ class IdentityService {
     if (uid == null) return;
     final prefs = await _getPrefsFor(uid);
     await _setPrefsFor(uid, prefs.copyWith(temperament: label));
-    await _applyToCachedUser((u) => u.copyWith(temperament: label, updatedAt: DateTime.now()));
+    await _applyToCachedUser(
+        (u) => u.copyWith(temperament: label, updatedAt: DateTime.now()));
   }
 
-  Future<void> setTrustVisibility({bool? showVerification, bool? showTrust}) async {
+  Future<void> setTrustVisibility(
+      {bool? showVerification, bool? showTrust}) async {
     await _applyToCachedUser(
       (u) => u.copyWith(
         showVerificationBadge: showVerification ?? u.showVerificationBadge,
@@ -185,7 +210,10 @@ class IdentityService {
     );
   }
 
-  Future<void> setPrivacy({bool? allowScreenshots, bool? messageAutoDelete, TruProfileVisibility? profileVisibility}) async {
+  Future<void> setPrivacy(
+      {bool? allowScreenshots,
+      bool? messageAutoDelete,
+      TruProfileVisibility? profileVisibility}) async {
     await _applyToCachedUser(
       (u) => u.copyWith(
         allowScreenshots: allowScreenshots ?? u.allowScreenshots,
@@ -215,7 +243,7 @@ class TruIdentityPrefs {
 
   const TruIdentityPrefs({
     this.activeMode = TruIdentityMode.social,
-    this.activeModes = const [TruIdentityMode.social, TruIdentityMode.dating, TruIdentityMode.creator],
+    this.activeModes = const [TruIdentityMode.social, TruIdentityMode.creator],
     this.anonymousOverlayEnabled = false,
     this.temperament = TruTemperament.oldSoul,
   });
@@ -227,21 +255,31 @@ class TruIdentityPrefs {
         'temperament': temperament.name,
       };
 
-  factory TruIdentityPrefs.fromJson(Map<String, dynamic> json) => TruIdentityPrefs(
-        activeMode: TruIdentityModeX.tryParse(json['activeMode'] as String?) ?? TruIdentityMode.social,
+  factory TruIdentityPrefs.fromJson(Map<String, dynamic> json) =>
+      TruIdentityPrefs(
+        activeMode: TruIdentityModeX.tryParse(json['activeMode'] as String?) ??
+            TruIdentityMode.social,
         activeModes: (json['activeModes'] as List<dynamic>?)
                 ?.map((e) => TruIdentityModeX.tryParse(e as String?))
                 .whereType<TruIdentityMode>()
                 .toList(growable: false) ??
-            const [TruIdentityMode.social, TruIdentityMode.dating, TruIdentityMode.creator],
-        anonymousOverlayEnabled: (json['anonymousOverlayEnabled'] as bool?) ?? false,
-        temperament: TruTemperamentX.tryParse(json['temperament'] as String?) ?? TruTemperament.oldSoul,
+            const [TruIdentityMode.social, TruIdentityMode.creator],
+        anonymousOverlayEnabled:
+            (json['anonymousOverlayEnabled'] as bool?) ?? false,
+        temperament: TruTemperamentX.tryParse(json['temperament'] as String?) ??
+            TruTemperament.oldSoul,
       );
 
-  TruIdentityPrefs copyWith({TruIdentityMode? activeMode, List<TruIdentityMode>? activeModes, bool? anonymousOverlayEnabled, TruTemperament? temperament}) => TruIdentityPrefs(
+  TruIdentityPrefs copyWith(
+          {TruIdentityMode? activeMode,
+          List<TruIdentityMode>? activeModes,
+          bool? anonymousOverlayEnabled,
+          TruTemperament? temperament}) =>
+      TruIdentityPrefs(
         activeMode: activeMode ?? this.activeMode,
         activeModes: activeModes ?? this.activeModes,
-        anonymousOverlayEnabled: anonymousOverlayEnabled ?? this.anonymousOverlayEnabled,
+        anonymousOverlayEnabled:
+            anonymousOverlayEnabled ?? this.anonymousOverlayEnabled,
         temperament: temperament ?? this.temperament,
       );
 }

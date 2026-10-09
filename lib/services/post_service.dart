@@ -522,6 +522,10 @@ class PostService {
   Future<void> savePost(Post post) async {
     try {
       if (!_supabaseReady) {
+        // Vent requires a server-confirmed save; never use the feed cache.
+        if (_normalizeCategory(post.category) == 'Vent') {
+          throw StateError('Vent could not be saved. Reconnect and try again.');
+        }
         final cached = await _readCachedPosts();
         cached.insert(0, post);
         await _cachePosts(cached);
@@ -549,11 +553,11 @@ class PostService {
       try {
         await attemptInsert(row);
       } catch (e) {
-        // PGRST204 means the schema is missing a column we sent. `category`
-        // and `experience_mode` are both optional; drop whichever one the
+        // Category is a containment boundary and must never be dropped.
+        // Only experience_mode supports a compatibility retry when the
         // error names and retry once.
         final msg = e.toString();
-        const optionalColumns = ['category', 'experience_mode'];
+        const optionalColumns = ['experience_mode'];
         final missing = optionalColumns
             .where((c) => msg.contains(c) && row.containsKey(c))
             .toList(growable: false);

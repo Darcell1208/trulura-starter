@@ -21,7 +21,11 @@ class BackgroundVerificationService {
       if (raw == null) return const TruBackgroundVerification();
       final decoded = jsonDecode(raw);
       if (decoded is! Map) return const TruBackgroundVerification();
-      return TruBackgroundVerification.fromJson(decoded.cast<String, dynamic>());
+      final stored =
+          TruBackgroundVerification.fromJson(decoded.cast<String, dynamic>());
+      return kDebugMode
+          ? stored
+          : TruBackgroundVerification(shareScope: stored.shareScope);
     } catch (e) {
       debugPrint('BackgroundVerificationService.get failed: ${safeError(e)}');
       return const TruBackgroundVerification();
@@ -61,7 +65,10 @@ class TruBackgroundVerification {
   final TruBackgroundShareScope shareScope;
   final DateTime? verifiedAt;
 
-  const TruBackgroundVerification({this.status = TruBackgroundCheckStatus.none, this.shareScope = TruBackgroundShareScope.private, this.verifiedAt});
+  const TruBackgroundVerification(
+      {this.status = TruBackgroundCheckStatus.none,
+      this.shareScope = TruBackgroundShareScope.private,
+      this.verifiedAt});
 
   Map<String, dynamic> toJson() => {
         'status': status.name,
@@ -72,15 +79,27 @@ class TruBackgroundVerification {
   factory TruBackgroundVerification.fromJson(Map<String, dynamic> json) {
     final statusRaw = json['status'] as String?;
     final scopeRaw = json['shareScope'] as String?;
-    final status = TruBackgroundCheckStatus.values.firstWhere((e) => e.name == statusRaw, orElse: () => TruBackgroundCheckStatus.none);
-    final scope = TruBackgroundShareScope.values.firstWhere((e) => e.name == scopeRaw, orElse: () => TruBackgroundShareScope.private);
+    final status = TruBackgroundCheckStatus.values.firstWhere(
+        (e) => e.name == statusRaw,
+        orElse: () => TruBackgroundCheckStatus.none);
+    final scope = TruBackgroundShareScope.values.firstWhere(
+        (e) => e.name == scopeRaw,
+        orElse: () => TruBackgroundShareScope.private);
     return TruBackgroundVerification(
       status: status,
       shareScope: scope,
-      verifiedAt: (json['verifiedAt'] as String?) == null ? null : DateTime.tryParse(json['verifiedAt'] as String),
+      verifiedAt: (json['verifiedAt'] as String?) == null
+          ? null
+          : DateTime.tryParse(json['verifiedAt'] as String),
     );
   }
 
-  TruBackgroundVerification copyWith({TruBackgroundCheckStatus? status, TruBackgroundShareScope? shareScope, DateTime? verifiedAt}) =>
-      TruBackgroundVerification(status: status ?? this.status, shareScope: shareScope ?? this.shareScope, verifiedAt: verifiedAt ?? this.verifiedAt);
+  TruBackgroundVerification copyWith(
+          {TruBackgroundCheckStatus? status,
+          TruBackgroundShareScope? shareScope,
+          DateTime? verifiedAt}) =>
+      TruBackgroundVerification(
+          status: status ?? this.status,
+          shareScope: shareScope ?? this.shareScope,
+          verifiedAt: verifiedAt ?? this.verifiedAt);
 }

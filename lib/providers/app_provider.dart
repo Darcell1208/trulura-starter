@@ -52,12 +52,13 @@ class AppProvider with ChangeNotifier {
 
   /// Onboarding-selected usage mode.
   /// Allowed values: social | dating | both
-  String _useMode = 'both';
+  String _useMode = 'social';
 
   /// “Date Mode Only” — when enabled, TruLura behaves as a standalone TruDating app.
   bool _fullSyncModeEnabled = false;
 
   bool _initialized = false;
+  int _userRefreshVersion = 0;
   bool _askVibeAtStartup = false;
   bool _askIntentAtStartup = false;
   bool _rememberMoodIntent = true;
@@ -79,11 +80,14 @@ class AppProvider with ChangeNotifier {
   bool get creatorApproved => _creatorApproved;
   bool get creatorOnboardingComplete => _creatorOnboardingComplete;
   bool get hasAdvancedVerification => _hasAdvancedVerification;
-  bool get hasBackgroundVerification => _hasBackgroundVerification;
+  bool get hasBackgroundVerification =>
+      kDebugMode && _hasBackgroundVerification;
   bool get hasLuxeInvite => _hasLuxeInvite;
   bool get hasLuxeSubscription => _hasLuxeSubscription;
   bool get luxeEligible =>
-      _hasLuxeInvite && _hasLuxeSubscription && _hasAdvancedVerification;
+      (_currentUser?.age ?? 0) >= 18 &&
+      (_hasLuxeInvite || _hasLuxeSubscription) &&
+      _hasAdvancedVerification;
   bool get showLivesInFeed => _showLivesInFeed;
   String get livesInFeedFrequency => _livesInFeedFrequency;
   double get feedContentIntensity => _feedContentIntensity;
@@ -152,6 +156,7 @@ class AppProvider with ChangeNotifier {
   }
 
   void setCurrentUser(model.User? user) {
+    _userRefreshVersion++;
     _currentUser = user;
     notifyListeners();
   }
@@ -178,6 +183,7 @@ class AppProvider with ChangeNotifier {
   }
 
   Future<void> _syncCurrentUserFromSupabase() async {
+    final version = ++_userRefreshVersion;
     final supabaseUser = SupabaseConfig.auth.currentUser;
 
     if (supabaseUser == null) {
@@ -260,7 +266,7 @@ class AppProvider with ChangeNotifier {
           (normalizedProfile['avatar_url'] as String?) ??
               (normalizedProfile['profileImage'] as String?) ??
               '';
-      normalizedProfile['age'] = (normalizedProfile['age'] as int?) ?? 18;
+      normalizedProfile['age'] = UserService.accountAge(metadata);
       final profileIntents = _stringListOrEmpty(normalizedProfile['intents']);
       final intents = profileIntents.isNotEmpty
           ? profileIntents
@@ -326,7 +332,7 @@ class AppProvider with ChangeNotifier {
               cachedUser?.temperament.name ??
               'oldSoul';
       normalizedProfile['verificationLevel'] =
-          cachedUser?.verificationLevel.name ?? 'level0';
+          kDebugMode ? (cachedUser?.verificationLevel.name ?? 'level0') : 'level0';
       normalizedProfile['trustScore'] = cachedUser?.trustScore ?? 70;
       normalizedProfile['riskLevel'] = cachedUser?.riskLevel.name ?? 'low';
       normalizedProfile['trustLastUpdated'] =
@@ -353,6 +359,8 @@ class AppProvider with ChangeNotifier {
                 '',
           )?.toIso8601String() ??
           DateTime.now().toIso8601String();
+      if (version != _userRefreshVersion ||
+          SupabaseConfig.auth.currentUser?.id != supabaseUser.id) return;
       final loaded = model.User.fromJson(normalizedProfile);
       // Hydrated only when a profiles row was actually read. Without one this
       // object is defaults and cache, and UserService.saveUser refuses it.
@@ -372,7 +380,9 @@ class AppProvider with ChangeNotifier {
     } catch (e) {
       debugPrint('AppProvider._syncCurrentUserFromSupabase failed: $e');
       // Nothing was fetched, so the cache is the only answer available.
-      _currentUser = cachedUser;
+      if (version != _userRefreshVersion ||
+          SupabaseConfig.auth.currentUser?.id != supabaseUser.id) return;
+      _currentUser = cachedUser?.id == supabaseUser.id ? cachedUser : null;
     }
 
     notifyListeners();
@@ -448,6 +458,7 @@ class AppProvider with ChangeNotifier {
       userId: _currentUser?.id,
     );
     _useMode = await settings.getUseMode(userId: _currentUser?.id);
+    if ((_currentUser?.age ?? 0) < 18) _useMode = 'social';
     _fullSyncModeEnabled = await settings.getFullSyncModeEnabled(
       userId: _currentUser?.id,
     );
@@ -496,6 +507,10 @@ class AppProvider with ChangeNotifier {
   }
 
   Future<void> setUseMode(String value) async {
+    if (!const ['social', 'dating', 'both'].contains(value)) {
+      throw ArgumentError.value(value, 'value');
+    }
+    if (value != 'social' && (_currentUser?.age ?? 0) < 18) return;
     _useMode = value;
 
     if (value == 'dating') {
@@ -513,20 +528,12 @@ class AppProvider with ChangeNotifier {
   }
 
   Future<void> setFullSyncModeEnabled(bool enabled) async {
+    // Matching depth does not select dating intent. Dating remains opt-in.
     _fullSyncModeEnabled = enabled;
-
-    if (enabled) {
-      _useMode = 'dating';
-    }
-
     notifyListeners();
 
     await AppSettingsService()
         .setFullSyncModeEnabled(enabled, userId: _currentUser?.id);
-
-    if (enabled) {
-      await AppSettingsService().setUseMode('dating', userId: _currentUser?.id);
-    }
   }
 
   Future<void> setAskVibeAtStartup(bool enabled) async {

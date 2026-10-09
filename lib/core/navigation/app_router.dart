@@ -1,3 +1,4 @@
+import 'package:trulura/features/onboarding/account_age_screen.dart';
 import 'dart:ui';
 
 import 'package:flutter/material.dart';
@@ -76,14 +77,19 @@ class AppRouter {
         if (location == AppRoutes.post) return AppRoutes.createPost;
         if (location == AppRoutes.aiCompanion) return AppRoutes.aiCompanionHub;
 
-        // Being signed in is the only gate. There used to be a second one,
-        // AppProvider.needsOnboarding, which required an intent plus a vibe
-        // and redirected every other route to /onboarding/intent. Any
-        // field-based gate keeps a lockout one flow change away: stop asking
-        // the question and nobody reaches the app, including the walkthrough
-        // that would ask it. A profile missing answers is a scoring problem,
-        // not an access problem. Do not reintroduce a field check here.
-        // PO decision: docs/TruLura_PO_Decision_Onboarding_Gate_And_Defaults.md
+        // Required age supersedes the former auth-only rule. Optional
+        // interests, Vibe and dating intent remain outside this gate.
+        if (isAuthed &&
+            appProvider.currentUser!.age <= 0 &&
+            path != '/onboarding/account-age' &&
+            path != AppRoutes.splash &&
+            path != AppRoutes.softMode &&
+            !isAuthFlow(path)) {
+          return '/onboarding/account-age';
+        }
+        if (!isAuthed && path == '/onboarding/account-age') {
+          return AppRoutes.signIn;
+        }
         if (path == AppRoutes.splash && appProvider.initialized) {
           return isAuthed ? AppRoutes.home : AppRoutes.signIn;
         }
@@ -95,6 +101,9 @@ class AppRouter {
         return null;
       },
       routes: [
+        GoRoute(
+            path: '/onboarding/account-age',
+            builder: (_, __) => const AccountAgeScreen()),
         GoRoute(
           path: AppRoutes.splash,
           name: 'splash',
@@ -214,6 +223,9 @@ class AppRouter {
             StatefulShellBranch(
               routes: [
                 GoRoute(
+                    path: '/onboarding/account-age',
+                    builder: (_, __) => const AccountAgeScreen()),
+                GoRoute(
                   path: AppRoutes.home,
                   name: 'home',
                   pageBuilder: (context, state) {
@@ -231,6 +243,9 @@ class AppRouter {
             StatefulShellBranch(
               routes: [
                 GoRoute(
+                    path: '/onboarding/account-age',
+                    builder: (_, __) => const AccountAgeScreen()),
+                GoRoute(
                   path: AppRoutes.messages,
                   name: 'messages',
                   pageBuilder: (context, state) => _page(
@@ -240,6 +255,9 @@ class AppRouter {
                     name: 'messages',
                   ),
                   routes: [
+                    GoRoute(
+                        path: '/onboarding/account-age',
+                        builder: (_, __) => const AccountAgeScreen()),
                     // Declared before 'thread/:id' for readability only; go_router
                     // matches on the literal segment, so 'new' cannot be captured
                     // as a thread id.
@@ -270,6 +288,9 @@ class AppRouter {
             StatefulShellBranch(
               routes: [
                 GoRoute(
+                    path: '/onboarding/account-age',
+                    builder: (_, __) => const AccountAgeScreen()),
+                GoRoute(
                   path: AppRoutes.notifications,
                   name: 'notifications',
                   pageBuilder: (context, state) => _page(
@@ -283,6 +304,9 @@ class AppRouter {
             ),
             StatefulShellBranch(
               routes: [
+                GoRoute(
+                    path: '/onboarding/account-age',
+                    builder: (_, __) => const AccountAgeScreen()),
                 GoRoute(
                   path: AppRoutes.profile,
                   name: 'profile',

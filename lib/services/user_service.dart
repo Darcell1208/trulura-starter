@@ -10,8 +10,53 @@ import 'package:trulura/services/auth_service/auth_service.dart';
 import 'package:trulura/services/database_service/database_service.dart';
 
 class UserService {
+  /// Self-reported account age, separate from identity verification.
+  static int accountAge(Map<String, dynamic>? metadata) {
+    final value = metadata?['trulura_age'];
+    return value is int && value > 0 ? value : 0;
+  }
+
+  /// Required account data must not silently fall back to a device cache.
+  Future<void> saveAccountAge(String userId, int age) async {
+    if (age <= 0) throw ArgumentError.value(age, 'age');
+    if (!_supabaseReady || _client.auth.currentUser?.id != userId) {
+      throw StateError('Sign in again to save your age.');
+    }
+    final result = await _client.auth.updateUser(
+      sb.UserAttributes(data: {'trulura_age': age}),
+    );
+    if (_client.auth.currentUser?.id != userId ||
+        result.user?.id != userId ||
+        accountAge(result.user?.userMetadata) != age) {
+      throw StateError('Your age could not be confirmed as saved.');
+    }
+  }
+
+  String accountGender(String userId) {
+    if (!_supabaseReady || _client.auth.currentUser?.id != userId) return '';
+    final value = _client.auth.currentUser?.userMetadata?['trulura_gender'];
+    return value is String ? value.trim() : '';
+  }
+
+  Future<void> saveAccountGender(String userId, String gender) async {
+    final value = gender.trim();
+    if (value.isEmpty) throw ArgumentError('Gender is required.');
+    if (!_supabaseReady || _client.auth.currentUser?.id != userId) {
+      throw StateError('Sign in again to save your gender.');
+    }
+    final response = await _client.auth.updateUser(
+      sb.UserAttributes(data: {'trulura_gender': value}),
+    );
+    if (_client.auth.currentUser?.id != userId ||
+        response.user?.id != userId ||
+        response.user?.userMetadata?['trulura_gender'] != value) {
+      throw StateError('Gender could not be confirmed as saved.');
+    }
+  }
+
   // Local cache to keep the app resilient when offline / during early boot.
   static const String _usersKey = 'users_cache';
+
   /// The pre-2026-09-19 device-global key. Retained only so it can be deleted.
   /// Never read: see [_purgeLegacyDeviceCache].
   static const String _legacyCurrentUserKey = 'current_user';
@@ -97,7 +142,8 @@ class UserService {
         (msg.contains('pgrst204') && msg.contains(needle));
   }
 
-  Future<void> _persistMatchmakingProfile(User user, Set<String> dirty) async {
+  Future<void> _persistMatchmakingProfile(User user, Set<String> dirty,
+      {bool requireRemoteSuccess = false}) async {
     final intentDirty = dirty.contains('intents');
     final interestsDirty = dirty.contains('interests');
     if (!intentDirty && !interestsDirty) return;
@@ -121,6 +167,7 @@ class UserService {
           .maybeSingle();
       existingPreferences = _mapOrEmpty(existing?['preferences']);
     } catch (e) {
+      if (requireRemoteSuccess) rethrow;
       debugPrint(
         'UserService._persistMatchmakingProfile read existing preferences failed: $e',
       );
@@ -176,20 +223,26 @@ class UserService {
   /// `profiles.vibe` is the correct home: text, nullable, and previously unused
   /// by any code. Note it is NOT `profiles.vibe_status`, which already holds
   /// `TruTemperament` (oldSoul, grounded, ...) -- a third vocabulary again.
-  Future<void> _persistVibe(String userId, List<String> moodTags) async {
+  Future<void> _persistVibe(String userId, List<String> moodTags,
+      {bool requireRemoteSuccess = false}) async {
     final vibe = _firstNonEmpty(moodTags);
     if (vibe == null) return;
 
     // profiles rows are created by a trigger on auth.users, so the row always
     // exists by the time this runs -- a plain update is enough, and there is no
     // insert fallback of the kind user_states needed.
-    await _client
+    final saved = await _client
         .from('profiles')
         .update({
           'vibe': vibe,
           'updated_at': DateTime.now().toUtc().toIso8601String(),
         })
-        .eq('id', userId);
+        .eq('id', userId)
+        .select('id');
+    if (requireRemoteSuccess &&
+        (saved.length != 1 || saved.first['id'] != userId)) {
+      throw StateError('Vibe update was not confirmed.');
+    }
   }
 
   /// Writes the temperament to whichever column this database actually has.
@@ -201,19 +254,26 @@ class UserService {
   ///
   /// This exists so the schema and the client can be deployed independently. It
   /// is deliberately narrow: only this one column, only these two names.
-  Future<void> _persistTemperament(String userId, String value) async {
+  Future<void> _persistTemperament(String userId, String value,
+      {bool requireRemoteSuccess = false}) async {
     for (final column in const <String>['temperament', 'vibe_status']) {
       try {
-        await _client
+        final saved = await _client
             .from('profiles')
             .update({column: value})
             .eq('id', userId)
             .select('id');
+        if (requireRemoteSuccess &&
+            (saved.length != 1 || saved.first['id'] != userId)) {
+          throw StateError('Temperament update was not confirmed.');
+        }
         return;
       } catch (e) {
         if (!_isMissingColumnError(e, column)) rethrow;
       }
     }
+    if (requireRemoteSuccess)
+      throw StateError('Temperament storage is unavailable.');
     debugPrint(
       'UserService._persistTemperament: neither temperament nor vibe_status '
       'exists on profiles; temperament not saved.',
@@ -225,7 +285,8 @@ class UserService {
   /// It used to write every column from the whole cached User, so a save that
   /// changed one field also persisted whatever defaults User() had seeded into
   /// the rest -- temperament oldSoul, identity mode social -- as if chosen.
-  Future<void> _persistProfile(User user, Set<String> dirty) async {
+  Future<void> _persistProfile(User user, Set<String> dirty,
+      {bool requireRemoteSuccess = false}) async {
     final photoUrl = _nullableTrimmed(user.profileImage);
     final basePayload = <String, dynamic>{
       // NULL, not '', for an empty username. profiles.username is UNIQUE and
@@ -244,11 +305,15 @@ class UserService {
       },
     };
     if (basePayload.isNotEmpty) {
-      await _client.from('profiles').upsert(<String, dynamic>{
+      final saved = await _client.from('profiles').upsert(<String, dynamic>{
         'id': user.id,
         ...basePayload,
         'updated_at': DateTime.now().toIso8601String(),
-      });
+      }).select('id');
+      if (requireRemoteSuccess &&
+          (saved.length != 1 || saved.first['id'] != user.id)) {
+        throw StateError('Profile save was not confirmed.');
+      }
     }
 
     // Temperament is written separately, and tolerantly, on purpose.
@@ -266,7 +331,8 @@ class UserService {
     // Once the migration is applied everywhere, delete the fallback -- that is
     // step 3, and it is safe to defer.
     if (dirty.contains('temperament')) {
-      await _persistTemperament(user.id, user.temperament.name);
+      await _persistTemperament(user.id, user.temperament.name,
+          requireRemoteSuccess: requireRemoteSuccess);
     }
 
     final optionalPayload = <String, dynamic>{
@@ -286,12 +352,17 @@ class UserService {
     };
     if (optionalPayload.isNotEmpty) {
       try {
-        await _client
+        final saved = await _client
             .from('profiles')
             .update(optionalPayload)
             .eq('id', user.id)
             .select('id');
+        if (requireRemoteSuccess &&
+            (saved.length != 1 || saved.first['id'] != user.id)) {
+          throw StateError('Profile update was not confirmed.');
+        }
       } catch (e) {
+        if (requireRemoteSuccess) rethrow;
         if (!_isMissingColumnError(e, 'social_preference') &&
             !_isMissingColumnError(e, 'expression_prompt_answer') &&
             !_isMissingColumnError(e, 'expression_vibe_tag') &&
@@ -334,7 +405,7 @@ class UserService {
       email: email,
       bio: cached?.bio,
       profileImage: cached?.profileImage,
-      age: cached?.age ?? 18,
+      age: accountAge(authUser.userMetadata),
       location: cached?.location,
       pronouns: cached?.pronouns,
       languages: cached?.languages ?? const [],
@@ -345,12 +416,11 @@ class UserService {
       expressionPromptAnswer: cached?.expressionPromptAnswer,
       expressionVibeTag: cached?.expressionVibeTag,
       expressionShortPost: cached?.expressionShortPost,
-      activeIdentityMode:
-          cached?.activeIdentityMode ?? TruIdentityMode.social,
+      activeIdentityMode: cached?.activeIdentityMode ?? TruIdentityMode.social,
       anonymousOverlayEnabled: cached?.anonymousOverlayEnabled ?? false,
       temperament: cached?.temperament ?? TruTemperament.oldSoul,
       verificationLevel:
-          cached?.verificationLevel ?? TruVerificationLevel.level0,
+          kDebugMode ? (cached?.verificationLevel ?? TruVerificationLevel.level0) : TruVerificationLevel.level0,
       trustScore: cached?.trustScore ?? 70,
       riskLevel: cached?.riskLevel ?? TruRiskLevel.low,
       trustLastUpdated: cached?.trustLastUpdated,
@@ -379,9 +449,8 @@ class UserService {
     final now = DateTime.now();
     return User.fromJson({
       'id': row['id']?.toString() ?? '',
-      'name': row['display_name']?.toString() ??
-          row['username']?.toString() ??
-          '',
+      'name':
+          row['display_name']?.toString() ?? row['username']?.toString() ?? '',
       'username': row['username']?.toString() ?? '',
       'moodTags': User.vibeFromJson(row),
       'bio': row['bio']?.toString() ?? row['about_me']?.toString() ?? '',
@@ -482,8 +551,8 @@ class UserService {
         for (final u in await _getCachedUsers()) u.id: u,
         for (final u in incoming) u.id: u,
       };
-      await prefs.setString(_usersKey,
-          jsonEncode(merged.values.map((u) => u.toJson()).toList()));
+      await prefs.setString(
+          _usersKey, jsonEncode(merged.values.map((u) => u.toJson()).toList()));
     } catch (e) {
       debugPrint('Failed to cache users: $e');
     }
@@ -506,6 +575,7 @@ class UserService {
             .eq('active', true)
             .maybeSingle(),
       ]);
+      if (_client.auth.currentUser?.id != authUser.id) return null;
       final profile = results[0];
       final matchmakingProfile = results[1];
       final base = _fromAuthUser(authUser, cached: cached);
@@ -520,10 +590,9 @@ class UserService {
         _mapOrEmpty(matchmakingProfile?['preferences'])['interests'],
       );
       final merged = base.copyWith(
-        name:
-            (profile?['display_name']?.toString().trim().isNotEmpty ?? false)
-                ? profile!['display_name'].toString().trim()
-                : base.name,
+        name: (profile?['display_name']?.toString().trim().isNotEmpty ?? false)
+            ? profile!['display_name'].toString().trim()
+            : base.name,
         // A fetched row is authoritative for username, empty included. The
         // fallback used to be base.username, which comes from the device-global
         // current_user cache, so a new account on a shared device inherited the
@@ -546,7 +615,7 @@ class UserService {
             base.activeIdentityMode,
         anonymousOverlayEnabled:
             (profile?['anonymous_overlay_enabled'] as bool?) ??
-            base.anonymousOverlayEnabled,
+                base.anonymousOverlayEnabled,
         // New column name first, old one as fallback, so this build reads
         // correctly either side of the rename migration.
         temperament: TruTemperamentX.tryParse(
@@ -578,7 +647,9 @@ class UserService {
             });
       // Hydrated only when a profiles row was actually read; see saveUser.
       final loaded = profile == null ? user : user.markHydrated();
+      if (_client.auth.currentUser?.id != authUser.id) return null;
       await _cacheCurrentUser(loaded);
+      if (_client.auth.currentUser?.id != authUser.id) return null;
       return loaded;
     } catch (e) {
       debugPrint('Failed to get current user: $e');
@@ -634,8 +705,14 @@ class UserService {
   /// defaults on read, so the app still believes invented values even though
   /// it no longer writes them. The end state is nullable fields with the UI
   /// supplying display defaults.
-  Future<void> saveUser(User user) async {
+  Future<void> saveUser(User user, {bool requireRemoteSuccess = false}) async {
+    if (requireRemoteSuccess &&
+        (!_supabaseReady || _client.auth.currentUser?.id != user.id)) {
+      throw StateError('Sign in again to save your profile.');
+    }
     if (!user.isHydrated) {
+      if (requireRemoteSuccess)
+        throw StateError('Reload your profile before saving.');
       debugPrint(
           'UserService.saveUser skipped: user was not hydrated from profiles');
       return;
@@ -645,32 +722,41 @@ class UserService {
     try {
       // Auth-only setup: persist to local cache so onboarding can work,
       // without requiring any public mirror table.
-      await _cacheCurrentUser(user);
-      await _cacheUser(user);
+      if (!requireRemoteSuccess) await _cacheCurrentUser(user);
+      if (!requireRemoteSuccess) await _cacheUser(user);
 
       // Optional: best-effort store a few fields in auth.user_metadata.
       // This keeps UX consistent across devices without needing profiles.
       if (_supabaseReady) {
         final authUser = AuthService.instance.currentAuthUser;
+        if (requireRemoteSuccess && authUser?.id != user.id) {
+          throw StateError('Account changed before profile save.');
+        }
         if (authUser != null && authUser.id == user.id) {
           try {
-            await _persistProfile(user, dirty);
+            await _persistProfile(user, dirty,
+                requireRemoteSuccess: requireRemoteSuccess);
           } catch (e) {
+            if (requireRemoteSuccess) rethrow;
             debugPrint(
               'UserService.saveUser persist profile failed (non-fatal): $e',
             );
           }
           try {
-            await _persistMatchmakingProfile(user, dirty);
+            await _persistMatchmakingProfile(user, dirty,
+                requireRemoteSuccess: requireRemoteSuccess);
           } catch (e) {
+            if (requireRemoteSuccess) rethrow;
             debugPrint(
               'UserService.saveUser persist matchmaking profile failed (non-fatal): $e',
             );
           }
           if (dirty.contains('moodTags')) {
             try {
-              await _persistVibe(user.id, user.moodTags);
+              await _persistVibe(user.id, user.moodTags,
+                  requireRemoteSuccess: requireRemoteSuccess);
             } catch (e) {
+              if (requireRemoteSuccess) rethrow;
               debugPrint(
                 'UserService.saveUser persist vibe failed (non-fatal): $e',
               );
@@ -687,6 +773,7 @@ class UserService {
                 ),
               );
             } catch (e) {
+              if (requireRemoteSuccess) rethrow;
               debugPrint(
                 'UserService.saveUser updateUser metadata failed (non-fatal): $e',
               );
@@ -694,7 +781,15 @@ class UserService {
           }
         }
       }
+      if (requireRemoteSuccess) {
+        if (_client.auth.currentUser?.id != user.id) {
+          throw StateError('Account changed while saving.');
+        }
+        await _cacheCurrentUser(user);
+        await _cacheUser(user);
+      }
     } catch (e) {
+      if (requireRemoteSuccess) rethrow;
       debugPrint('Failed to save user: $e');
     }
   }
@@ -783,7 +878,8 @@ class UserService {
       for (final k in keys) {
         await prefs.remove(k);
       }
-      debugPrint('UserService: cleared ${keys.length} cached account record(s)');
+      debugPrint(
+          'UserService: cleared ${keys.length} cached account record(s)');
     } catch (e) {
       debugPrint('Failed to clear cached accounts: $e');
     }
@@ -816,13 +912,16 @@ class UserService {
   }
 
   Future<void> _cacheCurrentUser(User user) async {
+    final scope = _cacheScope;
+    if (_supabaseReady && user.id != scope) return;
     try {
       final prefs = await SharedPreferences.getInstance();
       await _purgeLegacyDeviceCache(prefs);
+      if (_cacheScope != scope) return;
       await prefs.setString(
-          _currentUserKeyFor(_cacheScope), jsonEncode(user.toJson()));
+          _currentUserKeyFor(scope), jsonEncode(user.toJson()));
     } catch (e) {
-      debugPrint('Failed to cache current user: $e');
+      debugPrint('Failed to cache current user: ${safeError(e)}');
     }
   }
 
@@ -848,6 +947,7 @@ class UserService {
     } else {
       users.add(user);
     }
-    await prefs.setString(_usersKey, jsonEncode(users.map((u) => u.toJson()).toList()));
+    await prefs.setString(
+        _usersKey, jsonEncode(users.map((u) => u.toJson()).toList()));
   }
 }

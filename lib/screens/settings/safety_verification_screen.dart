@@ -45,14 +45,12 @@ class _SafetyVerificationScreenState extends State<SafetyVerificationScreen> {
     try {
       final me = await UserService().getCurrentUser();
       final prefs = await _compliance.getPrefs();
-      final bg = me == null
-          ? const TruBackgroundVerification()
-          : await _bg.get(me.id);
+      final bg =
+          me == null ? const TruBackgroundVerification() : await _bg.get(me.id);
       if (!mounted) return;
       final app = context.read<AppProvider>();
       await app.setHasAdvancedVerification(
-        (me?.verificationLevel.index ?? 0) >=
-            TruVerificationLevel.level2.index,
+        (me?.verificationLevel.index ?? 0) >= TruVerificationLevel.level2.index,
       );
       await app.setHasBackgroundVerification(
         bg.status == TruBackgroundCheckStatus.verified,
@@ -103,9 +101,9 @@ class _SafetyVerificationScreenState extends State<SafetyVerificationScreen> {
             Text(
               'Trust is layered. You control what you reveal.',
               style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                color: cs.onSurface.withValues(alpha: 0.72),
-                height: 1.4,
-              ),
+                    color: cs.onSurface.withValues(alpha: 0.72),
+                    height: 1.4,
+                  ),
             ),
             const SizedBox(height: 14),
             TruLuraGlassCard(
@@ -126,7 +124,9 @@ class _SafetyVerificationScreenState extends State<SafetyVerificationScreen> {
                       Expanded(
                         child: Text(
                           'Your verification level',
-                          style: Theme.of(context).textTheme.titleSmall
+                          style: Theme.of(context)
+                              .textTheme
+                              .titleSmall
                               ?.copyWith(fontWeight: FontWeight.w900),
                         ),
                       ),
@@ -139,9 +139,9 @@ class _SafetyVerificationScreenState extends State<SafetyVerificationScreen> {
                   Text(
                     'This is a local stub for now. Basic account use stays open, while creator and Luxe access build on top of these trust layers.',
                     style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                      color: cs.onSurface.withValues(alpha: 0.70),
-                      height: 1.3,
-                    ),
+                          color: cs.onSurface.withValues(alpha: 0.70),
+                          height: 1.3,
+                        ),
                   ),
                   const SizedBox(height: 12),
                   // Build Status known issue 39. This button awarded the next
@@ -166,20 +166,18 @@ class _SafetyVerificationScreenState extends State<SafetyVerificationScreen> {
                             onPressed: _loading
                                 ? null
                                 : () async {
-                                    final next = TruVerificationLevel.values[
-                                        (level.index + 1).clamp(
-                                          0,
-                                          TruVerificationLevel.values.length -
-                                              1,
-                                        )];
-                                    final updated =
-                                        (me ??
-                                                await UserService()
-                                                    .getCurrentUser())
-                                            ?.copyWith(
-                                              verificationLevel: next,
-                                              updatedAt: DateTime.now(),
-                                            );
+                                    final next = TruVerificationLevel
+                                        .values[(level.index + 1).clamp(
+                                      0,
+                                      TruVerificationLevel.values.length - 1,
+                                    )];
+                                    final updated = (me ??
+                                            await UserService()
+                                                .getCurrentUser())
+                                        ?.copyWith(
+                                      verificationLevel: next,
+                                      updatedAt: DateTime.now(),
+                                    );
                                     if (updated != null) {
                                       await UserService().saveUser(updated);
                                     }
@@ -219,8 +217,8 @@ class _SafetyVerificationScreenState extends State<SafetyVerificationScreen> {
                   Text(
                     'What unlocks what',
                     style: Theme.of(context).textTheme.titleSmall?.copyWith(
-                      fontWeight: FontWeight.w900,
-                    ),
+                          fontWeight: FontWeight.w900,
+                        ),
                   ),
                   const SizedBox(height: 10),
                   const _GateLine(
@@ -248,8 +246,8 @@ class _SafetyVerificationScreenState extends State<SafetyVerificationScreen> {
                   _GateLine(
                     title: 'Luxe access requirement',
                     subtitle: app.luxeEligible
-                        ? 'Invite, membership, and advanced verification are all complete.'
-                        : 'Luxe stays gated until invite, membership, and advanced verification are all in place.',
+                        ? 'Membership or invitation and advanced verification are complete.'
+                        : 'Luxe requires membership or an invitation, plus advanced verification.',
                   ),
                   const SizedBox(height: 10),
                   _GateLine(
@@ -271,35 +269,36 @@ class _SafetyVerificationScreenState extends State<SafetyVerificationScreen> {
                   Text(
                     'Background verification (optional)',
                     style: Theme.of(context).textTheme.titleSmall?.copyWith(
-                      fontWeight: FontWeight.w900,
-                    ),
+                          fontWeight: FontWeight.w900,
+                        ),
                   ),
                   const SizedBox(height: 8),
                   Text(
-                    'Run through a trusted third-party provider. Results are never displayed as public shaming; you control where they appear.',
+                    'Optional background verification is not available yet. A provider must be connected before a real check can be requested or confirmed.',
                     style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                      color: cs.onSurface.withValues(alpha: 0.70),
-                      height: 1.35,
-                    ),
+                          color: cs.onSurface.withValues(alpha: 0.70),
+                          height: 1.35,
+                        ),
                   ),
                   const SizedBox(height: 12),
                   Row(
                     children: [
                       Expanded(
                         child: Text(
-                          _bgState.status ==
-                                  TruBackgroundCheckStatus.verified
+                          _bgState.status == TruBackgroundCheckStatus.verified
                               ? 'Status: verified'
                               : (_bgState.status ==
                                       TruBackgroundCheckStatus.requested
                                   ? 'Status: requested'
                                   : 'Status: off'),
-                          style: Theme.of(context).textTheme.bodyMedium
+                          style: Theme.of(context)
+                              .textTheme
+                              .bodyMedium
                               ?.copyWith(fontWeight: FontWeight.w800),
                         ),
                       ),
                       FilledButton(
-                        onPressed: _loading || me == null
+                        onPressed: !kDebugMode || _loading || me == null
                             ? null
                             : () async {
                                 final next = _bgState.status ==
@@ -311,9 +310,8 @@ class _SafetyVerificationScreenState extends State<SafetyVerificationScreen> {
                                     : (_bgState.status ==
                                             TruBackgroundCheckStatus.requested
                                         ? _bgState.copyWith(
-                                            status:
-                                                TruBackgroundCheckStatus
-                                                    .verified,
+                                            status: TruBackgroundCheckStatus
+                                                .verified,
                                             verifiedAt: DateTime.now(),
                                           )
                                         : const TruBackgroundVerification());
@@ -326,10 +324,12 @@ class _SafetyVerificationScreenState extends State<SafetyVerificationScreen> {
                               },
                         child: Text(
                           _bgState.status == TruBackgroundCheckStatus.none
-                              ? 'Request (stub)'
+                              ? (kDebugMode
+                                  ? 'DEBUG: Request simulation'
+                                  : 'Not available yet')
                               : (_bgState.status ==
                                       TruBackgroundCheckStatus.requested
-                                  ? 'Mark verified (stub)'
+                                  ? 'DEBUG: Simulate verified'
                                   : 'Reset'),
                         ),
                       ),
@@ -373,8 +373,8 @@ class _SafetyVerificationScreenState extends State<SafetyVerificationScreen> {
                   Text(
                     'Local access state',
                     style: Theme.of(context).textTheme.titleSmall?.copyWith(
-                      fontWeight: FontWeight.w900,
-                    ),
+                          fontWeight: FontWeight.w900,
+                        ),
                   ),
                   const SizedBox(height: 10),
                   _SwitchRow(
@@ -419,8 +419,8 @@ class _SafetyVerificationScreenState extends State<SafetyVerificationScreen> {
                   Text(
                     'Visibility',
                     style: Theme.of(context).textTheme.titleSmall?.copyWith(
-                      fontWeight: FontWeight.w900,
-                    ),
+                          fontWeight: FontWeight.w900,
+                        ),
                   ),
                   const SizedBox(height: 10),
                   _SwitchRow(
@@ -472,9 +472,9 @@ class _SafetyVerificationScreenState extends State<SafetyVerificationScreen> {
                     Text(
                       'All trust signals are hidden across your profile and posts.',
                       style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                        color: cs.onSurface.withValues(alpha: 0.70),
-                        height: 1.3,
-                      ),
+                            color: cs.onSurface.withValues(alpha: 0.70),
+                            height: 1.3,
+                          ),
                     ),
                   ],
                 ],
@@ -490,16 +490,16 @@ class _SafetyVerificationScreenState extends State<SafetyVerificationScreen> {
                   Text(
                     'Consent & Platform Protection',
                     style: Theme.of(context).textTheme.titleSmall?.copyWith(
-                      fontWeight: FontWeight.w900,
-                    ),
+                          fontWeight: FontWeight.w900,
+                        ),
                   ),
                   const SizedBox(height: 8),
                   Text(
                     'Higher-trust spaces keep different requirements separate: creator approval for TruStudio, advanced verification for Luxe, optional background verification for extra trust, and consent prompts for elevated spaces.',
                     style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                      color: cs.onSurface.withValues(alpha: 0.70),
-                      height: 1.35,
-                    ),
+                          color: cs.onSurface.withValues(alpha: 0.70),
+                          height: 1.35,
+                        ),
                   ),
                   const SizedBox(height: 12),
                   Row(
@@ -509,7 +509,9 @@ class _SafetyVerificationScreenState extends State<SafetyVerificationScreen> {
                           compliance?.termsAcceptedAt == null
                               ? 'Terms: not accepted'
                               : 'Terms: accepted',
-                          style: Theme.of(context).textTheme.bodyMedium
+                          style: Theme.of(context)
+                              .textTheme
+                              .bodyMedium
                               ?.copyWith(fontWeight: FontWeight.w800),
                         ),
                       ),
@@ -555,8 +557,8 @@ class _LevelChip extends StatelessWidget {
       child: Text(
         level.label,
         style: Theme.of(context).textTheme.labelSmall?.copyWith(
-          fontWeight: FontWeight.w900,
-        ),
+              fontWeight: FontWeight.w900,
+            ),
       ),
     );
   }
@@ -599,16 +601,16 @@ class _GateLine extends StatelessWidget {
         Text(
           title,
           style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-            fontWeight: FontWeight.w800,
-          ),
+                fontWeight: FontWeight.w800,
+              ),
         ),
         const SizedBox(height: 4),
         Text(
           subtitle,
           style: Theme.of(context).textTheme.bodySmall?.copyWith(
-            color: cs.onSurface.withValues(alpha: 0.70),
-            height: 1.35,
-          ),
+                color: cs.onSurface.withValues(alpha: 0.70),
+                height: 1.35,
+              ),
         ),
       ],
     );
@@ -634,8 +636,8 @@ class _SwitchRow extends StatelessWidget {
           child: Text(
             title,
             style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-              fontWeight: FontWeight.w800,
-            ),
+                  fontWeight: FontWeight.w800,
+                ),
           ),
         ),
         TruToggle(value: value, onChanged: onChanged),

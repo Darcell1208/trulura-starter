@@ -49,6 +49,7 @@ class _ProfileSetupScreenState extends State<ProfileSetupScreen> {
   final _displayName = TextEditingController();
   final _username = TextEditingController();
   final _age = TextEditingController();
+  final _gender = TextEditingController();
   final _location = TextEditingController();
   final _pronouns = TextEditingController();
   final _bio = TextEditingController();
@@ -90,6 +91,7 @@ class _ProfileSetupScreenState extends State<ProfileSetupScreen> {
     _displayName.dispose();
     _username.dispose();
     _age.dispose();
+    _gender.dispose();
     _location.dispose();
     _pronouns.dispose();
     _bio.dispose();
@@ -111,6 +113,7 @@ class _ProfileSetupScreenState extends State<ProfileSetupScreen> {
           : user.name;
       _username.text = (user?.username ?? '').toLowerCase();
       _age.text = user == null || user.age <= 0 ? '' : '${user.age}';
+      _gender.text = user == null ? '' : UserService().accountGender(user.id);
       _location.text = user?.location ?? '';
       _pronouns.text = user?.pronouns ?? '';
       _bio.text = user?.bio ?? '';
@@ -143,7 +146,7 @@ class _ProfileSetupScreenState extends State<ProfileSetupScreen> {
         fallback: 'New member',
       ),
       username: _normalizedUsername(_username.text),
-      age: int.tryParse(_age.text.trim()) ?? existing.age,
+      age: _enteredAge ?? 0,
       location: _nullIfBlank(_location.text),
       pronouns: _nullIfBlank(_pronouns.text),
       bio: _bio.text.trim().isEmpty ? null : _bio.text.trim(),
@@ -214,10 +217,8 @@ class _ProfileSetupScreenState extends State<ProfileSetupScreen> {
         final required = <bool>[
           _displayName.text.trim().isNotEmpty,
           _normalizedUsername(_username.text).isNotEmpty,
-          _age.text.trim().isNotEmpty,
-          _location.text.trim().isNotEmpty,
-          _photoUrl.text.trim().isNotEmpty,
-          _bio.text.trim().isNotEmpty,
+          _enteredAge != null,
+          _gender.text.trim().isNotEmpty,
         ];
         return required.where((done) => done).length / required.length;
       case 1:
@@ -243,16 +244,37 @@ class _ProfileSetupScreenState extends State<ProfileSetupScreen> {
 
   String _progressMessage() {
     return switch (_step) {
-      0 => 'Add the basics people should see first: name, username, age, location, photo, and bio.',
+      0 =>
+        'Add the basics people should see first: name, username, age, location, photo, and bio.',
       1 => 'Choose the identity layer that sets your current tone.',
-      2 => 'Set intent, social preference, and interests so discovery feels accurate.',
-      3 => 'Expression is your finishing layer: prompt, vibe tag, and short post.',
+      2 =>
+        'Set intent, social preference, and interests so discovery feels accurate.',
+      3 =>
+        'Expression is your finishing layer: prompt, vibe tag, and short post.',
       _ => 'Finish the profile basics you want to share.',
     };
   }
 
+  // Zero represents unknown age; never substitute an adult age.
+  int? get _enteredAge {
+    final value = int.tryParse(_age.text.trim());
+    return value != null && value > 0 ? value : null;
+  }
+
   Future<void> _finish() async {
     if (_saving) return;
+    if (_enteredAge == null ||
+        _gender.text.trim().isEmpty ||
+        _displayName.text.trim().isEmpty ||
+        _normalizedUsername(_username.text).isEmpty) {
+      setState(() => _step = 0);
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+            content:
+                Text('Enter your name, username, age and gender to continue.')),
+      );
+      return;
+    }
     final draft = _draftUser();
     if (draft == null) {
       if (!mounted) return;
@@ -260,10 +282,24 @@ class _ProfileSetupScreenState extends State<ProfileSetupScreen> {
       return;
     }
 
+    final datingSelected = draft.activeIdentityMode == TruIdentityMode.dating ||
+        draft.intents.any((intent) =>
+            const ['dating', 'serious'].contains(intent.trim().toLowerCase()));
+    if (draft.age < 18 && datingSelected) {
+      setState(() => _step = 1);
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+            content: Text(
+                'Dating is available only to people 18 and older. Choose a social option to continue.')),
+      );
+      return;
+    }
     setState(() => _saving = true);
     try {
       final app = context.read<AppProvider>();
-      await UserService().saveUser(draft);
+      await UserService().saveAccountAge(draft.id, draft.age);
+      await UserService().saveAccountGender(draft.id, _gender.text);
+      await UserService().saveUser(draft, requireRemoteSuccess: true);
       await app.refreshCurrentUserFromSupabase();
       if (!mounted) return;
       context.go(_resolveReturnTo());
@@ -282,11 +318,13 @@ class _ProfileSetupScreenState extends State<ProfileSetupScreen> {
     switch (_step) {
       case 0:
         return _displayName.text.trim().isNotEmpty &&
-            _username.text.trim().isNotEmpty;
+            _normalizedUsername(_username.text).isNotEmpty &&
+            _enteredAge != null &&
+            _gender.text.trim().isNotEmpty;
       case 1:
         return true;
       case 2:
-        return _selectedInterests.isNotEmpty;
+        return true; // Interests are optional enrichment.
       case 3:
         return true;
       default:
@@ -365,8 +403,7 @@ class _ProfileSetupScreenState extends State<ProfileSetupScreen> {
                       for (int i = 0; i < _stepTitles.length; i++)
                         _ProgressChip(
                           label: _stepTitles[i],
-                          complete:
-                              i < _step ||
+                          complete: i < _step ||
                               (i == _step && _stepCompletionFor(i) >= 1),
                         ),
                     ],
@@ -425,9 +462,7 @@ class _ProfileSetupScreenState extends State<ProfileSetupScreen> {
                   ),
                   const SizedBox(height: 10),
                   TextButton(
-                    onPressed: _saving
-                        ? null
-                        : () => context.go(_resolveReturnTo()),
+                    onPressed: _saving ? null : _finish,
                     child: const Text('Finish later'),
                   ),
                 ],
@@ -495,14 +530,21 @@ class _ProfileSetupScreenState extends State<ProfileSetupScreen> {
         _Field(
           controller: _age,
           label: 'Age',
-          hint: 'Your age for now',
+          hint: 'Your age (required)',
           keyboardType: TextInputType.number,
           onChanged: (_) => setState(() {}),
         ),
         const SizedBox(height: 12),
         _Field(
+          controller: _gender,
+          label: 'Gender',
+          hint: 'Your gender (required)',
+          onChanged: (_) => setState(() {}),
+        ),
+        const SizedBox(height: 12),
+        _Field(
           controller: _location,
-          label: 'Location',
+          label: 'Location (optional)',
           hint: 'City or region',
           onChanged: (_) => setState(() {}),
         ),
@@ -521,10 +563,10 @@ class _ProfileSetupScreenState extends State<ProfileSetupScreen> {
             backgroundImage: _pickedPhotoBytes != null
                 ? MemoryImage(_pickedPhotoBytes!)
                 : hasPhoto
-                ? (isNetworkPhoto
-                    ? NetworkImage(photo)
-                    : AssetImage(photo) as ImageProvider<Object>)
-                : null,
+                    ? (isNetworkPhoto
+                        ? NetworkImage(photo)
+                        : AssetImage(photo) as ImageProvider<Object>)
+                    : null,
             child: hasPhoto
                 ? null
                 : const Icon(Icons.person, size: 42, color: Colors.white),
@@ -558,7 +600,7 @@ class _ProfileSetupScreenState extends State<ProfileSetupScreen> {
         if (hasPhoto) ...[
           const SizedBox(height: 8),
           Text(
-            'Photo selected and stored internally for your profile.',
+            'Photo selected for preview. Upload and saving still need to be completed.',
             style: Theme.of(context).textTheme.bodySmall?.copyWith(
                   color: Colors.white70,
                 ),
@@ -627,7 +669,8 @@ class _ProfileSetupScreenState extends State<ProfileSetupScreen> {
           onChanged: (value) {
             if (value != null) setState(() => _vibe = value);
           },
-          decoration: const InputDecoration(labelText: 'Choose your temperament'),
+          decoration:
+              const InputDecoration(labelText: 'Choose your temperament'),
         ),
       ],
     );

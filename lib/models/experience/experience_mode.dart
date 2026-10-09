@@ -21,13 +21,31 @@ enum TruExperienceMode {
 enum TruModeParticipationState { active, passive, off, restricted }
 
 /// High-level feed behavior label used by UI.
-enum TruFeedKind { social, platonic, romantic, emotional, content, filtered, curated, private }
+enum TruFeedKind {
+  social,
+  platonic,
+  romantic,
+  emotional,
+  content,
+  filtered,
+  curated,
+  private
+}
 
 /// Primary intent context for interaction behavior.
 ///
 /// This is used to prevent cross-mode behavior violations (e.g. romantic actions
 /// in a platonic context) even if multiple modes are enabled.
-enum TruInteractionContext { social, platonic, romantic, support, creator, youth, luxe, alternative }
+enum TruInteractionContext {
+  social,
+  platonic,
+  romantic,
+  support,
+  creator,
+  youth,
+  luxe,
+  alternative
+}
 
 extension TruInteractionContextX on TruInteractionContext {
   String get label {
@@ -123,18 +141,25 @@ class ExperienceModeState {
       };
 
   factory ExperienceModeState.fromJson(Map<String, dynamic> json) {
-    final mode = TruExperienceModeX.tryParse(json['mode'] as String?) ?? TruExperienceMode.social;
+    final mode = TruExperienceModeX.tryParse(json['mode'] as String?) ??
+        TruExperienceMode.social;
     final now = DateTime.now();
     return ExperienceModeState(
       mode: mode,
-      isEnabled: (json['isEnabled'] as bool?) ?? (mode == TruExperienceMode.social),
-      visibility: TruVisibilityLevelX.tryParse(json['visibility'] as String?) ?? TruVisibilityLevel.public,
+      isEnabled:
+          (json['isEnabled'] as bool?) ?? (mode == TruExperienceMode.social),
+      visibility: TruVisibilityLevelX.tryParse(json['visibility'] as String?) ??
+          TruVisibilityLevel.public,
       createdAt: DateTime.tryParse((json['createdAt'] as String?) ?? '') ?? now,
       updatedAt: DateTime.tryParse((json['updatedAt'] as String?) ?? '') ?? now,
     );
   }
 
-  ExperienceModeState copyWith({bool? isEnabled, TruVisibilityLevel? visibility, DateTime? updatedAt}) => ExperienceModeState(
+  ExperienceModeState copyWith(
+          {bool? isEnabled,
+          TruVisibilityLevel? visibility,
+          DateTime? updatedAt}) =>
+      ExperienceModeState(
         mode: mode,
         isEnabled: isEnabled ?? this.isEnabled,
         visibility: visibility ?? this.visibility,
@@ -243,7 +268,10 @@ class ModeLock {
 
   const ModeLock({required this.locked, this.reason, this.actionLabel});
 
-  const ModeLock.unlocked() : locked = false, reason = null, actionLabel = null;
+  const ModeLock.unlocked()
+      : locked = false,
+        reason = null,
+        actionLabel = null;
 }
 
 /// Defines how switching from one mode to another should behave.
@@ -453,18 +481,36 @@ extension TruExperienceModeX on TruExperienceMode {
   }
 
   /// Whether the mode represents an adult-intent environment.
-  bool get isAdultIntent => this == TruExperienceMode.dating || this == TruExperienceMode.altIntimate || this == TruExperienceMode.luxe;
+  bool get isAdultIntent =>
+      this == TruExperienceMode.dating ||
+      this == TruExperienceMode.altIntimate ||
+      this == TruExperienceMode.luxe;
 
   /// Whether this mode is a protected emotional space.
   bool get isProtectedSpace => this == TruExperienceMode.vent;
 
-  TruModeTransitionDecision transitionFrom({required TruExperienceMode from, required User? user, required bool creatorApproved}) {
-    if (from == this) return const TruModeTransitionDecision(type: TruModeTransitionType.soft);
+  TruModeTransitionDecision transitionFrom(
+      {required TruExperienceMode from,
+      required User? user,
+      required bool creatorApproved}) {
+    if (isAdultIntent && (user?.age ?? 0) < 18) {
+      return const TruModeTransitionDecision(
+        type: TruModeTransitionType.blocked,
+        reason: 'This space requires age 18 or older.',
+      );
+    }
+    if (from == this)
+      return const TruModeTransitionDecision(type: TruModeTransitionType.soft);
 
     // Hard safety boundaries.
     if (user != null && user.age < 18) {
-      if (from == TruExperienceMode.youth && (this == TruExperienceMode.altIntimate || this == TruExperienceMode.dating || this == TruExperienceMode.luxe)) {
-        return const TruModeTransitionDecision(type: TruModeTransitionType.blocked, reason: 'Youth users can’t enter adult modes.');
+      if (from == TruExperienceMode.youth &&
+          (this == TruExperienceMode.altIntimate ||
+              this == TruExperienceMode.dating ||
+              this == TruExperienceMode.luxe)) {
+        return const TruModeTransitionDecision(
+            type: TruModeTransitionType.blocked,
+            reason: 'Youth users can’t enter adult modes.');
       }
     }
 
@@ -477,7 +523,10 @@ extension TruExperienceModeX on TruExperienceMode {
       (TruExperienceMode.dating, TruExperienceMode.luxe),
     };
     if (guardedPairs.contains((from, this))) {
-      return const TruModeTransitionDecision(type: TruModeTransitionType.guarded, reason: 'This shift changes the intent context. Confirm you want to switch.');
+      return const TruModeTransitionDecision(
+          type: TruModeTransitionType.guarded,
+          reason:
+              'This shift changes the intent context. Confirm you want to switch.');
     }
 
     return const TruModeTransitionDecision(type: TruModeTransitionType.soft);
@@ -500,6 +549,12 @@ extension TruExperienceModeX on TruExperienceMode {
     required bool hasLuxeInvite,
     required bool hasLuxeSubscription,
   }) {
+    if (isAdultIntent && (user?.age ?? 0) < 18) {
+      return const ModeLock(
+          locked: true,
+          reason: 'This space requires age 18 or older.',
+          actionLabel: 'Learn');
+    }
     // No user => we don't lock (pre-auth exploration can still show UI).
     if (user == null) return const ModeLock.unlocked();
 
@@ -507,7 +562,10 @@ extension TruExperienceModeX on TruExperienceMode {
     if (user.riskLevel == TruRiskLevel.high) {
       // Vent is still allowed, but other modes get restricted.
       if (this != TruExperienceMode.vent) {
-        return const ModeLock(locked: true, reason: 'Temporarily restricted by safety review.', actionLabel: 'Review');
+        return const ModeLock(
+            locked: true,
+            reason: 'Temporarily restricted by safety review.',
+            actionLabel: 'Review');
       }
     }
 
@@ -522,31 +580,33 @@ extension TruExperienceModeX on TruExperienceMode {
         return const ModeLock.unlocked();
       case TruExperienceMode.dating:
         if (user.age < 18) {
-          return const ModeLock(locked: true, reason: 'Dating requires 18+.', actionLabel: 'Learn');
+          return const ModeLock(
+              locked: true,
+              reason: 'Dating requires 18+.',
+              actionLabel: 'Learn');
         }
         // Optional: require at least level1 for Dating.
         if (user.verificationLevel == TruVerificationLevel.level0) {
-          return const ModeLock(locked: true, reason: 'Dating unlocks after basic verification.', actionLabel: 'Verify');
+          return const ModeLock(
+              locked: true,
+              reason: 'Dating requires adult ID verification.',
+              actionLabel: 'Verify');
         }
         return const ModeLock.unlocked();
       case TruExperienceMode.youth:
         if (user.age >= 18) {
-          return const ModeLock(locked: true, reason: 'Youth mode is for teens.', actionLabel: 'Learn');
+          return const ModeLock(
+              locked: true,
+              reason: 'Youth mode is for teens.',
+              actionLabel: 'Learn');
         }
         return const ModeLock.unlocked();
       case TruExperienceMode.luxe:
-        if (!hasLuxeInvite) {
+        if (!hasLuxeInvite && !hasLuxeSubscription) {
           return const ModeLock(
             locked: true,
-            reason: 'Invite required.',
-            actionLabel: 'Invite',
-          );
-        }
-        if (!hasLuxeSubscription) {
-          return const ModeLock(
-            locked: true,
-            reason: 'Membership required.',
-            actionLabel: 'Upgrade',
+            reason: 'Membership or invitation required.',
+            actionLabel: 'Explore access',
           );
         }
         if (!hasAdvancedVerification ||
@@ -560,10 +620,16 @@ extension TruExperienceModeX on TruExperienceMode {
         return const ModeLock.unlocked();
       case TruExperienceMode.altIntimate:
         if (user.age < 18) {
-          return const ModeLock(locked: true, reason: 'Alt/Intimate requires 18+.', actionLabel: 'Learn');
+          return const ModeLock(
+              locked: true,
+              reason: 'Alt/Intimate requires 18+.',
+              actionLabel: 'Learn');
         }
         if (user.verificationLevel.index < TruVerificationLevel.level3.index) {
-          return const ModeLock(locked: true, reason: 'This mode requires trusted verification.', actionLabel: 'Verify');
+          return const ModeLock(
+              locked: true,
+              reason: 'This mode requires trusted verification.',
+              actionLabel: 'Verify');
         }
         return const ModeLock.unlocked();
     }
@@ -584,6 +650,23 @@ class TruExperienceModePolicy {
     required bool hasLuxeSubscription,
   }) {
     final base = mode.basePermissions();
+    // An age lock applies to every capability, including callers that read
+    // permissions without first rendering the mode lock.
+    if (mode.isAdultIntent && (user?.age ?? 0) < 18) {
+      return ModePermissions(
+        messaging: TruPermissionLevel.blocked,
+        matching: TruPermissionLevel.blocked,
+        monetization: TruPermissionLevel.blocked,
+        anonymousUse: TruPermissionLevel.blocked,
+        feedKind: base.feedKind,
+        interaction: base.interaction,
+        allowRomanticEscalation: false,
+        suppressVirality: true,
+        groups: TruPermissionLevel.blocked,
+        live: TruPermissionLevel.blocked,
+        events: TruPermissionLevel.blocked,
+      );
+    }
     if (user == null) return base;
 
     // Trust/safety moderation: high risk suppresses reach + high-intent actions.
@@ -642,8 +725,8 @@ class TruExperienceModePolicy {
       );
     }
     if (mode == TruExperienceMode.luxe &&
-        (!hasLuxeInvite ||
-            !hasLuxeSubscription ||
+        (user.age < 18 ||
+            (!hasLuxeInvite && !hasLuxeSubscription) ||
             !hasAdvancedVerification ||
             v.index < TruVerificationLevel.level2.index)) {
       return ModePermissions(
@@ -660,7 +743,8 @@ class TruExperienceModePolicy {
         events: base.events,
       );
     }
-    if (mode == TruExperienceMode.altIntimate && v.index < TruVerificationLevel.level3.index) {
+    if (mode == TruExperienceMode.altIntimate &&
+        v.index < TruVerificationLevel.level3.index) {
       return ModePermissions(
         messaging: base.messaging,
         matching: TruPermissionLevel.blocked,
@@ -685,7 +769,9 @@ class TruExperienceModePolicy {
   /// - Active mode defines the primary interaction context.
   /// - Vent/Support suppresses virality + monetization regardless of passive Creator.
   /// - Youth blocks adult-intent and monetization; passive adult modes must not leak.
-  static ModePermissions effectivePermissions({required ModePermissions active, required List<ModePermissions> passive}) {
+  static ModePermissions effectivePermissions(
+      {required ModePermissions active,
+      required List<ModePermissions> passive}) {
     if (active.suppressVirality) {
       // Protected contexts win over passive layers.
       return ModePermissions(
@@ -720,8 +806,13 @@ class TruExperienceModePolicy {
     }
 
     // Soft union: allow creator monetization layer if present AND active mode allows it.
-    final hasCreatorLayer = passive.any((p) => p.interaction == TruInteractionContext.creator && p.monetization == TruPermissionLevel.allowed);
-    final monetization = hasCreatorLayer && active.monetization != TruPermissionLevel.blocked ? TruPermissionLevel.allowed : active.monetization;
+    final hasCreatorLayer = passive.any((p) =>
+        p.interaction == TruInteractionContext.creator &&
+        p.monetization == TruPermissionLevel.allowed);
+    final monetization =
+        hasCreatorLayer && active.monetization != TruPermissionLevel.blocked
+            ? TruPermissionLevel.allowed
+            : active.monetization;
 
     return ModePermissions(
       messaging: active.messaging,

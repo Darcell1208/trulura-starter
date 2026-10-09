@@ -14,10 +14,12 @@ class OnboardingIdentitySetupScreen extends StatefulWidget {
   const OnboardingIdentitySetupScreen({super.key});
 
   @override
-  State<OnboardingIdentitySetupScreen> createState() => _OnboardingIdentitySetupScreenState();
+  State<OnboardingIdentitySetupScreen> createState() =>
+      _OnboardingIdentitySetupScreenState();
 }
 
-class _OnboardingIdentitySetupScreenState extends State<OnboardingIdentitySetupScreen> {
+class _OnboardingIdentitySetupScreenState
+    extends State<OnboardingIdentitySetupScreen> {
   final _identity = IdentityService();
   final _users = UserService();
 
@@ -30,8 +32,7 @@ class _OnboardingIdentitySetupScreenState extends State<OnboardingIdentitySetupS
   final Set<String> _intents = <String>{};
 
   String _nextRoute() {
-    final returnTo =
-        TruNavigation.resolveReturnTo(context) ??
+    final returnTo = TruNavigation.resolveReturnTo(context) ??
         GoRouterState.of(context).uri.queryParameters['returnTo'];
     return Uri(
       path: AppRoutes.onboardingVibe,
@@ -76,11 +77,26 @@ class _OnboardingIdentitySetupScreenState extends State<OnboardingIdentitySetupS
       final me = await _users.getCurrentUser();
       if (me == null) return;
 
+      if (me.age < 18 &&
+          (_mode == TruIdentityMode.dating ||
+              _intents.contains('dating') ||
+              _intents.contains('serious'))) {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+                content:
+                    Text('Dating is available only to people 18 and older.')),
+          );
+        }
+        return;
+      }
       await _identity.setActiveMode(_mode);
       await _identity.setAnonymousOverlay(_anonymous);
       await _identity.setPrivacy(profileVisibility: _visibility);
 
-      await _users.saveUser(me.copyWith(intents: _intents.toList(growable: false), updatedAt: DateTime.now()));
+      await _users.saveUser(me.copyWith(
+          intents: _intents.toList(growable: false),
+          updatedAt: DateTime.now()));
 
       if (!mounted) return;
       context.go(_nextRoute());
@@ -106,48 +122,89 @@ class _OnboardingIdentitySetupScreenState extends State<OnboardingIdentitySetupS
             const LinearProgressIndicator(minHeight: 2),
             const SizedBox(height: 16),
           ],
-          Text('Primary layer', style: Theme.of(context).textTheme.titleSmall?.copyWith(color: Colors.white, fontWeight: FontWeight.w900)),
+          Text('Primary layer',
+              style: Theme.of(context)
+                  .textTheme
+                  .titleSmall
+                  ?.copyWith(color: Colors.white, fontWeight: FontWeight.w900)),
           const SizedBox(height: 10),
           TruluraSegmentedPill(
             options: const ['Social', 'Dating', 'Creator', 'Luxe'],
-            selectedIndex: [_mode == TruIdentityMode.social, _mode == TruIdentityMode.dating, _mode == TruIdentityMode.creator, _mode == TruIdentityMode.luxe].indexOf(true),
+            selectedIndex: [
+              _mode == TruIdentityMode.social,
+              _mode == TruIdentityMode.dating,
+              _mode == TruIdentityMode.creator,
+              _mode == TruIdentityMode.luxe
+            ].indexOf(true),
             onChanged: (i) {
               setState(() {
-                _mode = switch (i) { 0 => TruIdentityMode.social, 1 => TruIdentityMode.dating, 2 => TruIdentityMode.creator, _ => TruIdentityMode.luxe };
+                _mode = switch (i) {
+                  0 => TruIdentityMode.social,
+                  1 => TruIdentityMode.dating,
+                  2 => TruIdentityMode.creator,
+                  _ => TruIdentityMode.luxe
+                };
               });
             },
-            activeGradient: TruLuraTokens.identityGradient(_mode, opacity: 0.95),
+            activeGradient:
+                TruLuraTokens.identityGradient(_mode, opacity: 0.95),
           ),
           const SizedBox(height: 18),
-          Text('Intent (optional)', style: Theme.of(context).textTheme.titleSmall?.copyWith(color: Colors.white, fontWeight: FontWeight.w900)),
+          Text('Intent (optional)',
+              style: Theme.of(context)
+                  .textTheme
+                  .titleSmall
+                  ?.copyWith(color: Colors.white, fontWeight: FontWeight.w900)),
           const SizedBox(height: 10),
           Wrap(
             spacing: 10,
             runSpacing: 10,
             children: [
-              _IntentChip(label: 'Exploring', selected: _intents.contains('exploring'), onTap: () => _toggleIntent('exploring')),
-              _IntentChip(label: 'Dating', selected: _intents.contains('dating'), onTap: () => _toggleIntent('dating')),
-              _IntentChip(label: 'Serious', selected: _intents.contains('serious'), onTap: () => _toggleIntent('serious')),
-              _IntentChip(label: 'Companionship', selected: _intents.contains('companionship'), onTap: () => _toggleIntent('companionship')),
+              _IntentChip(
+                  label: 'Exploring',
+                  selected: _intents.contains('exploring'),
+                  onTap: () => _toggleIntent('exploring')),
+              _IntentChip(
+                  label: 'Dating',
+                  selected: _intents.contains('dating'),
+                  onTap: () => _toggleIntent('dating')),
+              _IntentChip(
+                  label: 'Serious',
+                  selected: _intents.contains('serious'),
+                  onTap: () => _toggleIntent('serious')),
+              _IntentChip(
+                  label: 'Companionship',
+                  selected: _intents.contains('companionship'),
+                  onTap: () => _toggleIntent('companionship')),
             ],
           ),
           const SizedBox(height: 18),
-          Text('Visibility', style: Theme.of(context).textTheme.titleSmall?.copyWith(color: Colors.white, fontWeight: FontWeight.w900)),
+          Text('Visibility',
+              style: Theme.of(context)
+                  .textTheme
+                  .titleSmall
+                  ?.copyWith(color: Colors.white, fontWeight: FontWeight.w900)),
           const SizedBox(height: 10),
           Container(
             padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 6),
             decoration: BoxDecoration(
               borderRadius: BorderRadius.circular(16),
               color: Colors.white.withValues(alpha: 0.10),
-              border: Border.all(color: Colors.white.withValues(alpha: 0.14), width: TruLuraSurfaces.hairline),
+              border: Border.all(
+                  color: Colors.white.withValues(alpha: 0.14),
+                  width: TruLuraSurfaces.hairline),
             ),
             child: DropdownButtonHideUnderline(
               child: DropdownButton<TruProfileVisibility>(
                 value: _visibility,
                 isExpanded: true,
                 dropdownColor: cs.surface,
-                items: TruProfileVisibility.values.map((v) => DropdownMenuItem(value: v, child: Text(v.label))).toList(),
-                onChanged: (v) => setState(() => _visibility = v ?? TruProfileVisibility.public),
+                items: TruProfileVisibility.values
+                    .map(
+                        (v) => DropdownMenuItem(value: v, child: Text(v.label)))
+                    .toList(),
+                onChanged: (v) => setState(
+                    () => _visibility = v ?? TruProfileVisibility.public),
               ),
             ),
           ),
@@ -157,7 +214,9 @@ class _OnboardingIdentitySetupScreenState extends State<OnboardingIdentitySetupS
             decoration: BoxDecoration(
               borderRadius: BorderRadius.circular(16),
               color: Colors.white.withValues(alpha: 0.08),
-              border: Border.all(color: Colors.white.withValues(alpha: 0.12), width: TruLuraSurfaces.hairline),
+              border: Border.all(
+                  color: Colors.white.withValues(alpha: 0.12),
+                  width: TruLuraSurfaces.hairline),
             ),
             child: Row(
               children: [
@@ -165,20 +224,33 @@ class _OnboardingIdentitySetupScreenState extends State<OnboardingIdentitySetupS
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      Text('Anonymous overlay', style: Theme.of(context).textTheme.titleSmall?.copyWith(color: Colors.white, fontWeight: FontWeight.w900)),
+                      Text('Anonymous overlay',
+                          style: Theme.of(context)
+                              .textTheme
+                              .titleSmall
+                              ?.copyWith(
+                                  color: Colors.white,
+                                  fontWeight: FontWeight.w900)),
                       const SizedBox(height: 4),
-                      Text('Mask your handle + details across this persona.', style: Theme.of(context).textTheme.bodySmall?.copyWith(color: Colors.white70, height: 1.3)),
+                      Text('Mask your handle + details across this persona.',
+                          style: Theme.of(context)
+                              .textTheme
+                              .bodySmall
+                              ?.copyWith(color: Colors.white70, height: 1.3)),
                     ],
                   ),
                 ),
-                TruToggle(value: _anonymous, onChanged: (v) => setState(() => _anonymous = v)),
+                TruToggle(
+                    value: _anonymous,
+                    onChanged: (v) => setState(() => _anonymous = v)),
               ],
             ),
           ),
           const SizedBox(height: 18),
           FilledButton(
             onPressed: _saving ? null : _save,
-            style: FilledButton.styleFrom(padding: const EdgeInsets.symmetric(vertical: 14)),
+            style: FilledButton.styleFrom(
+                padding: const EdgeInsets.symmetric(vertical: 14)),
             child: Text(_saving ? 'Saving…' : 'Continue'),
           ),
           const SizedBox(height: 10),
@@ -207,7 +279,8 @@ class _IntentChip extends StatelessWidget {
   final bool selected;
   final VoidCallback onTap;
 
-  const _IntentChip({required this.label, required this.selected, required this.onTap});
+  const _IntentChip(
+      {required this.label, required this.selected, required this.onTap});
 
   @override
   Widget build(BuildContext context) {
@@ -220,11 +293,27 @@ class _IntentChip extends StatelessWidget {
         padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
         decoration: BoxDecoration(
           borderRadius: BorderRadius.circular(999),
-          color: selected ? Colors.white.withValues(alpha: 0.18) : Colors.white.withValues(alpha: 0.08),
-          border: Border.all(color: selected ? Colors.white.withValues(alpha: 0.28) : cs.outline.withValues(alpha: 0.18), width: TruLuraSurfaces.hairline),
-          boxShadow: selected ? TruLuraTokens.softGlow(TruLuraTokens.auraPink).map((s) => s.copyWith(color: s.color.withValues(alpha: 0.10), blurRadius: s.blurRadius * 0.6)).toList() : const [],
+          color: selected
+              ? Colors.white.withValues(alpha: 0.18)
+              : Colors.white.withValues(alpha: 0.08),
+          border: Border.all(
+              color: selected
+                  ? Colors.white.withValues(alpha: 0.28)
+                  : cs.outline.withValues(alpha: 0.18),
+              width: TruLuraSurfaces.hairline),
+          boxShadow: selected
+              ? TruLuraTokens.softGlow(TruLuraTokens.auraPink)
+                  .map((s) => s.copyWith(
+                      color: s.color.withValues(alpha: 0.10),
+                      blurRadius: s.blurRadius * 0.6))
+                  .toList()
+              : const [],
         ),
-        child: Text(label, style: Theme.of(context).textTheme.labelLarge?.copyWith(color: Colors.white, fontWeight: FontWeight.w900)),
+        child: Text(label,
+            style: Theme.of(context)
+                .textTheme
+                .labelLarge
+                ?.copyWith(color: Colors.white, fontWeight: FontWeight.w900)),
       ),
     );
   }

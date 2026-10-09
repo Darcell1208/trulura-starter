@@ -377,7 +377,7 @@ class _IdentityCoreScreenState extends State<IdentityCoreScreen> {
       case TruIdentityMode.friendship:
         return null;
       case TruIdentityMode.dating:
-        if ((me?.age ?? 18) < 18) {
+        if ((me?.age ?? 0) < 18) {
           return const _PersonaLock(
             reason: 'Dating is only available for 18+ accounts.',
             actionLabel: 'Learn',

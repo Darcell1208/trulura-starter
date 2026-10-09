@@ -17,7 +17,8 @@ class ExperienceModeController extends ChangeNotifier {
   TruExperienceMode _activeMode = TruExperienceMode.social;
   bool _loading = false;
 
-  ExperienceModeController({required AppProvider appProvider, ExperienceModeService? service})
+  ExperienceModeController(
+      {required AppProvider appProvider, ExperienceModeService? service})
       : _app = appProvider,
         _service = service ?? ExperienceModeService();
 
@@ -27,11 +28,22 @@ class ExperienceModeController extends ChangeNotifier {
 
   TruExperienceMode get activeMode => _activeMode;
 
-  List<TruExperienceMode> get enabledModes => _modes.values.where((s) => s.isEnabled).map((s) => s.mode).toList();
+  List<TruExperienceMode> get enabledModes => _modes.values
+      .where((s) => s.isEnabled && !lockFor(s.mode).locked)
+      .map((s) => s.mode)
+      .toList();
 
-  List<TruExperienceMode> get passiveModes => enabledModes.where((m) => m != _activeMode).toList(growable: false);
+  List<TruExperienceMode> get passiveModes =>
+      enabledModes.where((m) => m != _activeMode).toList(growable: false);
 
-  ExperienceModeState stateOf(TruExperienceMode mode) => _modes[mode] ?? ExperienceModeState(mode: mode, isEnabled: mode == TruExperienceMode.social, visibility: TruVisibilityLevel.public, createdAt: DateTime.now(), updatedAt: DateTime.now());
+  ExperienceModeState stateOf(TruExperienceMode mode) =>
+      _modes[mode] ??
+      ExperienceModeState(
+          mode: mode,
+          isEnabled: mode == TruExperienceMode.social,
+          visibility: TruVisibilityLevel.public,
+          createdAt: DateTime.now(),
+          updatedAt: DateTime.now());
 
   User? get _user => _app.currentUser;
 
@@ -45,11 +57,10 @@ class ExperienceModeController extends ChangeNotifier {
 
       // Bridge v1 existing app toggles into the new system.
       if (_app.creatorModeEnabled) {
-        _modes[TruExperienceMode.creator] = stateOf(TruExperienceMode.creator).copyWith(isEnabled: true, updatedAt: DateTime.now());
+        _modes[TruExperienceMode.creator] = stateOf(TruExperienceMode.creator)
+            .copyWith(isEnabled: true, updatedAt: DateTime.now());
       }
-      if (_app.fullSyncModeEnabled) {
-        _modes[TruExperienceMode.dating] = stateOf(TruExperienceMode.dating).copyWith(isEnabled: true, updatedAt: DateTime.now());
-      }
+      // Full Resonance changes matching depth; it never opts into dating.
 
       await _service.setModes(_modes, userId: _user?.id);
 
@@ -89,12 +100,15 @@ class ExperienceModeController extends ChangeNotifier {
   TruParticipationContext get participationContext {
     final restricted = <TruExperienceMode>[];
     for (final m in TruExperienceMode.values) {
-      if (participationOf(m) == TruModeParticipationState.restricted) restricted.add(m);
+      if (participationOf(m) == TruModeParticipationState.restricted)
+        restricted.add(m);
     }
 
     final activePerms = permissionsFor(_activeMode);
-    final passivePerms = passiveModes.map(permissionsFor).toList(growable: false);
-    final effective = TruExperienceModePolicy.effectivePermissions(active: activePerms, passive: passivePerms);
+    final passivePerms =
+        passiveModes.map(permissionsFor).toList(growable: false);
+    final effective = TruExperienceModePolicy.effectivePermissions(
+        active: activePerms, passive: passivePerms);
 
     return TruParticipationContext(
       activeMode: _activeMode,
@@ -121,7 +135,9 @@ class ExperienceModeController extends ChangeNotifier {
         creatorApproved: _app.creatorApproved,
       );
 
-  Future<bool> setActiveMode(TruExperienceMode next, {bool confirmed = false}) async {
+  Future<bool> setActiveMode(TruExperienceMode next,
+      {bool confirmed = false}) async {
+    if (lockFor(next).locked) return false;
     if (next == _activeMode) return true;
 
     final state = stateOf(next);
@@ -161,17 +177,26 @@ class ExperienceModeController extends ChangeNotifier {
     // Mutual restriction: Youth cannot coexist with adult-intent modes.
     final next = Map<TruExperienceMode, ExperienceModeState>.from(_modes);
     if (enabled && mode == TruExperienceMode.youth) {
-      for (final m in [TruExperienceMode.dating, TruExperienceMode.altIntimate, TruExperienceMode.luxe]) {
+      for (final m in [
+        TruExperienceMode.dating,
+        TruExperienceMode.altIntimate,
+        TruExperienceMode.luxe
+      ]) {
         next[m] = stateOf(m).copyWith(isEnabled: false, updatedAt: now);
       }
     }
-    if (enabled && (mode == TruExperienceMode.dating || mode == TruExperienceMode.altIntimate || mode == TruExperienceMode.luxe)) {
-      next[TruExperienceMode.youth] = stateOf(TruExperienceMode.youth).copyWith(isEnabled: false, updatedAt: now);
+    if (enabled &&
+        (mode == TruExperienceMode.dating ||
+            mode == TruExperienceMode.altIntimate ||
+            mode == TruExperienceMode.luxe)) {
+      next[TruExperienceMode.youth] = stateOf(TruExperienceMode.youth)
+          .copyWith(isEnabled: false, updatedAt: now);
     }
 
     next[mode] = current.copyWith(isEnabled: enabled, updatedAt: now);
     // Ensure at least Social remains.
-    next[TruExperienceMode.social] = stateOf(TruExperienceMode.social).copyWith(isEnabled: true, updatedAt: now);
+    next[TruExperienceMode.social] = stateOf(TruExperienceMode.social)
+        .copyWith(isEnabled: true, updatedAt: now);
 
     _modes = next;
     notifyListeners();
@@ -199,10 +224,12 @@ class ExperienceModeController extends ChangeNotifier {
     }
   }
 
-  Future<void> setVisibility(TruExperienceMode mode, TruVisibilityLevel visibility) async {
+  Future<void> setVisibility(
+      TruExperienceMode mode, TruVisibilityLevel visibility) async {
     final current = stateOf(mode);
     final next = Map<TruExperienceMode, ExperienceModeState>.from(_modes);
-    next[mode] = current.copyWith(visibility: visibility, updatedAt: DateTime.now());
+    next[mode] =
+        current.copyWith(visibility: visibility, updatedAt: DateTime.now());
     _modes = next;
     notifyListeners();
     await _service.setModes(_modes, userId: _user?.id);
