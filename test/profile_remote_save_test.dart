@@ -89,6 +89,24 @@ void main() {
     };
     await UserService().saveAccountBirthday(member, '2000-01-15');
   });
+  test('saved birthday controls reloaded age without granting verification', () async {
+    handler = (request) async {
+      final body = jsonDecode(request.body) as Map<String, dynamic>;
+      return response(request, authUser(member, Map<String, dynamic>.from(body['data'])));
+    };
+    await UserService().saveAccountBirthday(member, '2012-01-15');
+    expect(UserService().accountBirthday(member), '2012-01-15');
+    expect(UserService().accountBirthday(other), isEmpty);
+    handler = (request) async => response(request,
+      request.url.path.endsWith('/profiles')
+        ? {'id': member, 'display_name': 'Existing member', 'age': 30}
+        : null);
+    final loaded = await UserService().getCurrentUser();
+    expect(loaded, isNotNull);
+    expect(loaded!.age, UserService.accountAge({'trulura_birth_date': '2012-01-15'}));
+    expect(loaded.name, 'Existing member');
+    expect(loaded.verificationLevel, TruVerificationLevel.level0);
+  });
   test('birthday save rejects a missing receipt', () async {
     handler = (request) async => response(request, authUser(member));
     await expectLater(UserService().saveAccountBirthday(member, '2000-01-15'), throwsStateError);
