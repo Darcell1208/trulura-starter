@@ -4,9 +4,28 @@ import 'package:trulura/models/experience/experience_mode.dart';
 import 'package:trulura/models/user.dart';
 import 'package:trulura/providers/app_provider.dart';
 import 'package:trulura/services/app_settings_service.dart';
+import 'package:trulura/services/experience_mode_service.dart';
 import 'package:trulura/providers/experience_mode_controller.dart';
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
+  test('legacy Alt state without Dating is cleared and persisted on startup', () async {
+    SharedPreferences.setMockInitialValues({});
+    final service = ExperienceModeService();
+    final saved = await service.getModes(userId:'adult');
+    saved[TruExperienceMode.dating] = saved[TruExperienceMode.dating]!.copyWith(isEnabled:false);
+    saved[TruExperienceMode.altIntimate] = saved[TruExperienceMode.altIntimate]!.copyWith(isEnabled:true);
+    await service.setModes(saved,userId:'adult');
+    await service.setActiveMode(TruExperienceMode.altIntimate,userId:'adult');
+    final app = AppProvider();
+    app.setCurrentUser(User.fromJson({'id':'adult','age':25}).copyWith(verificationLevel:TruVerificationLevel.level3));
+    final controller = ExperienceModeController(appProvider:app,service:service);
+    await controller.initialize();
+    expect(controller.activeMode,TruExperienceMode.social);
+    expect(controller.enabledModes,isNot(contains(TruExperienceMode.altIntimate)));
+    expect((await service.getModes(userId:'adult'))[TruExperienceMode.altIntimate]!.isEnabled,isFalse);
+    expect(await service.getActiveMode(userId:'adult'),TruExperienceMode.social);
+    controller.dispose(); app.dispose();
+  });
   test('Alt requires dating opt-in and is disabled with its parent', () async {
     SharedPreferences.setMockInitialValues({});
     final app = AppProvider();
