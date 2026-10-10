@@ -817,24 +817,70 @@ class _HomeHubScreenState extends State<HomeHubScreen>
                     child: Row(
                       children: Mood.values.map((mood) {
                         final selected = aura.mood == mood;
-                        final moodTone = switch (mood) {
-                          Mood.flirty => TruLuraModeTone.sync,
-                          Mood.healing => TruLuraModeTone.profile,
-                          Mood.social => TruLuraModeTone.explore,
-                          _ => TruLuraModeTone.aura,
+                        final color = AuraStateController.colorForMood(mood);
+                        final symbol = switch (mood) {
+                          Mood.reflective => Icons.nights_stay_outlined,
+                          Mood.flirty => Icons.favorite_border_rounded,
+                          Mood.calm => Icons.water_outlined,
+                          Mood.social => Icons.auto_awesome_outlined,
+                          Mood.healing => Icons.spa_outlined,
                         };
                         return Padding(
                           padding: const EdgeInsets.only(right: 8),
-                          child: TruLuraGlowPill(
-                            label: _labelForMood(mood),
+                          child: Semantics(
+                            button: true,
                             selected: selected,
-                            tone: moodTone,
-                            onTap: () {
-                              context.read<AuraStateController>().updateMood(mood);
-                            },
-                            padding: EdgeInsets.symmetric(
-                              horizontal: 14,
-                              vertical: compactVertical ? 8 : 9,
+                            child: Material(
+                              color: selected
+                                  ? Color.alphaBlend(
+                                      color.withValues(alpha: .24),
+                                      const Color(0xFF0B1020))
+                                  : const Color(0xFF0B1020),
+                              shape: RoundedRectangleBorder(
+                                borderRadius: BorderRadius.circular(14),
+                                side: BorderSide(
+                                    color: color.withValues(
+                                        alpha: selected ? .95 : .32),
+                                    width: selected ? 1.5 : 1),
+                              ),
+                              clipBehavior: Clip.antiAlias,
+                              child: InkWell(
+                                onTap: () => context
+                                    .read<AuraStateController>()
+                                    .updateMood(mood),
+                                child: Padding(
+                                  padding: const EdgeInsets.symmetric(
+                                      horizontal: 13, vertical: 12),
+                                  child: Row(
+                                      mainAxisSize: MainAxisSize.min,
+                                      children: [
+                                        Icon(symbol,
+                                            size: 20,
+                                            color: color,
+                                            shadows: soft
+                                                ? null
+                                                : [
+                                                    Shadow(
+                                                        color: color.withValues(
+                                                            alpha: .5 *
+                                                                app.glowScale),
+                                                        blurRadius: 9)
+                                                  ]),
+                                        const SizedBox(width: 8),
+                                        Text(_labelForMood(mood),
+                                            style: TextStyle(
+                                                color: const Color(0xFFF4ECFF),
+                                                fontWeight: selected
+                                                    ? FontWeight.w700
+                                                    : FontWeight.w500)),
+                                        if (selected) ...[
+                                          const SizedBox(width: 6),
+                                          Icon(Icons.check_rounded,
+                                              size: 14, color: color),
+                                        ],
+                                      ]),
+                                ),
+                              ),
                             ),
                           ),
                         );
