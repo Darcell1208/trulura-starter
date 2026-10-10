@@ -333,14 +333,6 @@ class _CreatePostScreenState extends State<CreatePostScreen> with RouteAware {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.stretch,
                   children: [
-                    _ComposerWorldHeader(
-                      glyph: ctx.activeMode.glyph,
-                      modeLabel: ctx.activeMode.label,
-                      contextLabel: ctx.activePermissions.interaction.label,
-                      postType: _postType,
-                      mood: _selectedMood,
-                    ),
-                    const SizedBox(height: 16),
                     TruLuraGlassCard(
                       radius: 20,
                       padding: const EdgeInsets.all(12),
@@ -354,7 +346,9 @@ class _CreatePostScreenState extends State<CreatePostScreen> with RouteAware {
                           const SizedBox(width: 10),
                           Expanded(
                             child: Text(
-                              'Posting in ${ctx.activeMode.label} • ${ctx.activePermissions.interaction.label} context',
+                              ctx.activeMode.label.toLowerCase() == ctx.activePermissions.interaction.label.toLowerCase()
+                                  ? 'Posting in ${ctx.activeMode.label}'
+                                  : 'Posting in ${ctx.activeMode.label} • ${ctx.activePermissions.interaction.label}',
                               maxLines: 2,
                               overflow: TextOverflow.ellipsis,
                               style: Theme.of(context)
