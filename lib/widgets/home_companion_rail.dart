@@ -1,3 +1,5 @@
+import 'package:trulura/compat/provider_compat.dart';
+import 'package:trulura/providers/app_provider.dart';
 import 'package:flutter/material.dart';
 import 'package:trulura/core/navigation/app_router.dart';
 import 'package:trulura/core/navigation/tru_navigation.dart';
@@ -68,7 +70,8 @@ class HomeCompanionRail extends StatelessWidget {
         border: Border.all(color: const Color(0xFF776098)),
       ),
       child: Stack(fit: StackFit.expand, children: [
-        Image.asset(asset, fit: BoxFit.cover, excludeFromSemantics: true),
+        if (context.watch<AppProvider>().appearanceMode == 'trulura')
+          Image.asset(asset, fit: BoxFit.cover, excludeFromSemantics: true),
         const DecoratedBox(
             decoration: BoxDecoration(
                 gradient: LinearGradient(

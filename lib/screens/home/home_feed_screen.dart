@@ -802,10 +802,10 @@ class _HomeFeedScreenState extends State<HomeFeedScreen>
             context.watch<AppProvider>().moodAdaptiveUiEnabled;
         return DecoratedBox(
           decoration: BoxDecoration(
-            color: const Color(0xFF050812),
-            image: const DecorationImage(
+            color: Theme.of(context).colorScheme.surface,
+            image: context.watch<AppProvider>().appearanceMode == 'trulura' ? const DecorationImage(
               image: AssetImage('assets/images/trulura_home_atmosphere.png'),
-              fit: BoxFit.cover, opacity: 0.72),
+              fit: BoxFit.cover, opacity: 0.72) : null,
             gradient: LinearGradient(
               begin: Alignment.topLeft,
               end: Alignment.bottomRight,

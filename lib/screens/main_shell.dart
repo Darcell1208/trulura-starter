@@ -253,7 +253,7 @@ class _MainShellState extends State<MainShell> {
           ),
           const SizedBox(width: 6),
         ],
-        flexibleSpace: homeHeader ? Container(
+        flexibleSpace: homeHeader && app.appearanceMode == 'trulura' ? Container(
           decoration: const BoxDecoration(
             image: DecorationImage(
               image: AssetImage('assets/images/trulura_home_atmosphere.png'),
