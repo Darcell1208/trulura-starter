@@ -219,23 +219,49 @@ class _MainShellState extends State<MainShell> {
                     style: TextStyle(fontSize: wideHeader ? 10 : 7,
                         letterSpacing: wideHeader ? 3 : 1.4,
                         fontWeight: FontWeight.w400,
-                        color: const Color(0xFFD7C5EC))),
+                        color: Theme.of(context).colorScheme.onSurfaceVariant)),
               ])
             : const _CinematicTopTitle(),
         actions: [
-          IconButton(
-            onPressed: () => context.read<AppProvider>().setSoftModeEnabled(
-                  !app.softModeEnabled,
-                ),
+          PopupMenuButton<String>(
+            tooltip: 'Appearance and Soft Mode',
             icon: TruLuraIcon(
               glyph: TruLuraGlyph.moon,
               size: 18,
               active: app.softModeEnabled,
               color: cs.onSurface.withValues(alpha: 0.85),
             ),
-            tooltip: app.softModeEnabled
-                ? 'Turn off Soft Mode'
-                : 'Turn on Soft Mode',
+            onSelected: (value) {
+              final settings = context.read<AppProvider>();
+              if (value == 'soft') {
+                settings.setSoftModeEnabled(!settings.softModeEnabled);
+              } else {
+                settings.setAppearanceMode(value);
+              }
+            },
+            itemBuilder: (context) => [
+              const PopupMenuItem<String>(
+                enabled: false,
+                child: Text('Appearance'),
+              ),
+              for (final entry in const {
+                'trulura': 'TruLura',
+                'light': 'Light',
+                'dark': 'Dark',
+                'neutral': 'Neutral',
+              }.entries)
+                CheckedPopupMenuItem<String>(
+                  value: entry.key,
+                  checked: app.appearanceMode == entry.key,
+                  child: Text(entry.value),
+                ),
+              const PopupMenuDivider(),
+              CheckedPopupMenuItem<String>(
+                value: 'soft',
+                checked: app.softModeEnabled,
+                child: const Text('Soft Mode · Reduce glow'),
+              ),
+            ],
           ),
           IconButton(
             onPressed: () =>
@@ -317,6 +343,7 @@ class _MainShellState extends State<MainShell> {
             final slide = (1 - value) * 10;
             return Stack(
               children: [
+                if (app.appearanceMode == 'trulura')
                 Positioned.fill(
                   child: _EnvironmentalShiftOverlay(
                     value: value,
@@ -383,12 +410,10 @@ class _CinematicTopTitle extends StatelessWidget {
                 bottom: 0,
                 child: ShaderMask(
                   blendMode: BlendMode.srcIn,
-                  shaderCallback: (bounds) => const LinearGradient(
-                    colors: [
-                      Color(0xFFFFDDBA),
-                      Color(0xFFF1C6F5),
-                      Color(0xFFFFDEB9)
-                    ],
+                  shaderCallback: (bounds) => LinearGradient(
+                    colors: Theme.of(context).brightness == Brightness.light
+                        ? const [Color(0xFF39234E), Color(0xFF68436F), Color(0xFF39234E)]
+                        : const [Color(0xFFFFDDBA), Color(0xFFF1C6F5), Color(0xFFFFDEB9)],
                   ).createShader(bounds),
                   child: Text('TruLura',
                       style: GoogleFonts.cormorantGaramond(

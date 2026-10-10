@@ -1590,7 +1590,7 @@ class _ProfileIdentityStory extends StatelessWidget {
                                 .textTheme
                                 .bodySmall
                                 ?.copyWith(
-                                    color: TruLuraTokens.textSecondary,
+                                    color: Theme.of(context).colorScheme.onSurfaceVariant,
                                     height: 1.4)),
                       ]),
                 )),
@@ -1694,7 +1694,7 @@ class _ProfileWeatherBand extends StatelessWidget {
                         maxLines: 1,
                         overflow: TextOverflow.ellipsis,
                         style: t.labelSmall?.copyWith(
-                          color: TruLuraTokens.textSecondary,
+                          color: Theme.of(context).colorScheme.onSurfaceVariant,
                           fontWeight: FontWeight.w800,
                         ),
                       ),

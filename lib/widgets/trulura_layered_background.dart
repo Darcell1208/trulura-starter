@@ -54,6 +54,12 @@ class TruLuraLayeredBackground extends StatelessWidget {
     final brightness = Theme.of(context).brightness;
     final cs = Theme.of(context).colorScheme;
     final app = context.watch<AppProvider>();
+    if (app.appearanceMode != 'trulura') {
+      return Material(
+        color: app.appearanceMode == 'light' ? Colors.white : cs.surface,
+        child: Padding(padding: padding, child: child),
+      );
+    }
     final softMode = app.softModeEnabled;
     final datingOnly = app.fullSyncModeEnabled;
     final presence = app.emotionalPresenceState;

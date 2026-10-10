@@ -127,7 +127,7 @@ class _ExploreScreenState extends State<ExploreScreen> {
         TruluraContentLane(
           maxWidth: kTruluraDesktopContentMaxWidth,
           padding: const EdgeInsets.fromLTRB(16, 0, 16, 12),
-          child: _ExploreDiscoveryMap(
+          child: ExploreDiscoveryMap(
             selectedCategory: _selectedCategory,
             onCategory: (category) => setState(() {
               _selectedCategory = category;
@@ -524,13 +524,13 @@ class _SearchField extends StatelessWidget {
   }
 }
 
-class _ExploreDiscoveryMap extends StatelessWidget {
+class ExploreDiscoveryMap extends StatelessWidget {
   final String selectedCategory;
   final ValueChanged<String> onCategory;
   final VoidCallback onOpenVent;
   final VoidCallback onTune;
 
-  const _ExploreDiscoveryMap({
+  const ExploreDiscoveryMap({
     required this.selectedCategory,
     required this.onCategory,
     required this.onOpenVent,
@@ -591,7 +591,7 @@ class _ExploreDiscoveryMap extends StatelessWidget {
                           Text(
                             'Choose a realm before you meet the people inside it.',
                             style: t.displaySmall?.copyWith(
-                              color: TruLuraTokens.textPrimary,
+                              color: Theme.of(context).colorScheme.onSurface,
                               fontFamily: 'Georgia',
                               height: 1.03,
                               fontWeight: FontWeight.w500,
@@ -601,7 +601,7 @@ class _ExploreDiscoveryMap extends StatelessWidget {
                           Text(
                             'Explore is a discovery map for destinations, communities, events, creators, and topics beyond your own orbit.',
                             style: t.bodyLarge?.copyWith(
-                              color: TruLuraTokens.textSecondary,
+                              color: Theme.of(context).colorScheme.onSurfaceVariant,
                               height: 1.45,
                             ),
                           ),
@@ -671,40 +671,20 @@ class _ExploreDiscoveryMap extends StatelessWidget {
                       ),
                     ];
 
-                    if (compact) {
-                      return Wrap(
-                        spacing: 10,
-                        runSpacing: 10,
-                        children: [
-                          for (final node in nodes)
-                            _DiscoveryMapNode(
-                              node: node,
-                              selected: selectedCategory == node.category,
-                              onTap: node.category == 'Vent'
-                                  ? onOpenVent
-                                  : () => onCategory(node.category),
-                            ),
-                        ],
-                      );
-                    }
-
-                    return SizedBox(
-                      height: 190,
-                      child: Stack(
-                        children: [
-                          for (final node in nodes)
-                            Align(
-                              alignment: node.alignment,
-                              child: _DiscoveryMapNode(
-                                node: node,
-                                selected: selectedCategory == node.category,
-                                onTap: node.category == 'Vent'
-                                    ? onOpenVent
-                                    : () => onCategory(node.category),
-                              ),
-                            ),
-                        ],
-                      ),
+                    return Wrap(
+                      alignment: WrapAlignment.center,
+                      spacing: 12,
+                      runSpacing: 16,
+                      children: [
+                        for (final node in nodes)
+                          _DiscoveryMapNode(
+                            node: node,
+                            selected: selectedCategory == node.category,
+                            onTap: node.category == 'Vent'
+                                ? onOpenVent
+                                : () => onCategory(node.category),
+                          ),
+                      ],
                     );
                   },
                 ),
@@ -753,7 +733,7 @@ class _DiscoveryMapNode extends StatelessWidget {
       radius: 76,
       child: SizedBox(
         width: 164,
-        height: 146,
+
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
@@ -800,7 +780,7 @@ class _DiscoveryMapNode extends StatelessWidget {
               overflow: TextOverflow.ellipsis,
               textAlign: TextAlign.center,
               style: Theme.of(context).textTheme.labelLarge?.copyWith(
-                    color: TruLuraTokens.textPrimary,
+                    color: Theme.of(context).colorScheme.onSurface,
                     fontWeight: FontWeight.w900,
                   ),
             ),
@@ -811,7 +791,7 @@ class _DiscoveryMapNode extends StatelessWidget {
               overflow: TextOverflow.ellipsis,
               textAlign: TextAlign.center,
               style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                    color: TruLuraTokens.textSecondary,
+                    color: Theme.of(context).colorScheme.onSurfaceVariant,
                     height: 1.15,
                   ),
             ),

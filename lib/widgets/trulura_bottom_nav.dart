@@ -68,6 +68,30 @@ class TruLuraBottomNav extends StatelessWidget {
       throw FlutterError('TruLuraBottomNav requires either onTap or onSelect.');
     }
 
+    if (app.appearanceMode != 'trulura') {
+      final cs = Theme.of(context).colorScheme;
+      return NavigationBar(
+        backgroundColor: cs.surface,
+        indicatorColor: cs.primaryContainer,
+        selectedIndex: index < 2 ? index : index + 1,
+        onDestinationSelected: (destination) {
+          if (destination == 2) {
+            onPost();
+          } else if (destination == 4 && onOpenProfile != null) {
+            onOpenProfile!();
+          } else {
+            handleTap(destination < 2 ? destination : destination - 1);
+          }
+        },
+        destinations: const [
+          NavigationDestination(icon: Icon(Icons.explore_outlined), label: 'Worlds'),
+          NavigationDestination(icon: Icon(Icons.chat_bubble_outline), label: 'Connect'),
+          NavigationDestination(icon: Icon(Icons.add_circle_outline), label: 'Create'),
+          NavigationDestination(icon: Icon(Icons.inbox_outlined), label: 'Pulse'),
+          NavigationDestination(icon: Icon(Icons.person_outline), label: 'Profile'),
+        ],
+      );
+    }
     return SafeArea(
       top: false,
       child: Align(

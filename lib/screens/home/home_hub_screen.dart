@@ -503,7 +503,7 @@ class _HomeHubScreenState extends State<HomeHubScreen>
       duration: const Duration(milliseconds: 320),
       curve: Curves.easeInOut,
       decoration: BoxDecoration(
-        gradient: LinearGradient(
+        gradient: app.appearanceMode == 'trulura' ? LinearGradient(
           begin: Alignment.topCenter,
           end: Alignment.bottomCenter,
           colors: [
@@ -512,7 +512,7 @@ class _HomeHubScreenState extends State<HomeHubScreen>
             environmentB.withValues(alpha: soft ? 0.030 : 0.060),
             Colors.transparent,
           ],
-        ),
+        ) : null,
       ),
       child: Column(
         children: [
@@ -834,8 +834,8 @@ class _HomeHubScreenState extends State<HomeHubScreen>
                               color: selected
                                   ? Color.alphaBlend(
                                       color.withValues(alpha: .24),
-                                      const Color(0xFF0B1020))
-                                  : const Color(0xFF0B1020),
+                                      cs.surface)
+                                  : cs.surface,
                               shape: RoundedRectangleBorder(
                                 borderRadius: BorderRadius.circular(14),
                                 side: BorderSide(
@@ -869,7 +869,7 @@ class _HomeHubScreenState extends State<HomeHubScreen>
                                         const SizedBox(width: 8),
                                         Text(_labelForMood(mood),
                                             style: TextStyle(
-                                                color: const Color(0xFFF4ECFF),
+                                                color: cs.onSurface,
                                                 fontWeight: selected
                                                     ? FontWeight.w700
                                                     : FontWeight.w500)),

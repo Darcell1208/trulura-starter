@@ -799,7 +799,8 @@ class _HomeFeedScreenState extends State<HomeFeedScreen>
       builder: (context, _) {
         final t = Curves.easeInOut.transform(_pulse.value);
         final adaptiveEnabled =
-            context.watch<AppProvider>().moodAdaptiveUiEnabled;
+            context.watch<AppProvider>().moodAdaptiveUiEnabled &&
+            context.watch<AppProvider>().appearanceMode == 'trulura';
         return DecoratedBox(
           decoration: BoxDecoration(
             color: Theme.of(context).colorScheme.surface,
