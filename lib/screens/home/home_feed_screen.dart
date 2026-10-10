@@ -3545,22 +3545,6 @@ class _HomeDesktopComposition extends StatelessWidget {
                         AppRoutes.profile),
                     _destination(
                         context, 'Settings', Icons.tune, AppRoutes.settings),
-                    const SizedBox(height: 32),
-                    const SizedBox(
-                        height: 110,
-                        child: Center(
-                            child: SizedBox(
-                                width: 100,
-                                height: 100,
-                                child: ExcludeSemantics(
-                                    child: CustomPaint(
-                                        painter: _HomeAuraOrbPainter()))))),
-                    Text('A little more you.',
-                        textAlign: TextAlign.center,
-                        style: Theme.of(context)
-                            .textTheme
-                            .titleMedium
-                            ?.copyWith(color: const Color(0xFFDEC8F5))),
                   ])),
           Expanded(child: feed),
           SizedBox(
