@@ -1,3 +1,4 @@
+import 'package:trulura/widgets/home_companion_rail.dart';
 import 'package:trulura/widgets/home_social_composer.dart';
 import 'package:trulura/widgets/compact_feed_card_presentation.dart';
 import 'dart:async';
@@ -801,6 +802,10 @@ class _HomeFeedScreenState extends State<HomeFeedScreen>
             context.watch<AppProvider>().moodAdaptiveUiEnabled;
         return DecoratedBox(
           decoration: BoxDecoration(
+            color: const Color(0xFF050812),
+            image: const DecorationImage(
+              image: AssetImage('assets/images/trulura_home_atmosphere.png'),
+              fit: BoxFit.cover, opacity: 0.72),
             gradient: LinearGradient(
               begin: Alignment.topLeft,
               end: Alignment.bottomRight,
@@ -3438,46 +3443,7 @@ class _HomeDesktopComposition extends StatelessWidget {
                         context, 'Settings', Icons.tune, AppRoutes.settings),
                   ])),
           Expanded(child: feed),
-          SizedBox(
-              width: 270,
-              child: ListView(
-                  padding: const EdgeInsets.fromLTRB(8, 20, 16, 24),
-                  children: [
-                    _panel(context,
-                        title: 'Your space',
-                        icon: Icons.auto_awesome_outlined,
-                        description:
-                            'Make room for the people, interests, and conversations that matter to you.',
-                        action: 'Explore',
-                        route: AppRoutes.homeTab('explore'),
-                        color: TruLuraTokens.auraViolet),
-                    const SizedBox(height: 16),
-                    _panel(context,
-                        title: 'Create & share',
-                        icon: Icons.edit_outlined,
-                        description:
-                            'Share a thought or a moment with your community.',
-                        action: 'Create a post',
-                        route: AppRoutes.createPost,
-                        color: TruLuraTokens.auraPink),
-                    const SizedBox(height: 16),
-                    _panel(context,
-                        title: 'Make it yours',
-                        icon: Icons.tune,
-                        description:
-                            'Shape your feed around your interests and preferences.',
-                        action: 'Feed settings',
-                        route: AppRoutes.feedPersonalization,
-                        color: TruLuraTokens.auraCyan),
-                    const SizedBox(height: 16),
-                    _panel(context,
-                        title: 'Your comfort matters',
-                        icon: Icons.accessibility_new,
-                        description: 'Adjust the experience to suit you.',
-                        action: 'Accessibility',
-                        route: AppRoutes.accessibility,
-                        color: const Color(0xFFEAC58E)),
-                  ])),
+          const SizedBox(width: 270, child: HomeCompanionRail()),
         ]),
       ));
     });
