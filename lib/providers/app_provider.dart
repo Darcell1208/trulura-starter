@@ -10,6 +10,12 @@ import 'package:trulura/services/user_service.dart';
 import 'package:trulura/supabase/supabase_config.dart';
 
 class AppProvider with ChangeNotifier {
+  bool _homeSidebarVisible = true;
+  bool get homeSidebarVisible => _homeSidebarVisible;
+  void toggleHomeSidebar() {
+    _homeSidebarVisible = !_homeSidebarVisible;
+    notifyListeners();
+  }
   String _appMode = 'Aura';
   model.User? _currentUser;
   bool _lowSocialBattery = false;

@@ -3404,6 +3404,7 @@ class _HomeDesktopComposition extends StatelessWidget {
           child: ConstrainedBox(
         constraints: const BoxConstraints(maxWidth: 1560),
         child: Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
+          if (context.watch<AppProvider>().homeSidebarVisible)
           SizedBox(
               width: 194,
               child: ListView(

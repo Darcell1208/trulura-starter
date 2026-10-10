@@ -192,7 +192,20 @@ class _MainShellState extends State<MainShell> {
         toolbarHeight: 58,
         leading: Builder(
           builder: (context) => IconButton(
-            onPressed: () => Scaffold.of(context).openDrawer(),
+            tooltip: MediaQuery.sizeOf(context).width >= 1100 &&
+                    GoRouterState.of(context).uri.path == AppRoutes.home &&
+                    (GoRouterState.of(context).uri.queryParameters['tab'] ?? 'aura') == 'aura'
+                ? (app.homeSidebarVisible ? 'Close sidebar' : 'Open sidebar')
+                : 'Open menu',
+            onPressed: () {
+              if (MediaQuery.sizeOf(context).width >= 1100 &&
+                  GoRouterState.of(context).uri.path == AppRoutes.home &&
+                  (GoRouterState.of(context).uri.queryParameters['tab'] ?? 'aura') == 'aura') {
+                app.toggleHomeSidebar();
+              } else {
+                Scaffold.of(context).openDrawer();
+              }
+            },
             icon: const TruLuraIcon(glyph: TruLuraGlyph.menu, size: 22),
           ),
         ),
