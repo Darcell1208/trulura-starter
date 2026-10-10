@@ -56,11 +56,11 @@ class TruLuraBottomNav extends StatelessWidget {
     final resolvedMode = mode ?? fallbackMode;
     final isWideLayout = MediaQuery.sizeOf(context).width >= 700;
     final compactDesktopNav = kIsWeb || isWideLayout;
-    final navHeight = compactDesktopNav ? 58.0 : 64.0;
+    final navHeight = compactDesktopNav ? 70.0 : 72.0;
     final bottomPadding = compactDesktopNav ? 12.0 : 14.0;
     final verticalPadding = compactDesktopNav ? 7.0 : 9.0;
-    final postSlotWidth = compactDesktopNav ? 50.0 : 56.0;
-    final postOrbSize = compactDesktopNav ? 38.0 : 42.0;
+    const postSlotWidth = 68.0;
+    const postOrbSize = 54.0;
     final palette = kTruLuraPalettes[resolvedMode]!;
 
     final handleTap = onTap ?? onSelect;
@@ -189,6 +189,7 @@ class TruLuraBottomNav extends StatelessWidget {
                                     child: PostOrbButton(
                                         mode: resolvedMode,
                                         onTap: onPost,
+                                        animate: !soft,
                                         size: postOrbSize),
                                   ),
                                 ),
