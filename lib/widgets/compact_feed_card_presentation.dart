@@ -46,11 +46,30 @@ class CompactFeedCardPresentation extends FeedCardPresentation {
         key: const ValueKey('compact-feed-card'),
         padding: const EdgeInsets.fromLTRB(12, 12, 12, 8),
         decoration: BoxDecoration(
-            color: dark ? const Color(0xFF19172B) : const Color(0xFFF8F7FC),
+            color: dark ? const Color(0xFF0A0D18) : const Color(0xFFF8F7FC),
+            gradient: dark
+                ? const LinearGradient(
+                    begin: Alignment.topLeft,
+                    end: Alignment.bottomRight,
+                    colors: [
+                      Color(0xFF15182A),
+                      Color(0xFF090C16),
+                      Color(0xFF121024)
+                    ],
+                  )
+                : null,
+            boxShadow: dark
+                ? [
+                    BoxShadow(
+                        color: data.auraColor.withValues(alpha: 0.07),
+                        blurRadius: 18,
+                        offset: const Offset(0, 3))
+                  ]
+                : null,
             borderRadius: BorderRadius.circular(16),
             border: Border.all(
                 color:
-                    dark ? const Color(0xFF302B46) : const Color(0xFFE4DFED))),
+                    dark ? const Color(0xFF49415F) : const Color(0xFFE4DFED))),
         child: Column(
             mainAxisSize: MainAxisSize.min,
             crossAxisAlignment: CrossAxisAlignment.start,
@@ -75,6 +94,28 @@ class CompactFeedCardPresentation extends FeedCardPresentation {
                                 padding: EdgeInsets.all(ringWidth),
                                 decoration: BoxDecoration(
                                     shape: BoxShape.circle,
+                                    gradient:
+                                        moodIndicator == FeedMoodIndicator.ring
+                                            ? SweepGradient(colors: [
+                                                data.auraColor,
+                                                Color.lerp(data.auraColor,
+                                                    Colors.white, 0.65)!,
+                                                data.auraColor
+                                                    .withValues(alpha: 0.65),
+                                                data.auraColor
+                                              ])
+                                            : null,
+                                    boxShadow: moodIndicator ==
+                                            FeedMoodIndicator.ring
+                                        ? [
+                                            BoxShadow(
+                                                color: data.auraColor
+                                                    .withValues(
+                                                        alpha:
+                                                            dark ? 0.28 : 0.12),
+                                                blurRadius: 12),
+                                          ]
+                                        : null,
                                     color:
                                         moodIndicator == FeedMoodIndicator.ring
                                             ? data.auraColor
@@ -119,44 +160,44 @@ class CompactFeedCardPresentation extends FeedCardPresentation {
                       // the name means it still reads without colour. No mood,
                       // no chip -- and no spacer either, so the row closes up.
                       if (moodLabel != null) ...[
-                      const SizedBox(width: 6),
-                      Flexible(
-                          child: Container(
-                              key: const ValueKey('compact-mood-chip'),
-                              padding: const EdgeInsets.symmetric(
-                                  horizontal: 7, vertical: 3),
-                              decoration: BoxDecoration(
-                                  color: dark
-                                      ? const Color(0xFF262238)
-                                      : const Color(0xFFEDE9F3),
-                                  borderRadius: BorderRadius.circular(20)),
-                              child: Row(
-                                  mainAxisSize: MainAxisSize.min,
-                                  children: [
-                                    if (data.moodColor != null) ...[
-                                      Container(
-                                          key: const ValueKey(
-                                              'compact-mood-chip-dot'),
-                                          width: 7,
-                                          height: 7,
-                                          decoration: BoxDecoration(
-                                              shape: BoxShape.circle,
-                                              color: data.moodColor)),
-                                      const SizedBox(width: 5),
-                                    ],
-                                    Flexible(
-                                        child: Text(moodLabel,
-                                            maxLines: 1,
-                                            overflow: TextOverflow.ellipsis,
-                                            style: Theme.of(context)
-                                                .textTheme
-                                                .labelSmall!
-                                                .copyWith(
-                                                    fontSize: vibeSize,
-                                                    fontWeight:
-                                                        FontWeight.w500,
-                                                    color: muted))),
-                                  ]))),
+                        const SizedBox(width: 6),
+                        Flexible(
+                            child: Container(
+                                key: const ValueKey('compact-mood-chip'),
+                                padding: const EdgeInsets.symmetric(
+                                    horizontal: 7, vertical: 3),
+                                decoration: BoxDecoration(
+                                    color: dark
+                                        ? const Color(0xFF262238)
+                                        : const Color(0xFFEDE9F3),
+                                    borderRadius: BorderRadius.circular(20)),
+                                child: Row(
+                                    mainAxisSize: MainAxisSize.min,
+                                    children: [
+                                      if (data.moodColor != null) ...[
+                                        Container(
+                                            key: const ValueKey(
+                                                'compact-mood-chip-dot'),
+                                            width: 7,
+                                            height: 7,
+                                            decoration: BoxDecoration(
+                                                shape: BoxShape.circle,
+                                                color: data.moodColor)),
+                                        const SizedBox(width: 5),
+                                      ],
+                                      Flexible(
+                                          child: Text(moodLabel,
+                                              maxLines: 1,
+                                              overflow: TextOverflow.ellipsis,
+                                              style: Theme.of(context)
+                                                  .textTheme
+                                                  .labelSmall!
+                                                  .copyWith(
+                                                      fontSize: vibeSize,
+                                                      fontWeight:
+                                                          FontWeight.w500,
+                                                      color: muted))),
+                                    ]))),
                       ],
                     ])),
                     SizedBox(
@@ -251,20 +292,19 @@ class CompactFeedCardPresentation extends FeedCardPresentation {
                                                                             : action.selected
                                                                                 ? data.auraColor
                                                                                 : muted),
-                                                                    if (action.count !=
+                                                                    if (action
+                                                                            .count !=
                                                                         null) ...[
-                                                                    const SizedBox(
-                                                                        width:
-                                                                            5),
-                                                                    Text(
-                                                                        _count(action
-                                                                            .count!),
-                                                                        style: Theme.of(context)
-                                                                            .textTheme
-                                                                            .labelMedium!
-                                                                            .copyWith(
-                                                                                fontSize: 12,
-                                                                                color: action.onTap == null ? muted.withValues(alpha: 0.35) : muted)),
+                                                                      const SizedBox(
+                                                                          width:
+                                                                              5),
+                                                                      Text(
+                                                                          _count(action
+                                                                              .count!),
+                                                                          style: Theme.of(context)
+                                                                              .textTheme
+                                                                              .labelMedium!
+                                                                              .copyWith(fontSize: 12, color: action.onTap == null ? muted.withValues(alpha: 0.35) : muted)),
                                                                     ],
                                                                   ]))))))))),
                           ]))),
