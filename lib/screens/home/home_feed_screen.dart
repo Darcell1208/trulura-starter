@@ -919,14 +919,40 @@ class _AuraScrollHeader extends StatelessWidget {
           maxWidth: kTruluraFeedMaxWidth + 84,
           child: _AuraWorldHero(kind: activeKind),
         ),
-        ...children,
         TruluraFeedLane(
-          padding: EdgeInsets.zero,
-          child: _AuraPageHeading(
-            participation: participation,
-            personalizedSubtitle: personalizedSubtitle,
+          child: Material(
+            color: const Color(0xFF0C1020),
+            shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(22),
+                side: BorderSide(
+                    color: TruLuraTokens.auraViolet.withValues(alpha: 0.4))),
+            clipBehavior: Clip.antiAlias,
+            child: InkWell(
+              onTap: () =>
+                  TruNavigation.pushWithReturnTo(context, AppRoutes.createPost),
+              child: Padding(
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 18, vertical: 18),
+                child: Row(children: [
+                  const TruLuraIcon(
+                      glyph: TruLuraGlyph.edit,
+                      color: TruLuraTokens.auraViolet),
+                  const SizedBox(width: 14),
+                  Expanded(
+                      child: Text('What’s on your mind?',
+                          style: Theme.of(context)
+                              .textTheme
+                              .bodyLarge
+                              ?.copyWith(color: TruLuraTokens.textSecondary))),
+                  const Icon(Icons.arrow_forward_rounded,
+                      size: 20, color: TruLuraTokens.auraCyan),
+                ]),
+              ),
+            ),
           ),
         ),
+        const SizedBox(height: 12),
+        ...children,
         TruluraFeedLane(
           padding: EdgeInsets.zero,
           child: _SecondaryFeedTabsBar(
@@ -1229,38 +1255,23 @@ class _AuraSignalStrip extends StatelessWidget {
       ...personalization.discoveryEmphasis.take(2),
     ].where((value) => value.trim().isNotEmpty).toList(growable: false);
 
-    return TruLuraGlassCard(
-      radius: 20,
-      padding: const EdgeInsets.fromLTRB(13, 10, 12, 10),
-      child: Row(
+    return Theme(
+      data: Theme.of(context).copyWith(dividerColor: Colors.transparent),
+      child: ExpansionTile(
+        tilePadding: const EdgeInsets.symmetric(horizontal: 4),
+        title: Text('Your preferences', style: t.labelLarge),
+        subtitle: Text('Personalize what you discover',
+            style: t.bodySmall?.copyWith(color: TruLuraTokens.textSecondary)),
+        childrenPadding: const EdgeInsets.only(bottom: 12),
         children: [
-          Expanded(
-            child: Wrap(
-              spacing: 8,
-              runSpacing: 7,
-              crossAxisAlignment: WrapCrossAlignment.center,
-              children: [
-                Text(
-                  'Your preferences',
-                  style: t.labelLarge?.copyWith(fontWeight: FontWeight.w900),
-                ),
-                for (final chip in chips.take(4))
-                  TruLuraGlowPill(
-                    label: chip.trim()[0].toUpperCase() + chip.trim().substring(1),
-                    selected: chip == personalization.emotionalTone,
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: 10,
-                      vertical: 6,
-                    ),
-                  ),
-              ],
-            ),
-          ),
-          const SizedBox(width: 10),
-          TextButton(
-            onPressed: onPrimaryTap,
-            child: const Text('Discover'),
-          ),
+          Wrap(spacing: 8, runSpacing: 8, children: [
+            for (final chip in chips.take(4))
+              TruLuraGlowPill(
+                  label:
+                      chip.trim()[0].toUpperCase() + chip.trim().substring(1),
+                  selected: chip == personalization.emotionalTone),
+            TextButton(onPressed: onPrimaryTap, child: const Text('Discover')),
+          ]),
         ],
       ),
     );
