@@ -7,8 +7,9 @@ class TruLuraOnboardingScaffold extends StatelessWidget {
   final String title;
   final String subtitle;
   final Widget child;
+  final VoidCallback? onClose;
 
-  const TruLuraOnboardingScaffold({super.key, required this.title, required this.subtitle, required this.child});
+  const TruLuraOnboardingScaffold({super.key, required this.title, required this.subtitle, required this.child, this.onClose});
 
   @override
   Widget build(BuildContext context) {
@@ -33,7 +34,7 @@ class TruLuraOnboardingScaffold extends StatelessWidget {
                         ),
                         const Spacer(),
                         IconButton(
-                          onPressed: () => TruNavigation.closeModule(context),
+                          onPressed: onClose ?? () => TruNavigation.closeModule(context),
                           icon: const Icon(Icons.close_rounded, color: Colors.white),
                           tooltip: 'Close',
                         ),

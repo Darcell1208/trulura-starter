@@ -345,6 +345,13 @@ class _ProfileSetupScreenState extends State<ProfileSetupScreen> {
   Widget build(BuildContext context) {
     return TruLuraOnboardingScaffold(
       title: 'Profile setup',
+      onClose: () {
+        if (context.canPop()) {
+          context.pop();
+        } else {
+          context.go(_resolveReturnTo());
+        }
+      },
       subtitle:
           'This walkthrough covers the profile fields collected right now: basics, identity, lifestyle, and expression.',
       child: TruLuraGlassCard(

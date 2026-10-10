@@ -16,6 +16,7 @@ class TruluraProfileHeroCard extends StatelessWidget {
   final String avatarPath;
   final int auraStrength;
   final VoidCallback onOpenSettings;
+  final VoidCallback? onEditProfile;
 
   const TruluraProfileHeroCard({
     super.key,
@@ -25,6 +26,7 @@ class TruluraProfileHeroCard extends StatelessWidget {
     required this.avatarPath,
     required this.auraStrength,
     required this.onOpenSettings,
+    this.onEditProfile,
   });
 
   @override
@@ -40,123 +42,79 @@ class TruluraProfileHeroCard extends StatelessWidget {
     final intent =
         (user?.intents.isNotEmpty ?? false) ? user!.intents.first : 'Social';
     final identityAccent = _identityAccent(mood, intent);
-    return SizedBox(
-      width: double.infinity,
+    final avatar = BreathingGlow(
+      enabled: illustrated && !app.softModeEnabled && !MediaQuery.disableAnimationsOf(context),
+      glowColor: identityAccent,
+      child: Container(
+        padding: const EdgeInsets.all(5),
+        decoration: const BoxDecoration(shape: BoxShape.circle,
+          gradient: SweepGradient(colors: [Color(0xFFF6B9FF), Color(0xFFB454FF), Color(0xFF69DFFF), Color(0xFFF6B9FF)])),
+        child: AuraAvatar(image: avatarPath, compatibility: auraStrength, size: 116),
+      ),
+    );
+    return ClipRRect(
+      borderRadius: BorderRadius.circular(28),
       child: DecoratedBox(
-        decoration: BoxDecoration(
-          color: cs.surface,
-          borderRadius: BorderRadius.circular(32),
-          border:
-              Border.all(color: const Color(0xFFBB83FF).withValues(alpha: 0.4)),
-          boxShadow: illustrated ? [
-            BoxShadow(
-                color: const Color(0xFF7728FF).withValues(alpha: 0.18),
-                blurRadius: 30)
-          ] : null,
-        ),
-        child: ClipRRect(
-          borderRadius: BorderRadius.circular(32),
-          child: CustomPaint(
+        decoration: BoxDecoration(color: cs.surface,
+          border: Border.all(color: cs.outlineVariant),
+          borderRadius: BorderRadius.circular(28)),
+        child: Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
+          SizedBox(height: 150, child: CustomPaint(
             painter: illustrated ? const _ProfileNebulaPainter() : null,
-            child: Padding(
-              padding: const EdgeInsets.fromLTRB(20, 16, 20, 28),
-              child: Column(
+            child: DecoratedBox(
+              decoration: BoxDecoration(gradient: LinearGradient(
+                begin: Alignment.topLeft, end: Alignment.bottomRight,
+                colors: [identityAccent.withValues(alpha: illustrated ? 0.12 : 0.07), cs.surface.withValues(alpha: 0.05)])),
+              child: Align(alignment: Alignment.topRight,
+                child: Padding(padding: const EdgeInsets.all(12), child: IconButton.filledTonal(
+                  onPressed: onOpenSettings, tooltip: 'Profile Settings',
+                  icon: const TruLuraIcon(glyph: TruLuraGlyph.filter, size: 20)))),
+            ),
+          )),
+          Padding(padding: const EdgeInsets.fromLTRB(24, 0, 24, 24), child: LayoutBuilder(
+            builder: (context, constraints) {
+              final wide = constraints.maxWidth >= 560;
+              final details = Column(
+                crossAxisAlignment: wide ? CrossAxisAlignment.start : CrossAxisAlignment.center,
                 children: [
-                  Row(children: [
-                    const Spacer(),
-                    IconButton(
-                        onPressed: onOpenSettings,
-                        tooltip: 'Settings',
-                        icon: const Icon(Icons.tune_rounded, size: 20)),
-                  ]),
-                  const SizedBox(height: 8),
-                  BreathingGlow(
-                    enabled: illustrated && !app.softModeEnabled &&
-                        !MediaQuery.disableAnimationsOf(context),
-                    glowColor: identityAccent,
-                    maxBlur: 58,
-                    minBlur: 38,
-                    maxAlpha: 0.55,
-                    minAlpha: 0.35,
-                    child: Container(
-                      padding: const EdgeInsets.all(5),
-                      decoration: BoxDecoration(
-                          shape: BoxShape.circle,
-                          border: Border.all(
-                              color: const Color(0xFFE4CFFF)
-                                  .withValues(alpha: 0.9),
-                              width: 1.5),
-                          gradient: SweepGradient(colors: [
-                            const Color(0xFFF6B9FF),
-                            const Color(0xFFB454FF),
-                            const Color(0xFF69DFFF),
-                            const Color(0xFFF6B9FF)
-                          ])),
-                      child: AuraAvatar(
-                          image: avatarPath,
-                          compatibility: auraStrength,
-                          size: 132),
-                    ),
-                  ),
-                  const SizedBox(height: 22),
-                  Text(name,
-                      textAlign: TextAlign.center,
-                      style: Theme.of(context)
-                          .textTheme
-                          .headlineMedium
-                          ?.copyWith(
-                              fontWeight: FontWeight.w600,
-                              letterSpacing: -0.6)),
+                  Text(name, textAlign: wide ? TextAlign.left : TextAlign.center,
+                    style: Theme.of(context).textTheme.headlineLarge?.copyWith(fontWeight: FontWeight.w600)),
                   if ((handle ?? '').trim().isNotEmpty) ...[
                     const SizedBox(height: 6),
-                    Text(handle!,
-                        textAlign: TextAlign.center,
-                        style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                            color: cs.onSurface.withValues(alpha: 0.6))),
+                    Text(handle!, style: TextStyle(color: cs.onSurfaceVariant)),
                   ],
                   if (bio.trim().isNotEmpty) ...[
-                    const SizedBox(height: 18),
-                    ConstrainedBox(
-                        constraints: const BoxConstraints(maxWidth: 380),
-                        child: Text(bio,
-                            textAlign: TextAlign.center,
-                            style: Theme.of(context)
-                                .textTheme
-                                .bodyLarge
-                                ?.copyWith(
-                                    height: 1.5,
-                                    color:
-                                        cs.onSurface.withValues(alpha: 0.88)))),
+                    const SizedBox(height: 14),
+                    Text(bio, textAlign: wide ? TextAlign.left : TextAlign.center,
+                      style: Theme.of(context).textTheme.bodyLarge?.copyWith(height: 1.5)),
                   ],
-                  const SizedBox(height: 22),
-                  Wrap(
-                      alignment: WrapAlignment.center,
-                      spacing: 8,
-                      runSpacing: 8,
-                      children: [
-                        _IdentityChip(
-                            label: vibe,
-                            glyph: TruLuraGlyph.spark,
-                            accent: identityAccent),
-                        _IdentityChip(
-                            label: intent,
-                            glyph: TruLuraGlyph.aura,
-                            accent: TruLuraTokens.auraCyan),
-                        _EnergyIndicator(
-                            label: mood.isEmpty
-                                ? 'Reflective'
-                                : mood[0].toUpperCase() + mood.substring(1),
-                            accent: identityAccent),
-                      ]),
+                  const SizedBox(height: 18),
+                  Wrap(alignment: wide ? WrapAlignment.start : WrapAlignment.center,
+                    spacing: 8, runSpacing: 8, children: [
+                      _IdentityChip(label: vibe, glyph: TruLuraGlyph.spark, accent: identityAccent),
+                      _IdentityChip(label: intent, glyph: TruLuraGlyph.aura, accent: cs.primary),
+                      _EnergyIndicator(label: mood.isEmpty ? 'Reflective' : mood[0].toUpperCase() + mood.substring(1), accent: identityAccent),
+                    ]),
+                  if (onEditProfile != null) ...[
+                    const SizedBox(height: 18),
+                    OutlinedButton.icon(onPressed: onEditProfile,
+                      icon: const TruLuraIcon(glyph: TruLuraGlyph.edit, size: 18),
+                      label: const Text('Edit Profile')),
+                  ],
                 ],
-              ),
-            ),
-          ),
-        ),
+              );
+              final portrait = Transform.translate(offset: const Offset(0, -30), child: avatar);
+              if (wide) return Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                portrait, const SizedBox(width: 28),
+                Expanded(child: Padding(padding: const EdgeInsets.only(top: 20), child: details)),
+              ]);
+              return Column(children: [portrait, details]);
+            },
+          )),
+        ]),
       ),
     );
   }
-
   Color _identityAccent(String mood, String intent) {
     final key = '$mood $intent'.toLowerCase();
     if (key.contains('flirt') || key.contains('dating')) {

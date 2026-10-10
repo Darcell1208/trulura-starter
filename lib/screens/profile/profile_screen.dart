@@ -86,6 +86,14 @@ class _ProfileScreenState extends State<ProfileScreen>
   @override
   void didChangeDependencies() {
     super.didChangeDependencies();
+    final appearance = context.watch<AppProvider>();
+    final animate = appearance.appearanceMode == 'trulura' &&
+        !appearance.softModeEnabled && !MediaQuery.disableAnimationsOf(context);
+    if (animate && !_atmosphereController.isAnimating) {
+      _atmosphereController.repeat();
+    } else if (!animate) {
+      _atmosphereController.stop();
+    }
     final route = ModalRoute.of(context);
     if (route != null) {
       truRouteObserver.unsubscribe(this);
@@ -302,7 +310,7 @@ class _ProfileScreenState extends State<ProfileScreen>
       builder: (context, _) {
         return Stack(
           children: [
-            Positioned.fill(
+            if (context.watch<AppProvider>().appearanceMode == 'trulura') Positioned.fill(
               child: IgnorePointer(
                 child: CustomPaint(
                   painter: _ProfileChamberPainter(
@@ -377,6 +385,10 @@ class _ProfileScreenState extends State<ProfileScreen>
                           bio: bio,
                           avatarPath: (user?.profileImage ?? '').trim(),
                           auraStrength: _auraStrength,
+                          onEditProfile: () async {
+                            await context.push(Uri(path: AppRoutes.onboardingProfileSetup, queryParameters: {'returnTo': '/profile'}).toString());
+                            if (mounted) await _loadUser();
+                          },
                           onOpenSettings: () => TruNavigation.pushWithReturnTo(
                               context, AppRoutes.settings),
                         ),
@@ -404,15 +416,11 @@ class _ProfileScreenState extends State<ProfileScreen>
                         TruLuraGlassCard(
                           radius: 22,
                           padding: const EdgeInsets.all(13),
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
+                          child: ExpansionTile(
+                            tilePadding: EdgeInsets.zero,
+                            title: const Text('Identity & Preferences'),
+                            subtitle: const Text('Vibe, identity, and visibility'),
                             children: [
-                              Text('Identity layers',
-                                  style: Theme.of(context)
-                                      .textTheme
-                                      .titleSmall
-                                      ?.copyWith(fontWeight: FontWeight.w900)),
-                              const SizedBox(height: 10),
                               _ExperienceModesEntry(
                                   onTap: () =>
                                       context.push(AppRoutes.experienceModes)),
@@ -1616,19 +1624,19 @@ class _ProfileWeatherBand extends StatelessWidget {
   String get _state {
     final key = '$vibe $identity $mood'.toLowerCase();
     if (key.contains('calm') || key.contains('heal')) {
-      return 'quiet identity layer';
+      return 'Quiet identity layer';
     }
     if (key.contains('spark') || key.contains('dating')) {
-      return 'warm signal bloom';
+      return 'Warm signal bloom';
     }
-    if (key.contains('creator')) return 'cinematic expression field';
+    if (key.contains('creator')) return 'Cinematic expression field';
     return 'Reflective identity drift';
   }
 
   String get _soundHook {
     final key = '$vibe $mood'.toLowerCase();
-    if (key.contains('calm') || key.contains('heal')) return 'soft chime bed';
-    if (key.contains('spark') || key.contains('flirt')) return 'light pulse';
+    if (key.contains('calm') || key.contains('heal')) return 'Soft chime bed';
+    if (key.contains('spark') || key.contains('flirt')) return 'Light pulse';
     return 'Quiet shimmer';
   }
 
@@ -1637,7 +1645,7 @@ class _ProfileWeatherBand extends StatelessWidget {
     final t = Theme.of(context).textTheme;
     final cs = Theme.of(context).colorScheme;
     return Semantics(
-      label: 'Adaptive sound design hook: $_soundHook',
+      label: 'Profile atmosphere: $_soundHook',
       child: TruLuraGlassCard(
         radius: 24,
         padding: const EdgeInsets.fromLTRB(13, 11, 13, 12),
@@ -1645,7 +1653,7 @@ class _ProfileWeatherBand extends StatelessWidget {
         glow: TruLuraTokens.auraCyan,
         child: Stack(
           children: [
-            Positioned.fill(
+            if (context.watch<AppProvider>().appearanceMode == 'trulura') Positioned.fill(
               child: IgnorePointer(
                 child: CustomPaint(
                   painter: _WeatherBandPainter(progress: progress),
