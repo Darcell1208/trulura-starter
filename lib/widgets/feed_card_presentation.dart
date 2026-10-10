@@ -42,6 +42,7 @@ class FeedCardAction {
 /// label reintroduces the same problem in a quieter form.
 class FeedCardPresentationData {
   final String text;
+  final String? imageUrl;
 
   /// The author's display name, or null when there is none to show.
   ///
@@ -64,6 +65,7 @@ class FeedCardPresentationData {
       {required this.name,
       required this.vibe,
       required this.text,
+      this.imageUrl,
       required this.auraColor,
       this.moodColor,
       required this.avatar,

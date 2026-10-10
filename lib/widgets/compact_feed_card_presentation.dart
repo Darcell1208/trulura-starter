@@ -239,6 +239,27 @@ class CompactFeedCardPresentation extends FeedCardPresentation {
                   ),
                 ),
               ),
+              if ((data.imageUrl ?? '').trim().isNotEmpty) ...[
+                const SizedBox(height: 12),
+                ClipRRect(
+                  borderRadius: BorderRadius.circular(14),
+                  child: AspectRatio(
+                    aspectRatio: 4 / 3,
+                    child: Image(
+                      image: Uri.tryParse(data.imageUrl!.trim())?.scheme ==
+                                  'https' ||
+                              Uri.tryParse(data.imageUrl!.trim())?.scheme ==
+                                  'http'
+                          ? NetworkImage(data.imageUrl!.trim())
+                          : AssetImage(data.imageUrl!.trim()) as ImageProvider,
+                      fit: BoxFit.cover,
+                      errorBuilder: (_, __, ___) => const Center(
+                        child: Text('Image unavailable'),
+                      ),
+                    ),
+                  ),
+                ),
+              ],
               const SizedBox(height: 6),
               LayoutBuilder(
                   builder: (context, constraints) => SizedBox(

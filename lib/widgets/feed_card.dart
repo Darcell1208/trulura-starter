@@ -738,6 +738,7 @@ class _FeedCardState extends State<FeedCard>
       final actions = _ActionSpec.forContext(participation);
       return presentation.build(context, FeedCardPresentationData(
         name: displayName, vibe: vibeLabel,
+        imageUrl: post.type.trim().toLowerCase() == 'image' ? post.imageUrl : null,
         text: post.content.trim().isNotEmpty ? post.content : (post.caption ?? ''),
         auraColor: visualSpec.accentB,
         // Mood rides on the header chip, not the ring. The palette is DR-2 via
