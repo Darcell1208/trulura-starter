@@ -2753,58 +2753,6 @@ class _RecommendationSectionCard extends StatelessWidget {
     required this.emphasized,
   });
 
-  String get _title => switch (section) {
-        _AuraRecommendationSection.communities => 'Communities for you',
-        _AuraRecommendationSection.people => 'Compatible people',
-        _AuraRecommendationSection.sparks => 'Social sparks',
-      };
-
-  String _description() {
-    final theme =
-        personalization.contentThemes.firstOrNull ?? 'your current energy';
-    final focus = personalization.discoveryEmphasis.firstOrNull ?? 'discovery';
-    return switch (section) {
-      _AuraRecommendationSection.communities =>
-        'Community rooms are tuned around $theme and weighted toward $focus so discovery feels social, not random.',
-      _AuraRecommendationSection.people =>
-        'Aligned people and friend signals are tuned around $theme with extra weight on $focus.',
-      _AuraRecommendationSection.sparks =>
-        'Light social sparks and first-message prompts are tuned around $theme and $focus.',
-    };
-  }
-
-  List<String> _chips() {
-    final base = switch (section) {
-      _AuraRecommendationSection.communities => <String>[
-          'thoughtful groups',
-          'interest circles',
-          'low-pressure spaces',
-        ],
-      _AuraRecommendationSection.people => <String>[
-          'trusted friends',
-          'aligned people',
-          'steady connections',
-        ],
-      _AuraRecommendationSection.sparks => <String>[
-          'social sparks',
-          'conversation starters',
-          'light discovery',
-        ],
-    };
-    final dynamicChips = [
-      ...personalization.discoveryEmphasis.take(1),
-      ...personalization.contentThemes.take(1),
-    ];
-    final labels = <String, String>{};
-    for (final raw in [...dynamicChips, ...base]) {
-      final label = raw.trim();
-      if (label.isEmpty) continue;
-      labels.putIfAbsent(label.toLowerCase(),
-          () => '${label[0].toUpperCase()}${label.substring(1)}');
-    }
-    return labels.values.take(3).toList(growable: false);
-  }
-
   VoidCallback _onTap(BuildContext context) {
     return switch (section) {
       _AuraRecommendationSection.communities => () =>
@@ -2820,79 +2768,49 @@ class _RecommendationSectionCard extends StatelessWidget {
     return switch (section) {
       _AuraRecommendationSection.communities => 'Browse communities',
       _AuraRecommendationSection.people => 'Browse people',
-      _AuraRecommendationSection.sparks => 'Open Spark',
+      _AuraRecommendationSection.sparks => 'Open Sync',
     };
   }
 
   @override
   Widget build(BuildContext context) {
-    final t = Theme.of(context).textTheme;
-    final accent = emphasized
-        ? TruLuraTokens.auraViolet.withValues(alpha: 0.10)
-        : Colors.transparent;
-
-    return TruLuraGlassCard(
-      radius: 22,
-      tint: accent,
-      padding: const EdgeInsets.fromLTRB(13, 10, 13, 11),
-      onTap: _onTap(context),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
-            children: [
-              Expanded(
-                child: Text(
-                  _title,
-                  style: t.titleSmall?.copyWith(fontWeight: FontWeight.w900),
-                ),
-              ),
-              if (emphasized)
-                Text(
-                  'Prioritized',
-                  style: t.labelMedium?.copyWith(fontWeight: FontWeight.w800),
-                ),
-            ],
+    final dark = Theme.of(context).brightness == Brightness.dark;
+    final icon = switch (section) {
+      _AuraRecommendationSection.communities => Icons.groups_outlined,
+      _AuraRecommendationSection.people => Icons.people_outline,
+      _AuraRecommendationSection.sparks => Icons.favorite_border,
+    };
+    final subtitle = switch (section) {
+      _AuraRecommendationSection.communities => 'Find a shared interest',
+      _AuraRecommendationSection.people => 'Discover someone new',
+      _AuraRecommendationSection.sparks => 'Explore connections',
+    };
+    return Material(
+      color: dark ? const Color(0xFF0C0D19) : const Color(0xFFF9F6FC),
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(16),
+        side: BorderSide(color: dark ? const Color(0xFF42344F) : const Color(0xFFD7CBDD)),
+      ),
+      clipBehavior: Clip.antiAlias,
+      child: ListTile(
+        contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 3),
+        leading: Container(
+          width: 42, height: 42,
+          decoration: BoxDecoration(
+            borderRadius: BorderRadius.circular(14),
+            gradient: const LinearGradient(colors: [Color(0xFF342049), Color(0xFF10172A)]),
+            border: Border.all(color: const Color(0xFF78618E)),
           ),
-          const SizedBox(height: 4),
-          Text(
-            _description(),
-            style: t.bodySmall?.copyWith(
-              color: TruLuraTokens.textSecondary,
-              height: 1.28,
-            ),
-          ),
-          const SizedBox(height: 7),
-          Wrap(
-            spacing: 8,
-            runSpacing: 6,
-            children: _chips()
-                .map(
-                  (chip) => TruLuraGlowPill(
-                    label: chip,
-                    selected: emphasized,
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: 11,
-                      vertical: 6,
-                    ),
-                  ),
-                )
-                .toList(growable: false),
-          ),
-          const SizedBox(height: 7),
-          Align(
-            alignment: Alignment.centerLeft,
-            child: FilledButton.tonal(
-              onPressed: _onTap(context),
-              child: Text(_ctaLabel()),
-            ),
-          ),
-        ],
+          child: Icon(icon, color: const Color(0xFFDDC2EF), size: 22),
+        ),
+        title: Text(_ctaLabel(), style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w500)),
+        subtitle: Text(subtitle, style: const TextStyle(fontSize: 12)),
+        trailing: const Icon(Icons.arrow_forward_rounded, size: 18),
+        onTap: _onTap(context),
       ),
     );
   }
 }
-
 class _FeedFoundationPreview extends StatelessWidget {
   final VoidCallback onCreateFirstPost;
 
