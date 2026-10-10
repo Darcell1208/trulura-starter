@@ -175,6 +175,13 @@ class _CreatePostScreenState extends State<CreatePostScreen> with RouteAware {
 
   Future<void> _createPost() async {
     if (_isPosting) return;
+    // The current attachment control is a preview toggle, not an uploaded file.
+    // Never publish a media-typed row until durable upload is implemented.
+    if (_format != 'Text') {
+      setState(() => _errorText =
+          'Media uploads are not available in this build yet. Your caption is still here.');
+      return;
+    }
     final ctx = context.read<ExperienceModeController>().participationContext;
     final content = _contentController.text.trim();
     final caption = _captionController.text.trim();
