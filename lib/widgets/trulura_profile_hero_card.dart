@@ -31,6 +31,7 @@ class TruluraProfileHeroCard extends StatelessWidget {
   Widget build(BuildContext context) {
     final cs = Theme.of(context).colorScheme;
     final app = context.watch<AppProvider>();
+    final illustrated = app.appearanceMode == 'trulura';
     final user = app.currentUser;
     final mood = (user?.moodTags.isNotEmpty ?? false)
         ? user!.moodTags.first
@@ -43,19 +44,20 @@ class TruluraProfileHeroCard extends StatelessWidget {
       width: double.infinity,
       child: DecoratedBox(
         decoration: BoxDecoration(
+          color: cs.surface,
           borderRadius: BorderRadius.circular(32),
           border:
               Border.all(color: const Color(0xFFBB83FF).withValues(alpha: 0.4)),
-          boxShadow: [
+          boxShadow: illustrated ? [
             BoxShadow(
                 color: const Color(0xFF7728FF).withValues(alpha: 0.18),
                 blurRadius: 30)
-          ],
+          ] : null,
         ),
         child: ClipRRect(
           borderRadius: BorderRadius.circular(32),
           child: CustomPaint(
-            painter: const _ProfileNebulaPainter(),
+            painter: illustrated ? const _ProfileNebulaPainter() : null,
             child: Padding(
               padding: const EdgeInsets.fromLTRB(20, 16, 20, 28),
               child: Column(
@@ -69,7 +71,7 @@ class TruluraProfileHeroCard extends StatelessWidget {
                   ]),
                   const SizedBox(height: 8),
                   BreathingGlow(
-                    enabled: !app.softModeEnabled &&
+                    enabled: illustrated && !app.softModeEnabled &&
                         !MediaQuery.disableAnimationsOf(context),
                     glowColor: identityAccent,
                     maxBlur: 58,
