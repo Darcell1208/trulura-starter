@@ -158,15 +158,9 @@ class TruluraPostComposer extends StatelessWidget {
                 const SizedBox(width: 10),
                 Expanded(
                   child: Text(
-                    mediaStubAttached
-                        ? '$format attachment ready for your aura draft'
-                        : 'Media upload scaffold only for now',
+                    '$format uploads are not available yet. You can prepare a caption, but this post cannot be published.',
                     style: Theme.of(context).textTheme.bodyMedium,
                   ),
-                ),
-                TextButton(
-                  onPressed: isPosting ? null : onToggleMediaStub,
-                  child: Text(mediaStubAttached ? 'Remove' : 'Stage'),
                 ),
               ],
             ),
