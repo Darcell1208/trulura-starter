@@ -179,6 +179,8 @@ class _MainShellState extends State<MainShell> {
       }
     }
 
+    final homeHeader = GoRouterState.of(context).uri.path == AppRoutes.home;
+    final wideHeader = homeHeader && MediaQuery.sizeOf(context).width >= 900;
     final activeMode = modeForNavIndex(currentIndex);
     final activeTone = toneForNavIndex(currentIndex);
 
@@ -189,7 +191,7 @@ class _MainShellState extends State<MainShell> {
       drawer: const TruLuraSideDrawer(),
       appBar: AppBar(
         centerTitle: true,
-        toolbarHeight: 58,
+        toolbarHeight: homeHeader ? (wideHeader ? 108 : 78) : 58,
         leading: Builder(
           builder: (context) => IconButton(
             tooltip: MediaQuery.sizeOf(context).width >= 1100 &&
@@ -209,7 +211,17 @@ class _MainShellState extends State<MainShell> {
             icon: const TruLuraIcon(glyph: TruLuraGlyph.menu, size: 22),
           ),
         ),
-        title: const _CinematicTopTitle(),
+        title: homeHeader
+            ? Column(mainAxisSize: MainAxisSize.min, children: [
+                _CinematicTopTitle(large: wideHeader),
+                const SizedBox(height: 3),
+                Text('CONNECT · FEEL · GROW · BELONG',
+                    style: TextStyle(fontSize: wideHeader ? 10 : 7,
+                        letterSpacing: wideHeader ? 3 : 1.4,
+                        fontWeight: FontWeight.w400,
+                        color: const Color(0xFFD7C5EC))),
+              ])
+            : const _CinematicTopTitle(),
         actions: [
           IconButton(
             onPressed: () => context.read<AppProvider>().setSoftModeEnabled(
@@ -241,7 +253,16 @@ class _MainShellState extends State<MainShell> {
           ),
           const SizedBox(width: 6),
         ],
-        flexibleSpace: Padding(
+        flexibleSpace: homeHeader ? Container(
+          decoration: const BoxDecoration(
+            image: DecorationImage(
+              image: AssetImage('assets/images/trulura_home_atmosphere.png'),
+              fit: BoxFit.cover, alignment: Alignment(0, -0.8)),
+          ),
+          child: const DecoratedBox(decoration: BoxDecoration(
+            gradient: LinearGradient(begin: Alignment.topCenter, end: Alignment.bottomCenter,
+              colors: [Color(0x22050913), Color(0xCC050913)]))),
+        ) : Padding(
           padding: const EdgeInsets.fromLTRB(12, 8, 12, 7),
           child: ClipRRect(
             borderRadius: BorderRadius.circular(22),
@@ -336,7 +357,8 @@ class _MainShellState extends State<MainShell> {
 }
 
 class _CinematicTopTitle extends StatelessWidget {
-  const _CinematicTopTitle();
+  final bool large;
+  const _CinematicTopTitle({this.large = false});
 
   @override
   Widget build(BuildContext context) {
@@ -347,14 +369,14 @@ class _CinematicTopTitle extends StatelessWidget {
         child: FittedBox(
           fit: BoxFit.scaleDown,
           child: SizedBox(
-            width: 158,
-            height: 54,
+            width: large ? 226 : 158,
+            height: large ? 73 : 54,
             child: Stack(alignment: Alignment.center, children: [
-              const Positioned(
+              Positioned(
                 top: 1,
-                right: 25,
-                width: 48,
-                height: 16,
+                right: large ? 40 : 25,
+                width: large ? 62 : 48,
+                height: large ? 20 : 16,
                 child: CustomPaint(painter: _BrandInfinityPainter()),
               ),
               Positioned(
@@ -370,7 +392,7 @@ class _CinematicTopTitle extends StatelessWidget {
                   ).createShader(bounds),
                   child: Text('TruLura',
                       style: GoogleFonts.cormorantGaramond(
-                        fontSize: 39,
+                        fontSize: large ? 56 : 39,
                         height: 1,
                         fontWeight: FontWeight.w500,
                         letterSpacing: 0.6,
