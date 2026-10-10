@@ -1,3 +1,6 @@
+import 'dart:io';
+import 'dart:typed_data';
+import 'package:flutter/services.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:shared_preferences/shared_preferences.dart';
@@ -9,8 +12,8 @@ void main() {
   testWidgets('quiet appearances omit artwork but preserve feature actions', (tester) async {
     SharedPreferences.setMockInitialValues({});
     final app = AppProvider();
-    await tester.pumpWidget(ChangeNotifierProvider<AppProvider>.value(
-      value: app, child: const MaterialApp(home: Scaffold(body: HomeCompanionRail()))));
+    await tester.pumpWidget(MultiProvider(providers: [ChangeNotifierProvider<AppProvider>.value(
+      value: app)], child: DefaultAssetBundle(bundle: _ArtworkBundle(), child: const MaterialApp(home: Scaffold(body: HomeCompanionRail())))));
     expect(find.byType(Image), findsWidgets);
     for (final mode in ['neutral', 'light', 'dark']) {
       await app.setAppearanceMode(mode);
@@ -26,4 +29,14 @@ void main() {
     await tester.pumpWidget(const SizedBox.shrink());
     app.dispose();
   });
+}
+
+class _ArtworkBundle extends CachingAssetBundle {
+  @override
+  Future<ByteData> load(String key) async {
+    if (key == 'AssetManifest.bin') {
+      return const StandardMessageCodec().encodeMessage(<String, dynamic>{})!;
+    }
+    return ByteData.sublistView(await File(key).readAsBytes());
+  }
 }
