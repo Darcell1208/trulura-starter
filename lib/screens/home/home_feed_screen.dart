@@ -84,7 +84,9 @@ class _HomeFeedScreenState extends State<HomeFeedScreen>
   ///
   /// Important: we treat this as a view-order only. All policy filtering is still
   /// computed from [TruParticipationContext] + [VisibilityService].
-  List<_AuraFeedKind> _tabOrder = _AuraFeedKind.values;
+  List<_AuraFeedKind> _tabOrder = _AuraFeedKind.values
+      .where((kind) => kind != _AuraFeedKind.spark)
+      .toList();
 
   String _personalizedHeadingSubtitle(TruParticipationContext participation) {
     final base = participation.activePermissions.feedKind.label;
@@ -111,7 +113,7 @@ class _HomeFeedScreenState extends State<HomeFeedScreen>
     // rebuilt from scratch; no line means the old state was kept.
     debugPrint('HomeFeedScreen.initState state=${identityHashCode(this)}');
     // Mode-shaped feed tabs.
-    _tabController = TabController(length: 5, vsync: this);
+    _tabController = TabController(length: _tabOrder.length, vsync: this);
     _pulse = AnimationController(
         vsync: this, duration: const Duration(milliseconds: 2100));
     _pulse.repeat(reverse: true);
@@ -286,10 +288,11 @@ class _HomeFeedScreenState extends State<HomeFeedScreen>
     final resolved = <_AuraFeedKind>[];
     for (final key in order) {
       final k = map[key];
-      if (k != null && !resolved.contains(k)) resolved.add(k);
+      if (k != null && k != _AuraFeedKind.spark && !resolved.contains(k))
+        resolved.add(k);
     }
     for (final k in _AuraFeedKind.values) {
-      if (!resolved.contains(k)) resolved.add(k);
+      if (k != _AuraFeedKind.spark && !resolved.contains(k)) resolved.add(k);
     }
     return resolved;
   }
