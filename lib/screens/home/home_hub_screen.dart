@@ -442,7 +442,13 @@ class _HomeHubScreenState extends State<HomeHubScreen>
     if (_tabController.index != targetTabIndex &&
         !_tabController.indexIsChanging) {
       WidgetsBinding.instance.addPostFrameCallback((_) {
-        if (!mounted || _tabController.index == targetTabIndex) return;
+        if (!mounted || _tabController.indexIsChanging) return;
+        // A deep link or another tap may have changed the target since build.
+        // Never replay the stale selection captured by this frame callback.
+        final latestTarget =
+            _indexForInitialTab(context.read<AppState>().currentTab);
+        if (latestTarget != targetTabIndex ||
+            _tabController.index == latestTarget) return;
         _tabController.animateTo(targetTabIndex);
       });
     }
