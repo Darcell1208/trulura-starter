@@ -1,6 +1,7 @@
 import 'dart:ui';
 
 import 'package:flutter/material.dart';
+import 'package:google_fonts/google_fonts.dart';
 import 'package:go_router/go_router.dart';
 import 'package:trulura/compat/provider_compat.dart';
 import 'package:trulura/providers/app_provider.dart';
@@ -11,7 +12,7 @@ import 'package:trulura/widgets/trulura_layered_background.dart';
 import 'package:trulura/widgets/trulura_bottom_nav.dart';
 import 'package:trulura/widgets/trulura_side_drawer.dart';
 import 'package:trulura/widgets/trulura_icon.dart';
-import 'package:trulura/widgets/trulura_brand_logo.dart';
+
 import 'package:trulura/core/navigation/app_router.dart';
 import 'package:trulura/core/navigation/tru_navigation.dart';
 
@@ -326,11 +327,87 @@ class _CinematicTopTitle extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return const Align(
-      alignment: Alignment.center,
-      child: TruLuraBrandLogo(size: 30, radius: 12, neon: false),
+    return Semantics(
+      label: 'TruLura',
+      image: true,
+      child: ExcludeSemantics(
+        child: FittedBox(
+          fit: BoxFit.scaleDown,
+          child: SizedBox(
+            width: 158,
+            height: 54,
+            child: Stack(alignment: Alignment.center, children: [
+              const Positioned(
+                top: 1,
+                right: 25,
+                width: 48,
+                height: 16,
+                child: CustomPaint(painter: _BrandInfinityPainter()),
+              ),
+              Positioned(
+                bottom: 0,
+                child: ShaderMask(
+                  blendMode: BlendMode.srcIn,
+                  shaderCallback: (bounds) => const LinearGradient(
+                    colors: [
+                      Color(0xFFFFDDBA),
+                      Color(0xFFF1C6F5),
+                      Color(0xFFFFDEB9)
+                    ],
+                  ).createShader(bounds),
+                  child: Text('TruLura',
+                      style: GoogleFonts.cormorantGaramond(
+                        fontSize: 39,
+                        height: 1,
+                        fontWeight: FontWeight.w500,
+                        letterSpacing: 0.6,
+                        color: Colors.white,
+                      )),
+                ),
+              ),
+            ]),
+          ),
+        ),
+      ),
     );
   }
+}
+
+/// The reference wordmark's infinity accent, drawn crisply at header size.
+class _BrandInfinityPainter extends CustomPainter {
+  const _BrandInfinityPainter();
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    final path = Path()
+      ..moveTo(size.width / 2, size.height / 2)
+      ..cubicTo(size.width * .27, -size.height * .12, 1, 0, 1, size.height / 2)
+      ..cubicTo(1, size.height, size.width * .27, size.height * 1.12,
+          size.width / 2, size.height / 2)
+      ..cubicTo(size.width * .73, -size.height * .12, size.width - 1, 0,
+          size.width - 1, size.height / 2)
+      ..cubicTo(size.width - 1, size.height, size.width * .73,
+          size.height * 1.12, size.width / 2, size.height / 2);
+    final shader = const LinearGradient(
+            colors: [Color(0xFF85CBFF), Color(0xFFD4A4FA), Color(0xFFFFC38A)])
+        .createShader(Offset.zero & size);
+    canvas.drawPath(
+        path,
+        Paint()
+          ..style = PaintingStyle.stroke
+          ..strokeWidth = 4
+          ..shader = shader
+          ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 3));
+    canvas.drawPath(
+        path,
+        Paint()
+          ..style = PaintingStyle.stroke
+          ..strokeWidth = 1.2
+          ..shader = shader);
+  }
+
+  @override
+  bool shouldRepaint(covariant _BrandInfinityPainter oldDelegate) => false;
 }
 
 class _EnvironmentalShiftOverlay extends StatelessWidget {

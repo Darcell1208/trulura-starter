@@ -711,15 +711,6 @@ class _HomeFeedScreenState extends State<HomeFeedScreen>
     } else {
       final headerChildren = <Widget>[
         // Presence and activity panels await real data; do not simulate counts.
-        if (_quizPersonalization.hasResults)
-          TruluraFeedLane(
-            padding: const EdgeInsets.fromLTRB(16, 4, 16, 0),
-            child: _AuraSignalStrip(
-              personalization: _quizPersonalization,
-              onPrimaryTap: () => context.go(AppRoutes.homeTab('explore')),
-            ),
-          ),
-        if (_quizPersonalization.hasResults) const SizedBox(height: 6),
         if (shouldSuggest)
           TruluraFeedLane(
             padding: const EdgeInsets.fromLTRB(16, 4, 16, 0),
@@ -909,16 +900,9 @@ class _AuraScrollHeader extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final activeKind =
-        tabOrder.elementAt(tabController.index.clamp(0, tabOrder.length - 1));
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
-        TruluraFeedLane(
-          padding: const EdgeInsets.fromLTRB(16, 8, 16, 12),
-          maxWidth: kTruluraFeedMaxWidth + 84,
-          child: _AuraWorldHero(kind: activeKind),
-        ),
         TruluraFeedLane(
           child: Material(
             color: const Color(0xFF0C1020),
@@ -955,106 +939,23 @@ class _AuraScrollHeader extends StatelessWidget {
         ...children,
         TruluraFeedLane(
           padding: EdgeInsets.zero,
-          child: _SecondaryFeedTabsBar(
-            controller: tabController,
-            pulse: pulse,
-            tabOrder: tabOrder,
-          ),
+          child: Row(children: [
+            Expanded(
+                child: _SecondaryFeedTabsBar(
+              controller: tabController,
+              pulse: pulse,
+              tabOrder: tabOrder,
+            )),
+            IconButton(
+              tooltip: 'Feed settings',
+              onPressed: () => context.push(AppRoutes.feedPersonalization),
+              icon: const Icon(Icons.tune_rounded, size: 21),
+            ),
+            const SizedBox(width: 8),
+          ]),
         ),
         const SizedBox(height: 4),
       ],
-    );
-  }
-}
-
-class _AuraWorldHero extends StatelessWidget {
-  final _AuraFeedKind kind;
-
-  const _AuraWorldHero({required this.kind});
-
-  @override
-  Widget build(BuildContext context) {
-    final theme = Theme.of(context).textTheme;
-    return Container(
-      margin: const EdgeInsets.symmetric(vertical: 12),
-      padding: const EdgeInsets.all(20),
-      decoration: BoxDecoration(
-        borderRadius: BorderRadius.circular(24),
-        gradient: const LinearGradient(
-            begin: Alignment.topLeft,
-            end: Alignment.bottomRight,
-            colors: [Color(0xFF211438), Color(0xFF101529), Color(0xFF080C19)]),
-        border:
-            Border.all(color: const Color(0xFFAA83EC).withValues(alpha: 0.35)),
-        boxShadow: [
-          BoxShadow(
-              color: const Color(0xFF7847C7).withValues(alpha: 0.12),
-              blurRadius: 24)
-        ],
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(children: [
-            const ExcludeSemantics(
-                child: SizedBox(
-                    width: 76,
-                    height: 76,
-                    child: CustomPaint(painter: _HomeAuraOrbPainter()))),
-            const SizedBox(width: 18),
-            Expanded(
-                child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                  Text('YOUR AURA',
-                      style: theme.labelSmall?.copyWith(
-                          letterSpacing: 2.4, color: const Color(0xFFC4B4DB))),
-                  const SizedBox(height: 6),
-                  Text('A little more you.',
-                      style: theme.headlineSmall?.copyWith(
-                          fontWeight: FontWeight.w500,
-                          color: const Color(0xFFF6EBFF))),
-                  const SizedBox(height: 6),
-                  Text('Check in, connect, and share your world.',
-                      style: theme.bodyMedium
-                          ?.copyWith(color: TruLuraTokens.textSecondary)),
-                ])),
-          ]),
-          const SizedBox(height: 14),
-          Wrap(
-            spacing: 8,
-            runSpacing: 8,
-            children: [
-              TruWorldAction(
-                label: 'Share a thought',
-                glyph: TruLuraGlyph.edit,
-                primary: true,
-                accent: TruLuraTokens.auraViolet,
-                onTap: () => TruNavigation.pushWithReturnTo(
-                    context, AppRoutes.createPost),
-              ),
-              TruWorldAction(
-                label: 'Choose mood',
-                glyph: TruLuraGlyph.insights,
-                accent: TruLuraTokens.auraCyan,
-                onTap: () => context.push(AppRoutes.onboardingVibe),
-              ),
-              TruWorldAction(
-                label: 'Feed settings',
-                glyph: TruLuraGlyph.filter,
-                accent: TruLuraTokens.auraPink,
-                onTap: () => context.push(AppRoutes.feedPersonalization),
-              ),
-              TruWorldAction(
-                label: 'Explore',
-                glyph: TruLuraGlyph.explore,
-                accent: TruLuraTokens.auraCyan,
-                onTap: () => context.go(AppRoutes.homeTab('explore')),
-              ),
-            ],
-          ),
-        ],
-      ),
     );
   }
 }
@@ -2919,7 +2820,14 @@ class _RecommendationSectionCard extends StatelessWidget {
       ...personalization.discoveryEmphasis.take(1),
       ...personalization.contentThemes.take(1),
     ];
-    return [...dynamicChips, ...base].take(3).toList(growable: false);
+    final labels = <String, String>{};
+    for (final raw in [...dynamicChips, ...base]) {
+      final label = raw.trim();
+      if (label.isEmpty) continue;
+      labels.putIfAbsent(label.toLowerCase(),
+          () => '${label[0].toUpperCase()}${label.substring(1)}');
+    }
+    return labels.values.take(3).toList(growable: false);
   }
 
   VoidCallback _onTap(BuildContext context) {

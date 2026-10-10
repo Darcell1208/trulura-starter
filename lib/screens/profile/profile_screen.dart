@@ -187,20 +187,20 @@ class _ProfileScreenState extends State<ProfileScreen>
   String _rhythmFor(String socialStyle) {
     final key = socialStyle.toLowerCase();
     if (key.contains('slow') || key.contains('selective')) {
-      return 'slow-bloom trust';
+      return 'Slow-bloom trust';
     }
     if (key.contains('social') || key.contains('group')) {
-      return 'shared-space warmth';
+      return 'Shared-space warmth';
     }
-    if (key.contains('direct')) return 'clear signal exchange';
-    return 'gentle curiosity';
+    if (key.contains('direct')) return 'Clear signal exchange';
+    return 'Gentle curiosity';
   }
 
   @override
   Widget build(BuildContext context) {
     final viewport = MediaQuery.sizeOf(context);
     final contentMaxWidth = _contentMaxWidth(viewport.width);
-    final tabViewportHeight = (viewport.height * 0.78).clamp(560.0, 860.0);
+
     final ui =
         truParseUiState(GoRouterState.of(context).uri.queryParameters['ui']);
     if (ui == TruUiState.loading) return const _ProfileSkeleton();
@@ -492,18 +492,16 @@ class _ProfileScreenState extends State<ProfileScreen>
                           ],
                         ),
                         const SizedBox(height: 14),
-                        SizedBox(
-                          height: tabViewportHeight,
-                          child: TabBarView(
-                            controller: _tabController,
-                            children: [
-                              _buildAboutTab(),
-                              _buildUnifiedFeedTab(),
-                              _buildContentTab(),
-                              _buildCompatibilityTab(),
-                              _buildVibesTab(),
-                            ],
-                          ),
+                        AnimatedBuilder(
+                          animation: _tabController,
+                          builder: (context, _) =>
+                              switch (_tabController.index) {
+                            0 => _buildAboutTab(),
+                            1 => _buildUnifiedFeedTab(),
+                            2 => _buildContentTab(),
+                            3 => _buildCompatibilityTab(),
+                            _ => _buildVibesTab(),
+                          },
                         ),
                       ],
                     ),
@@ -581,6 +579,8 @@ class _ProfileScreenState extends State<ProfileScreen>
 
     return ListView(
       primary: false,
+      shrinkWrap: true,
+      physics: const NeverScrollableScrollPhysics(),
       padding: const EdgeInsets.only(bottom: 24),
       children: [
         _EmotionalIdentityStatement(
@@ -610,7 +610,7 @@ class _ProfileScreenState extends State<ProfileScreen>
               ),
               _EmotionalArchetypeCard(
                 title: 'Energy language',
-                value: moodSignature,
+                value: _profileSentenceCase(moodSignature),
                 detail:
                     'The identity signals people can understand before the profile says a word.',
                 accent: TruLuraBrandColors.glowGold,
@@ -706,6 +706,8 @@ class _ProfileScreenState extends State<ProfileScreen>
         .toList(growable: false);
     return ListView.separated(
       primary: false,
+      shrinkWrap: true,
+      physics: const NeverScrollableScrollPhysics(),
       padding: const EdgeInsets.only(bottom: 24),
       itemCount: items.length + (_myPosts.isEmpty ? 1 : 0),
       separatorBuilder: (_, __) => const SizedBox(height: 10),
@@ -770,6 +772,8 @@ class _ProfileScreenState extends State<ProfileScreen>
     }
     return ListView.separated(
       primary: false,
+      shrinkWrap: true,
+      physics: const NeverScrollableScrollPhysics(),
       padding: const EdgeInsets.only(bottom: 24),
       itemCount: _myPosts.length,
       separatorBuilder: (_, __) => const SizedBox(height: 12),
@@ -869,6 +873,8 @@ class _ProfileScreenState extends State<ProfileScreen>
     if (hasExpression) {
       return ListView(
         primary: false,
+        shrinkWrap: true,
+        physics: const NeverScrollableScrollPhysics(),
         padding: const EdgeInsets.only(bottom: 24),
         children: [
           TruLuraGlassCard(
@@ -973,6 +979,8 @@ class _ProfileScreenState extends State<ProfileScreen>
     );
     return ListView(
       primary: false,
+      shrinkWrap: true,
+      physics: const NeverScrollableScrollPhysics(),
       padding: const EdgeInsets.only(bottom: 24),
       children: [
         if (!hasRealQuizResults)
@@ -1129,6 +1137,8 @@ class _ProfileScreenState extends State<ProfileScreen>
 
     return ListView(
       primary: false,
+      shrinkWrap: true,
+      physics: const NeverScrollableScrollPhysics(),
       padding: const EdgeInsets.fromLTRB(0, 12, 0, 24),
       children: [
         _VibeWeatherCard(
@@ -1680,7 +1690,7 @@ class _ProfileWeatherBand extends StatelessWidget {
                       ),
                       const SizedBox(height: 2),
                       Text(
-                        '$mood signal in $identity identity',
+                        '${_profileSentenceCase(mood)} signal in $identity identity',
                         maxLines: 1,
                         overflow: TextOverflow.ellipsis,
                         style: t.labelSmall?.copyWith(
@@ -3470,4 +3480,10 @@ extension<T> on Iterable<T> {
     if (!it.moveNext()) return null;
     return it.current;
   }
+}
+
+// Display formatting only: never rewrite a member's bio or saved values.
+String _profileSentenceCase(String value) {
+  final text = value.trim();
+  return text.isEmpty ? text : '${text[0].toUpperCase()}${text.substring(1)}';
 }

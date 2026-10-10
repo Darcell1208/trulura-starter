@@ -61,10 +61,6 @@ class TruluraProfileHeroCard extends StatelessWidget {
               child: Column(
                 children: [
                   Row(children: [
-                    Text('YOUR PROFILE',
-                        style: Theme.of(context).textTheme.labelSmall?.copyWith(
-                            letterSpacing: 2.4,
-                            color: cs.onSurface.withValues(alpha: 0.65))),
                     const Spacer(),
                     IconButton(
                         onPressed: onOpenSettings,
