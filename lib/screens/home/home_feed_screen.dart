@@ -1,3 +1,4 @@
+import 'package:trulura/widgets/home_social_composer.dart';
 import 'package:trulura/widgets/compact_feed_card_presentation.dart';
 import 'dart:async';
 
@@ -907,36 +908,7 @@ class _AuraScrollHeader extends StatelessWidget {
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
         TruluraFeedLane(
-          child: Material(
-            color: const Color(0xFF0C1020),
-            shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(22),
-                side: BorderSide(
-                    color: TruLuraTokens.auraViolet.withValues(alpha: 0.4))),
-            clipBehavior: Clip.antiAlias,
-            child: InkWell(
-              onTap: () =>
-                  TruNavigation.pushWithReturnTo(context, AppRoutes.createPost),
-              child: Padding(
-                padding:
-                    const EdgeInsets.symmetric(horizontal: 18, vertical: 18),
-                child: Row(children: [
-                  const TruLuraIcon(
-                      glyph: TruLuraGlyph.edit,
-                      color: TruLuraTokens.auraViolet),
-                  const SizedBox(width: 14),
-                  Expanded(
-                      child: Text('What’s on your mind?',
-                          style: Theme.of(context)
-                              .textTheme
-                              .bodyLarge
-                              ?.copyWith(color: TruLuraTokens.textSecondary))),
-                  const Icon(Icons.arrow_forward_rounded,
-                      size: 20, color: TruLuraTokens.auraCyan),
-                ]),
-              ),
-            ),
-          ),
+          child: const HomeSocialComposer(),
         ),
         const SizedBox(height: 12),
         ...children,

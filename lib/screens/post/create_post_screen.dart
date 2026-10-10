@@ -20,7 +20,8 @@ import 'package:trulura/providers/experience_mode_controller.dart';
 import 'package:trulura/models/experience/experience_mode.dart';
 
 class CreatePostScreen extends StatefulWidget {
-  const CreatePostScreen({super.key});
+  final String initialFormat;
+  const CreatePostScreen({super.key, this.initialFormat = 'Text'});
 
   @override
   State<CreatePostScreen> createState() => _CreatePostScreenState();
@@ -104,6 +105,9 @@ class _CreatePostScreenState extends State<CreatePostScreen> with RouteAware {
   @override
   void initState() {
     super.initState();
+    _format = const ['Text', 'Image', 'Video'].contains(widget.initialFormat)
+        ? widget.initialFormat
+        : 'Text';
     // Soft default based on active experience mode.
     // This keeps the current backend schema intact while making the UI behave
     // as an intent-driven system.
@@ -346,7 +350,9 @@ class _CreatePostScreenState extends State<CreatePostScreen> with RouteAware {
                           const SizedBox(width: 10),
                           Expanded(
                             child: Text(
-                              ctx.activeMode.label.toLowerCase() == ctx.activePermissions.interaction.label.toLowerCase()
+                              ctx.activeMode.label.toLowerCase() ==
+                                      ctx.activePermissions.interaction.label
+                                          .toLowerCase()
                                   ? 'Posting in ${ctx.activeMode.label}'
                                   : 'Posting in ${ctx.activeMode.label} • ${ctx.activePermissions.interaction.label}',
                               maxLines: 2,

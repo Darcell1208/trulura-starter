@@ -82,7 +82,9 @@ class AppRouter {
         // interests, Vibe and dating intent remain outside this gate.
         if (isAuthed &&
             (appProvider.currentUser!.age <= 0 ||
-                UserService().accountBirthday(appProvider.currentUser!.id).isEmpty) &&
+                UserService()
+                    .accountBirthday(appProvider.currentUser!.id)
+                    .isEmpty) &&
             path != '/onboarding/account-age' &&
             path != AppRoutes.splash &&
             path != AppRoutes.softMode &&
@@ -224,7 +226,6 @@ class AppRouter {
           branches: [
             StatefulShellBranch(
               routes: [
-
                 GoRoute(
                   path: AppRoutes.home,
                   name: 'home',
@@ -242,7 +243,6 @@ class AppRouter {
             ),
             StatefulShellBranch(
               routes: [
-
                 GoRoute(
                   path: AppRoutes.messages,
                   name: 'messages',
@@ -253,7 +253,6 @@ class AppRouter {
                     name: 'messages',
                   ),
                   routes: [
-
                     // Declared before 'thread/:id' for readability only; go_router
                     // matches on the literal segment, so 'new' cannot be captured
                     // as a thread id.
@@ -283,7 +282,6 @@ class AppRouter {
             ),
             StatefulShellBranch(
               routes: [
-
                 GoRoute(
                   path: AppRoutes.notifications,
                   name: 'notifications',
@@ -298,7 +296,6 @@ class AppRouter {
             ),
             StatefulShellBranch(
               routes: [
-
                 GoRoute(
                   path: AppRoutes.profile,
                   name: 'profile',
@@ -463,7 +460,8 @@ class AppRouter {
           pageBuilder: (context, state) => _page(
             context,
             state,
-            const CreatePostScreen(),
+            CreatePostScreen(
+                initialFormat: state.uri.queryParameters['format'] ?? 'Text'),
             name: 'create-post',
           ),
         ),
