@@ -822,7 +822,7 @@ class _HomeFeedScreenState extends State<HomeFeedScreen>
               stops: const [0.0, 0.35, 0.7, 1.0],
             ),
           ),
-          child: body,
+          child: _HomeDesktopComposition(feed: body),
         );
       },
     );
@@ -3588,5 +3588,176 @@ extension<T> on Iterable<T> {
     final iterator = this.iterator;
     if (!iterator.moveNext()) return null;
     return iterator.current;
+  }
+}
+
+class _HomeDesktopComposition extends StatelessWidget {
+  final Widget feed;
+  const _HomeDesktopComposition({required this.feed});
+
+  @override
+  Widget build(BuildContext context) {
+    return LayoutBuilder(builder: (context, constraints) {
+      if (constraints.maxWidth < 1100) return feed;
+      return Center(
+          child: ConstrainedBox(
+        constraints: const BoxConstraints(maxWidth: 1560),
+        child: Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
+          SizedBox(
+              width: 194,
+              child: ListView(
+                  padding: const EdgeInsets.fromLTRB(16, 20, 8, 24),
+                  children: [
+                    Text('TruLura',
+                        style: Theme.of(context)
+                            .textTheme
+                            .headlineMedium
+                            ?.copyWith(
+                                color: const Color(0xFFF5DEFF),
+                                letterSpacing: -0.7)),
+                    const SizedBox(height: 4),
+                    Text('CONNECT · FEEL · GROW',
+                        style: Theme.of(context).textTheme.labelSmall?.copyWith(
+                            letterSpacing: 1.5,
+                            color: TruLuraTokens.textSecondary)),
+                    const SizedBox(height: 30),
+                    _destination(context, 'Home', Icons.home_outlined,
+                        AppRoutes.homeTab('aura'),
+                        selected: true),
+                    _destination(context, 'Explore', Icons.explore_outlined,
+                        AppRoutes.homeTab('explore')),
+                    _destination(context, 'Messages', Icons.chat_bubble_outline,
+                        AppRoutes.messages),
+                    _destination(context, 'Notifications',
+                        Icons.notifications_none, AppRoutes.notifications),
+                    _destination(context, 'Profile', Icons.person_outline,
+                        AppRoutes.profile),
+                    _destination(
+                        context, 'Settings', Icons.tune, AppRoutes.settings),
+                    const SizedBox(height: 32),
+                    const SizedBox(
+                        height: 110,
+                        child: Center(
+                            child: SizedBox(
+                                width: 100,
+                                height: 100,
+                                child: ExcludeSemantics(
+                                    child: CustomPaint(
+                                        painter: _HomeAuraOrbPainter()))))),
+                    Text('A little more you.',
+                        textAlign: TextAlign.center,
+                        style: Theme.of(context)
+                            .textTheme
+                            .titleMedium
+                            ?.copyWith(color: const Color(0xFFDEC8F5))),
+                  ])),
+          Expanded(child: feed),
+          SizedBox(
+              width: 270,
+              child: ListView(
+                  padding: const EdgeInsets.fromLTRB(8, 20, 16, 24),
+                  children: [
+                    _panel(context,
+                        title: 'Your space',
+                        icon: Icons.auto_awesome_outlined,
+                        description:
+                            'Make room for the people, interests, and conversations that matter to you.',
+                        action: 'Explore',
+                        route: AppRoutes.homeTab('explore'),
+                        color: TruLuraTokens.auraViolet),
+                    const SizedBox(height: 16),
+                    _panel(context,
+                        title: 'Create & share',
+                        icon: Icons.edit_outlined,
+                        description:
+                            'Share a thought or a moment with your community.',
+                        action: 'Create a post',
+                        route: AppRoutes.createPost,
+                        color: TruLuraTokens.auraPink),
+                    const SizedBox(height: 16),
+                    _panel(context,
+                        title: 'Make it yours',
+                        icon: Icons.tune,
+                        description:
+                            'Shape your feed around your interests and preferences.',
+                        action: 'Feed settings',
+                        route: AppRoutes.feedPersonalization,
+                        color: TruLuraTokens.auraCyan),
+                    const SizedBox(height: 16),
+                    _panel(context,
+                        title: 'Your comfort matters',
+                        icon: Icons.accessibility_new,
+                        description: 'Adjust the experience to suit you.',
+                        action: 'Accessibility',
+                        route: AppRoutes.accessibility,
+                        color: const Color(0xFFEAC58E)),
+                  ])),
+        ]),
+      ));
+    });
+  }
+
+  Widget _destination(
+      BuildContext context, String label, IconData icon, String route,
+      {bool selected = false}) {
+    return Padding(
+        padding: const EdgeInsets.only(bottom: 7),
+        child: Material(
+          color: selected ? const Color(0xFF362052) : Colors.transparent,
+          shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(14),
+              side: BorderSide(
+                  color:
+                      selected ? const Color(0xFFAA76EF) : Colors.transparent)),
+          clipBehavior: Clip.antiAlias,
+          child: ListTile(
+              dense: true,
+              contentPadding: const EdgeInsets.symmetric(horizontal: 12),
+              leading: Icon(icon,
+                  size: 22,
+                  color: selected
+                      ? const Color(0xFFE8CFFF)
+                      : TruLuraTokens.textSecondary),
+              title: Text(label),
+              onTap: () => context.go(route)),
+        ));
+  }
+
+  Widget _panel(BuildContext context,
+      {required String title,
+      required IconData icon,
+      required String description,
+      required String action,
+      required String route,
+      required Color color}) {
+    return Container(
+        padding: const EdgeInsets.all(18),
+        decoration: BoxDecoration(
+          borderRadius: BorderRadius.circular(22),
+          gradient: LinearGradient(
+              begin: Alignment.topLeft,
+              end: Alignment.bottomRight,
+              colors: [color.withValues(alpha: 0.12), const Color(0xFF090D1B)]),
+          border: Border.all(color: color.withValues(alpha: 0.3)),
+        ),
+        child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+          Icon(icon, size: 28, color: color),
+          const SizedBox(height: 14),
+          Text(title, style: Theme.of(context).textTheme.titleLarge),
+          const SizedBox(height: 10),
+          Text(description,
+              style: Theme.of(context)
+                  .textTheme
+                  .bodyMedium
+                  ?.copyWith(height: 1.5, color: TruLuraTokens.textSecondary)),
+          const SizedBox(height: 14),
+          TextButton(
+              onPressed: () => TruNavigation.pushWithReturnTo(context, route),
+              child: Row(mainAxisSize: MainAxisSize.min, children: [
+                Text(action),
+                const SizedBox(width: 8),
+                const Icon(Icons.arrow_forward, size: 16)
+              ])),
+        ]));
   }
 }
