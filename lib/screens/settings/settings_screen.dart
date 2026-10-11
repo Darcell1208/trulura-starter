@@ -1,3 +1,4 @@
+import 'package:trulura/core/navigation/tru_navigation.dart';
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:trulura/compat/provider_compat.dart';
@@ -144,6 +145,13 @@ class _SettingsScreenState extends State<SettingsScreen> with RouteAware {
         mode: TruLuraMode.aura,
         showBack: true,
         title: 'Experience Center',
+        onBack: () {
+          if (context.canPop() && !TruNavigation.isMenuLayer(context)) {
+            context.pop();
+          } else {
+            TruNavigation.goBackOrReturn(context);
+          }
+        },
       ),
       body: TruLuraLayeredBackground(
         tone: TruLuraModeTone.aura,

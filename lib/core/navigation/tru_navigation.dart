@@ -359,6 +359,13 @@ class TruNavigation {
     final current = currentRoute(context);
     final normalized = normalizeRoute(current);
     final returnTo = _intentionalReturnTo(context);
+    // Profile's settings shortcut must return to the profile that opened it.
+    // Keep sidebar and other module exit behavior unchanged.
+    if (normalized == AppRoutes.settings &&
+        !isMenuLayer(context) &&
+        normalizeRoute(resolveReturnTo(context) ?? '') == AppRoutes.profile) {
+      return AppRoutes.profile;
+    }
     if (returnTo != null && isMenuLayerRoute(returnTo)) {
       return returnTo;
     }
