@@ -1,3 +1,4 @@
+import 'package:trulura/widgets/profile_photo_crop.dart';
 import 'dart:typed_data';
 
 import 'package:flutter/material.dart';
@@ -189,8 +190,10 @@ class _ProfileSetupScreenState extends State<ProfileSetupScreen> {
       if (picked == null || !mounted) return;
       final bytes = await picked.readAsBytes();
       if (!mounted) return;
+      final cropped = await ProfilePhotoCrop.open(context, bytes);
+      if (cropped == null || !mounted) return;
       setState(() {
-        _pickedPhotoBytes = bytes;
+        _pickedPhotoBytes = cropped;
         _photoUrl.text = picked.path;
       });
     } catch (e) {
@@ -206,8 +209,9 @@ class _ProfileSetupScreenState extends State<ProfileSetupScreen> {
 
   void _clearProfilePhoto() {
     setState(() {
+      final hadPreview = _pickedPhotoBytes != null;
       _pickedPhotoBytes = null;
-      _photoUrl.clear();
+      _photoUrl.text = hadPreview ? (_currentUser?.profileImage ?? '') : '';
     });
   }
 
@@ -263,6 +267,13 @@ class _ProfileSetupScreenState extends State<ProfileSetupScreen> {
 
   Future<void> _finish() async {
     if (_saving) return;
+    if (_pickedPhotoBytes != null) {
+      setState(() => _step = 0);
+      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
+        duration: Duration(seconds: 10),
+        content: Text('Your cropped photo is a preview only. Photo uploads are not connected yet. Remove the preview to save your other profile changes.')));
+      return;
+    }
     if (_enteredAge == null ||
         _gender.text.trim().isEmpty ||
         _displayName.text.trim().isEmpty ||
@@ -763,13 +774,22 @@ class _ProfileSetupScreenState extends State<ProfileSetupScreen> {
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         Text(
-          'Add at least one expression layer if you want your profile to feel more alive.',
+          'Not sure what to say? Start with a sentence below, make it yours, or leave this section blank.',
           style: Theme.of(context).textTheme.bodyMedium?.copyWith(
                 color: Colors.white70,
               ),
         ),
         const SizedBox(height: 12),
-        _Field(
+        Wrap(spacing: 8, runSpacing: 8, children: [
+          for (final starter in const [
+            'I feel most myself when…',
+            'A small thing that makes my day…',
+            'People can count on me for…',
+          ])
+            ActionChip(label: Text(starter), onPressed: _promptAnswer.text.trim().isNotEmpty
+              ? null : () => setState(() => _promptAnswer.text = starter.replaceAll('…', ' '))),
+        ]),
+        const SizedBox(height: 12),        _Field(
           controller: _promptAnswer,
           label: 'Prompt answer',
           maxLines: 3,
@@ -786,9 +806,9 @@ class _ProfileSetupScreenState extends State<ProfileSetupScreen> {
         const SizedBox(height: 12),
         _Field(
           controller: _shortPost,
-          label: 'Short post',
+          label: 'A Little About You',
           maxLines: 3,
-          hint: 'A short thought people can feel immediately',
+          hint: 'Lately I have been enjoying… / I would love to connect over…',
           onChanged: (_) => setState(() {}),
         ),
       ],

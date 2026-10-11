@@ -482,7 +482,7 @@ class _ProfileNebulaPainter extends CustomPainter {
           point,
           i % 19 == 0 ? 1.3 : 0.35 + random.nextDouble() * 0.55,
           Paint()..color = color.withValues(alpha: alpha));
-      if (i % 47 == 0 && point.dy < size.height * 0.6) {
+      if (i % 47 == 0 && point.dy > 16 && point.dy < size.height * 0.6 && point.dx > 32 && point.dx < size.width - 32) {
         final glow = Rect.fromCircle(center: point, radius: 13);
         canvas.drawCircle(
             point,
