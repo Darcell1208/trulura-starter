@@ -909,18 +909,21 @@ class _ChoiceChip extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return GestureDetector(
-      onTap: onTap,
-      child: TruLuraGlassCard(
-        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-        child: Text(
-          label,
-          style: Theme.of(context).textTheme.labelLarge?.copyWith(
-                color: selected ? TruluraTheme.cyan : Colors.white,
-                fontWeight: FontWeight.w800,
-              ),
-        ),
+    final cs = Theme.of(context).colorScheme;
+    return ChoiceChip(
+      label: Text(label),
+      selected: selected,
+      showCheckmark: true,
+      checkmarkColor: cs.onPrimaryContainer,
+      selectedColor: cs.primaryContainer,
+      backgroundColor: cs.surface,
+      labelStyle: Theme.of(context).textTheme.labelLarge?.copyWith(
+        color: selected ? cs.onPrimaryContainer : cs.onSurface,
+        fontWeight: FontWeight.w700,
       ),
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
+      materialTapTargetSize: MaterialTapTargetSize.padded,
+      onSelected: (_) => onTap(),
     );
   }
 }
