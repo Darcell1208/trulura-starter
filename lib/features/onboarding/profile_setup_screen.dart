@@ -377,7 +377,7 @@ class _ProfileSetupScreenState extends State<ProfileSetupScreen> {
                   Text(
                     'Step ${_step + 1} of ${_stepTitles.length} • ${_stepTitles[_step]}',
                     style: Theme.of(context).textTheme.labelLarge?.copyWith(
-                          color: Colors.white70,
+                          color: Theme.of(context).colorScheme.onSurfaceVariant,
                           fontWeight: FontWeight.w800,
                         ),
                   ),
@@ -392,10 +392,10 @@ class _ProfileSetupScreenState extends State<ProfileSetupScreen> {
                     width: double.infinity,
                     padding: const EdgeInsets.all(12),
                     decoration: BoxDecoration(
-                      color: Colors.white.withValues(alpha: 0.05),
+                      color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.05),
                       borderRadius: BorderRadius.circular(18),
                       border: Border.all(
-                        color: Colors.white.withValues(alpha: 0.10),
+                        color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.10),
                       ),
                     ),
                     // Guidance only. This used to print a percentage --
@@ -408,7 +408,7 @@ class _ProfileSetupScreenState extends State<ProfileSetupScreen> {
                     child: Text(
                       _progressMessage(),
                       style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                            color: Colors.white,
+                            color: Theme.of(context).colorScheme.onSurface,
                             fontWeight: FontWeight.w700,
                           ),
                     ),
@@ -539,7 +539,7 @@ class _ProfileSetupScreenState extends State<ProfileSetupScreen> {
           Text(
             '@$normalizedUsername',
             style: Theme.of(context).textTheme.labelLarge?.copyWith(
-                  color: Colors.white70,
+                  color: Theme.of(context).colorScheme.onSurfaceVariant,
                   fontWeight: FontWeight.w800,
                 ),
           ),
@@ -577,7 +577,7 @@ class _ProfileSetupScreenState extends State<ProfileSetupScreen> {
         Center(
           child: CircleAvatar(
             radius: 42,
-            backgroundColor: Colors.white12,
+            backgroundColor: Theme.of(context).colorScheme.surfaceContainerHighest,
             backgroundImage: _pickedPhotoBytes != null
                 ? MemoryImage(_pickedPhotoBytes!)
                 : hasPhoto
@@ -587,7 +587,7 @@ class _ProfileSetupScreenState extends State<ProfileSetupScreen> {
                     : null,
             child: hasPhoto
                 ? null
-                : const Icon(Icons.person, size: 42, color: Colors.white),
+                : Icon(Icons.person, size: 42, color: Theme.of(context).colorScheme.onSurfaceVariant),
           ),
         ),
         const SizedBox(height: 10),
@@ -620,7 +620,7 @@ class _ProfileSetupScreenState extends State<ProfileSetupScreen> {
           Text(
             'Photo selected for preview. Upload and saving still need to be completed.',
             style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                  color: Colors.white70,
+                  color: Theme.of(context).colorScheme.onSurfaceVariant,
                 ),
           ),
         ],
@@ -643,7 +643,7 @@ class _ProfileSetupScreenState extends State<ProfileSetupScreen> {
         Text(
           'Persona',
           style: Theme.of(context).textTheme.titleSmall?.copyWith(
-                color: Colors.white,
+                color: Theme.of(context).colorScheme.onSurface,
                 fontWeight: FontWeight.w800,
               ),
         ),
@@ -669,7 +669,7 @@ class _ProfileSetupScreenState extends State<ProfileSetupScreen> {
         Text(
           'Temperament',
           style: Theme.of(context).textTheme.titleSmall?.copyWith(
-                color: Colors.white,
+                color: Theme.of(context).colorScheme.onSurface,
                 fontWeight: FontWeight.w800,
               ),
         ),
@@ -719,7 +719,7 @@ class _ProfileSetupScreenState extends State<ProfileSetupScreen> {
         Text(
           'Social preference',
           style: Theme.of(context).textTheme.titleSmall?.copyWith(
-                color: Colors.white,
+                color: Theme.of(context).colorScheme.onSurface,
                 fontWeight: FontWeight.w800,
               ),
         ),
@@ -740,7 +740,7 @@ class _ProfileSetupScreenState extends State<ProfileSetupScreen> {
         Text(
           'Interests',
           style: Theme.of(context).textTheme.titleSmall?.copyWith(
-                color: Colors.white,
+                color: Theme.of(context).colorScheme.onSurface,
                 fontWeight: FontWeight.w800,
               ),
         ),
@@ -776,7 +776,7 @@ class _ProfileSetupScreenState extends State<ProfileSetupScreen> {
         Text(
           'Not sure what to say? Start with a sentence below, make it yours, or leave this section blank.',
           style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                color: Colors.white70,
+                color: Theme.of(context).colorScheme.onSurfaceVariant,
               ),
         ),
         const SizedBox(height: 12),
@@ -828,15 +828,15 @@ class _ProgressChip extends StatelessWidget {
       padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
       decoration: BoxDecoration(
         borderRadius: BorderRadius.circular(999),
-        color: Colors.white.withValues(alpha: complete ? 0.12 : 0.06),
+        color: Theme.of(context).colorScheme.onSurface.withValues(alpha: complete ? 0.12 : 0.06),
         border: Border.all(
-          color: Colors.white.withValues(alpha: complete ? 0.20 : 0.10),
+          color: Theme.of(context).colorScheme.onSurface.withValues(alpha: complete ? 0.20 : 0.10),
         ),
       ),
       child: Text(
         label,
         style: Theme.of(context).textTheme.labelMedium?.copyWith(
-              color: Colors.white,
+              color: Theme.of(context).colorScheme.onSurface,
               fontWeight: FontWeight.w800,
             ),
       ),
@@ -868,23 +868,23 @@ class _Field extends StatelessWidget {
       maxLines: maxLines,
       keyboardType: keyboardType,
       onChanged: onChanged,
-      style: const TextStyle(color: Colors.white),
+      style: TextStyle(color: Theme.of(context).colorScheme.onSurface),
       decoration: InputDecoration(
         labelText: label,
         hintText: hint,
-        labelStyle: const TextStyle(color: Colors.white70),
+        labelStyle: TextStyle(color: Theme.of(context).colorScheme.onSurfaceVariant),
         filled: true,
-        fillColor: Colors.white.withValues(alpha: 0.05),
+        fillColor: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.05),
         border: OutlineInputBorder(
           borderRadius: BorderRadius.circular(18),
           borderSide: BorderSide(
-            color: Colors.white.withValues(alpha: 0.10),
+            color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.10),
           ),
         ),
         enabledBorder: OutlineInputBorder(
           borderRadius: BorderRadius.circular(18),
           borderSide: BorderSide(
-            color: Colors.white.withValues(alpha: 0.10),
+            color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.10),
           ),
         ),
         focusedBorder: OutlineInputBorder(
