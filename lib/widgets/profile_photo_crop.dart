@@ -23,16 +23,28 @@ class ProfilePhotoCrop extends StatefulWidget {
 class _ProfilePhotoCropState extends State<ProfilePhotoCrop> {
   double zoom = 1, horizontal = 0, vertical = 0;
   bool saving = false;
+  late final ui.Image previewImage;
+  @override
+  void initState() {
+    super.initState();
+    // The dialog remains mounted during its closing animation.
+    previewImage = widget.image.clone();
+  }
+  @override
+  void dispose() {
+    previewImage.dispose();
+    super.dispose();
+  }
   Rect get crop {
-    final side = math.min(widget.image.width, widget.image.height) / zoom;
-    return Rect.fromLTWH((widget.image.width-side)*(horizontal+1)/2,
-      (widget.image.height-side)*(vertical+1)/2, side, side);
+    final side = math.min(previewImage.width, previewImage.height) / zoom;
+    return Rect.fromLTWH((previewImage.width-side)*(horizontal+1)/2,
+      (previewImage.height-side)*(vertical+1)/2, side, side);
   }
   Future<void> apply() async {
     setState(() => saving = true);
     try {
       final recorder = ui.PictureRecorder();
-      Canvas(recorder).drawImageRect(widget.image, crop,
+      Canvas(recorder).drawImageRect(previewImage, crop,
         const Rect.fromLTWH(0,0,512,512), Paint()..filterQuality=FilterQuality.high);
       final picture = recorder.endRecording();
       final result = await picture.toImage(512,512);
@@ -49,7 +61,7 @@ class _ProfilePhotoCropState extends State<ProfilePhotoCrop> {
   Widget build(BuildContext context) => AlertDialog(
     title: const Text('Adjust Profile Photo'),
     content: SizedBox(width: 320, child: SingleChildScrollView(child: Column(mainAxisSize: MainAxisSize.min, children: [
-      AspectRatio(aspectRatio: 1, child: ClipOval(child: CustomPaint(painter: _CropPainter(widget.image,crop)))),
+      AspectRatio(aspectRatio: 1, child: ClipOval(child: CustomPaint(painter: _CropPainter(previewImage,crop)))),
       const SizedBox(height: 12),
       const Text('Zoom and position your photo inside the circle.'),
       const Text('Zoom'),

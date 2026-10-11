@@ -31,6 +31,14 @@ void main() {
     frame.image.dispose(); codec.dispose();
     });
     expect(tester.takeException(),isNull);
+    await tester.tap(find.text('Open'));
+    await tester.runAsync(() async { await Future<void>.delayed(const Duration(milliseconds:100)); });
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Cancel'));
+    await tester.pumpAndSettle();
+    expect(output,isNull);
+    expect(tester.takeException(),isNull);
   });
 }
+
 
